@@ -10,12 +10,14 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::select;
 use tokio::sync::Notify;
 
+mod extra_datatypes;
 mod iptables;
 mod packets;
 mod proxy;
-mod read;
+pub mod read;
 mod rotmguard;
-mod write;
+mod tests;
+pub mod write;
 
 #[tokio::main]
 async fn main() -> Result<()> {

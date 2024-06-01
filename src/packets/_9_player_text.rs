@@ -1,7 +1,7 @@
+use super::ClientPacket;
 use crate::read::RPRead;
 
-use super::ClientPacket;
-
+#[derive(Debug, Clone)]
 pub struct PlayerText {
     pub text: String,
 }
