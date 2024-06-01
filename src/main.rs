@@ -28,13 +28,14 @@ async fn main() -> Result<()> {
     let exit_clone = Arc::clone(&exit);
     ctrlc::set_handler(move || exit_clone.notify_waiters()).expect("Error setting Ctrl-C handler");
 
+    let exit_clone = Arc::clone(&exit);
     select! {
-        res = server() => res,
+        res = server(exit_clone) => res,
         _ = exit.notified() => { println!("Exiting..."); Ok(()) }
     }
 }
 
-async fn server() -> Result<()> {
+async fn server(exit: Arc<Notify>) -> Result<()> {
     let listener = TcpListener::bind("127.0.0.1:2051").await?;
 
     loop {
@@ -55,10 +56,16 @@ async fn server() -> Result<()> {
 
         let mut proxy = Proxy::new(socket, real_server);
 
-        if let Err(e) = proxy.run().await {
-            if e.kind() != ErrorKind::UnexpectedEof {
-                println!("ERROR: {e}");
+        let exit_clone = Arc::clone(&exit);
+        tokio::spawn(async move {
+            select! {
+                Err(e) = proxy.run() => {
+                    if e.kind() != ErrorKind::UnexpectedEof {
+                        println!("ERROR: {e}");
+                    }
+                },
+                _ = exit_clone.notified() => {}
             }
-        }
+        });
     }
 }
