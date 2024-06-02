@@ -1,10 +1,10 @@
 use crate::{read::RPRead, write::RPWrite};
 use std::io::{self, Read, Write};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct WorldPos {
-    x: f32,
-    y: f32,
+    pub x: f32,
+    pub y: f32,
 }
 
 impl RPRead for WorldPos {

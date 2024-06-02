@@ -1,5 +1,7 @@
 mod _101_create_success;
+mod _103_ground_damage;
 mod _10_new_tick;
+mod _18_goto;
 mod _35_enemy_shoot;
 mod _42_update;
 mod _64_aoe;
@@ -8,7 +10,9 @@ mod _90_player_hit;
 mod _9_player_text;
 
 pub use _101_create_success::CreateSuccess;
+pub use _103_ground_damage::GroundDamage;
 pub use _10_new_tick::NewTick;
+pub use _18_goto::GotoPacket;
 pub use _35_enemy_shoot::EnemyShoot;
 pub use _42_update::UpdatePacket;
 pub use _64_aoe::AoePacket;
@@ -24,6 +28,7 @@ use crate::{read::RPRead, write::RPWrite};
 pub enum ClientPacket {
     PlayerText(PlayerText) = 9,
     PlayerHit(PlayerHit) = 90,
+    GroundDamage(GroundDamage) = 103,
     Escape = 105,
     Unknown { id: u8 }, // not necessarilly unknown, just not defined in this program, probably because irrelevant
 }
@@ -33,8 +38,9 @@ pub enum ClientPacket {
 #[repr(u8)]
 pub enum ServerPacket {
     NewTick(NewTick) = 10,
+    Goto(GotoPacket) = 18,
     EnemyShoot(EnemyShoot) = 35,
-    UpdatePacket(UpdatePacket) = 42,
+    Update(UpdatePacket) = 42,
     Aoe(AoePacket) = 64,
     Notification(Notification) = 67,
     CreateSuccess(CreateSuccess) = 101,
@@ -63,6 +69,7 @@ impl RPRead for ClientPacket {
         let packet = match packet_id {
             9 => Self::PlayerText(PlayerText::rp_read(data)?),
             90 => Self::PlayerHit(PlayerHit::rp_read(data)?),
+            103 => Self::GroundDamage(GroundDamage::rp_read(data)?),
             105 => Self::Escape,
             _ => Self::Unknown { id: packet_id },
         };
@@ -79,8 +86,9 @@ impl RPRead for ServerPacket {
         let packet_id = u8::rp_read(data)?;
         let packet = match packet_id {
             10 => Self::NewTick(NewTick::rp_read(data)?),
+            18 => Self::Goto(GotoPacket::rp_read(data)?),
             35 => Self::EnemyShoot(EnemyShoot::rp_read(data)?),
-            42 => Self::UpdatePacket(UpdatePacket::rp_read(data)?),
+            42 => Self::Update(UpdatePacket::rp_read(data)?),
             64 => Self::Aoe(AoePacket::rp_read(data)?),
             101 => Self::CreateSuccess(CreateSuccess::rp_read(data)?),
             _ => Self::Unknown { id: packet_id },
@@ -120,11 +128,20 @@ impl RPWrite for ServerPacket {
         bytes_written += (packet_id as u8).rp_write(buf)?;
 
         match self {
-            ServerPacket::Notification(notification) => {
-                bytes_written += notification.rp_write(buf)?;
+            Self::Notification(p) => {
+                bytes_written += p.rp_write(buf)?;
             }
-            ServerPacket::NewTick(new_tick) => {
-                bytes_written += new_tick.rp_write(buf)?;
+            Self::NewTick(p) => {
+                bytes_written += p.rp_write(buf)?;
+            }
+            Self::Aoe(p) => {
+                bytes_written += p.rp_write(buf)?;
+            }
+            Self::Goto(p) => {
+                bytes_written += p.rp_write(buf)?;
+            }
+            Self::Update(p) => {
+                bytes_written += p.rp_write(buf)?;
             }
             _ => panic!("Packet id {packet_id} writing not implemented!"),
         }

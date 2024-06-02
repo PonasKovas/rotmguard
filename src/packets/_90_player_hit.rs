@@ -1,3 +1,5 @@
+use std::io::Read;
+
 use super::ClientPacket;
 use crate::read::RPRead;
 
@@ -8,7 +10,7 @@ pub struct PlayerHit {
 }
 
 impl RPRead for PlayerHit {
-    fn rp_read<R: std::io::prelude::Read>(data: &mut R) -> std::io::Result<Self>
+    fn rp_read<R: Read>(data: &mut R) -> std::io::Result<Self>
     where
         Self: Sized,
     {

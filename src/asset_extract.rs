@@ -1,4 +1,4 @@
-use anyhow::Context;
+use anyhow::{bail, Context};
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -30,7 +30,10 @@ const NON_XML_FILES: &[&str] = &[
     "BillingMode",
 ];
 
+/// object type -> Map<projectile_type -> armor_piercing>
 pub static PROJECTILES: Mutex<BTreeMap<u32, BTreeMap<u32, bool>>> = Mutex::new(BTreeMap::new());
+/// ground type -> damage
+pub static HAZARDOUS_GROUNDS: Mutex<BTreeMap<u32, i64>> = Mutex::new(BTreeMap::new());
 
 pub fn extract_assets(path: &Path) -> io::Result<()> {
     let mut file = File::open(path)?;
@@ -199,11 +202,17 @@ fn align_stream<S: Seek + Read>(stream: &mut S) -> io::Result<()> {
 fn process_xml(xml: &str) -> anyhow::Result<()> {
     let xml = xmltree::Element::parse(xml.as_bytes()).unwrap();
 
-    if xml.name != "Objects" {
-        return Ok(()); // Only interested in Objects sir!
+    match xml.name.as_str() {
+        "Objects" => process_xml_objects(xml.children)?,
+        "GroundTypes" => process_xml_grounds(xml.children)?,
+        _ => return Ok(()), // Not Interested 👍
     }
 
-    for object in xml.children {
+    Ok(())
+}
+
+fn process_xml_objects(objects: Vec<XMLNode>) -> anyhow::Result<()> {
+    for object in objects {
         if let XMLNode::Element(object) = object {
             if object.name != "Object" {
                 // Again, ONLY INTERESTED IN OBJECTS!
@@ -257,6 +266,58 @@ fn process_xml(xml: &str) -> anyhow::Result<()> {
                 // save
                 PROJECTILES.lock().unwrap().insert(object_type, projectiles);
             }
+        }
+    }
+
+    Ok(())
+}
+
+fn process_xml_grounds(grounds: Vec<XMLNode>) -> anyhow::Result<()> {
+    for object in grounds {
+        if let XMLNode::Element(object) = object {
+            if object.name != "Ground" {
+                // ONLY INTERESTED IN GROUND TYPES!
+                continue;
+            }
+
+            let ground_type = object
+                .attributes
+                .get("type")
+                .context("Ground has no 'type'")?;
+
+            // parse the goofy ass ground type
+            let ground_type = ground_type
+                .strip_prefix("0x")
+                .context("unexpected Ground type format")?;
+            let ground_type =
+                u32::from_str_radix(ground_type, 16).context("unexpected Ground type format")?;
+
+            let mut damage = 0i64;
+            // Now each ground type has both MinDamage and MaxDamage but they're always equal
+            for parameter in object.children {
+                if let XMLNode::Element(parameter) = parameter {
+                    if parameter.name != "MinDamage" {
+                        continue;
+                    }
+
+                    if parameter.children.len() == 0 || parameter.children.len() > 1 {
+                        bail!("Invalid Ground MinDamage. Must have only text");
+                    }
+
+                    if let XMLNode::Text(dmg) = &parameter.children[0] {
+                        damage = i64::from_str_radix(dmg, 10)
+                            .context("Invalid Ground MinDamage, must be integer")?;
+                        break;
+                    } else {
+                        bail!("Invalid Ground MinDamage. Value be text");
+                    }
+                }
+            }
+
+            HAZARDOUS_GROUNDS
+                .lock()
+                .unwrap()
+                .insert(ground_type, damage);
         }
     }
 

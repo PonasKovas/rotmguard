@@ -4,7 +4,7 @@ use crate::{
     read::RPRead,
     write::RPWrite,
 };
-use std::io::{self, Error, ErrorKind};
+use std::io::{self, Error, ErrorKind, Read, Write};
 
 #[derive(Debug, Clone)]
 pub struct AoePacket {
@@ -19,7 +19,7 @@ pub struct AoePacket {
 }
 
 impl RPRead for AoePacket {
-    fn rp_read<R: std::io::prelude::Read>(data: &mut R) -> std::io::Result<Self>
+    fn rp_read<R: Read>(data: &mut R) -> std::io::Result<Self>
     where
         Self: Sized,
     {
@@ -33,6 +33,26 @@ impl RPRead for AoePacket {
             color: u32::rp_read(data)?,
             armor_piercing: bool::rp_read(data)?,
         })
+    }
+}
+
+impl RPWrite for AoePacket {
+    fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+    where
+        Self: Sized,
+    {
+        let mut written = 0;
+
+        written += self.position.rp_write(buf)?;
+        written += self.radius.rp_write(buf)?;
+        written += self.damage.rp_write(buf)?;
+        written += self.effect.rp_write(buf)?;
+        written += self.duration.rp_write(buf)?;
+        written += self.orig_type.rp_write(buf)?;
+        written += self.color.rp_write(buf)?;
+        written += self.armor_piercing.rp_write(buf)?;
+
+        Ok(written)
     }
 }
 
