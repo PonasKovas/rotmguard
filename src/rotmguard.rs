@@ -201,6 +201,9 @@ impl RotmGuard {
                     }
                 }
             }
+            ServerPacket::Aoe(aoe) => {
+                println!("{aoe:?}");
+            }
             ServerPacket::Unknown { id: 46 } => {
                 println!("DEAD. Client HP at time of death: {}", proxy.rotmguard.hp);
             }

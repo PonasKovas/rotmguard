@@ -1,15 +1,19 @@
 use anyhow::{bail, Context, Result};
 use hex::FromHex;
 use proxy::Proxy;
+use std::cell::OnceCell;
 use std::collections::BTreeMap;
+use std::fs;
 use std::io::{BufRead, ErrorKind, Read};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use tokio::io::ErrorKind::WouldBlock;
 use tokio::io::{self, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::select;
 use tokio::sync::Notify;
 
+mod asset_extract;
+mod config;
 mod extra_datatypes;
 mod iptables;
 mod packets;
@@ -19,9 +23,20 @@ mod rotmguard;
 mod tests;
 pub mod write;
 
+pub static CONFIG: OnceLock<config::Config> = OnceLock::new();
+
 #[tokio::main]
 async fn main() -> Result<()> {
-    // start by creating an iptables rule to redirect *:2050 (default rotmg port)
+    // Initialize config
+    let raw_config = fs::read_to_string(config::CONFIG_PATH).context("reading config file")?;
+    CONFIG
+        .set(toml::from_str(&raw_config).context("parsing config file")?)
+        .unwrap();
+
+    // Read the resource assets
+    let assets = asset_extract::extract_assets(&CONFIG.get().unwrap().assets_res)?;
+
+    // start by creating an iptables rule to redirect *:2050 (default game port)
     // traffic to 127.0.0.1:2051
     let _iptables_rule = iptables::IpTablesRule::create()?;
 

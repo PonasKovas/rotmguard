@@ -1,10 +1,22 @@
 use std::io::{self, Read};
 
-/// Read packet/datatype in rotmg protocol format
+/// Read packet/datatype in the game protocol format
 pub trait RPRead {
     fn rp_read<R: Read>(data: &mut R) -> io::Result<Self>
     where
         Self: Sized;
+}
+
+impl RPRead for bool {
+    fn rp_read<R: Read>(data: &mut R) -> io::Result<Self>
+    where
+        Self: Sized,
+    {
+        let mut bytes = [0; 1];
+        data.read_exact(&mut bytes)?;
+
+        Ok(bytes[0] != 0)
+    }
 }
 
 impl RPRead for u8 {

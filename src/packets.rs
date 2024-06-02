@@ -2,6 +2,7 @@ mod _101_create_success;
 mod _10_new_tick;
 mod _35_enemy_shoot;
 mod _42_update;
+mod _64_aoe;
 mod _67_notification;
 mod _90_player_hit;
 mod _9_player_text;
@@ -10,6 +11,7 @@ pub use _101_create_success::CreateSuccess;
 pub use _10_new_tick::NewTick;
 pub use _35_enemy_shoot::EnemyShoot;
 pub use _42_update::UpdatePacket;
+pub use _64_aoe::AoePacket;
 pub use _67_notification::Notification;
 pub use _90_player_hit::PlayerHit;
 pub use _9_player_text::PlayerText;
@@ -33,6 +35,7 @@ pub enum ServerPacket {
     NewTick(NewTick) = 10,
     EnemyShoot(EnemyShoot) = 35,
     UpdatePacket(UpdatePacket) = 42,
+    Aoe(AoePacket) = 64,
     Notification(Notification) = 67,
     CreateSuccess(CreateSuccess) = 101,
     Unknown { id: u8 }, // not necessarilly unknown, just not defined in this program, probably because irrelevant
@@ -78,6 +81,7 @@ impl RPRead for ServerPacket {
             10 => Self::NewTick(NewTick::rp_read(data)?),
             35 => Self::EnemyShoot(EnemyShoot::rp_read(data)?),
             42 => Self::UpdatePacket(UpdatePacket::rp_read(data)?),
+            64 => Self::Aoe(AoePacket::rp_read(data)?),
             101 => Self::CreateSuccess(CreateSuccess::rp_read(data)?),
             _ => Self::Unknown { id: packet_id },
         };

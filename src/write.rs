@@ -1,11 +1,22 @@
 use std::io::{self, Write};
 
-/// Write packet/datatype in rotmg protocol format
+/// Write packet/datatype in the game protocol format
 pub trait RPWrite {
     // Returns how many bytes were written
     fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
     where
         Self: Sized;
+}
+
+impl RPWrite for bool {
+    fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+    where
+        Self: Sized,
+    {
+        buf.write_all(if *self { &[1] } else { &[0] })?;
+
+        Ok(1)
+    }
 }
 
 impl RPWrite for u8 {
