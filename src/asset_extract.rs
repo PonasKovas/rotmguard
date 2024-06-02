@@ -1,10 +1,14 @@
+use anyhow::Context;
+use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
+use serde::{Deserialize, Serialize};
 use std::{
+    collections::BTreeMap,
     fs::{self, File},
     io::{self, Error, Read, Seek},
     path::Path,
+    sync::{Mutex, OnceLock},
 };
-
-use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
+use xmltree::XMLNode;
 
 const NON_XML_FILES: &[&str] = &[
     "manifest_xml",
@@ -25,6 +29,8 @@ const NON_XML_FILES: &[&str] = &[
     "manifest",
     "BillingMode",
 ];
+
+pub static PROJECTILES: Mutex<BTreeMap<u32, BTreeMap<u32, bool>>> = Mutex::new(BTreeMap::new());
 
 pub fn extract_assets(path: &Path) -> io::Result<()> {
     let mut file = File::open(path)?;
@@ -146,12 +152,17 @@ pub fn extract_assets(path: &Path) -> io::Result<()> {
                 Ok(s) => s,
                 Err(e) => return Err(Error::new(io::ErrorKind::InvalidData, e)),
             };
-            // println!("{name}");
-            fs::write(format!("debug/{name}.xml"), xml)?;
+
+            if let Err(e) = process_xml(&xml) {
+                println!("Error processing {name} XML asset: {e}");
+                // println!("{xml}");
+            }
         }
 
         file.seek(io::SeekFrom::Start(position))?;
     }
+
+    println!("All assets extracted and read.");
 
     Ok(())
 }
@@ -179,6 +190,74 @@ fn align_stream<S: Seek + Read>(stream: &mut S) -> io::Result<()> {
     let bytes_to_skip = (4 - (position % 4)) % 4;
     for _ in 0..bytes_to_skip {
         stream.read_u8()?;
+    }
+
+    Ok(())
+}
+
+// Parses XML asset and adds to the registry
+fn process_xml(xml: &str) -> anyhow::Result<()> {
+    let xml = xmltree::Element::parse(xml.as_bytes()).unwrap();
+
+    if xml.name != "Objects" {
+        return Ok(()); // Only interested in Objects sir!
+    }
+
+    for object in xml.children {
+        if let XMLNode::Element(object) = object {
+            if object.name != "Object" {
+                // Again, ONLY INTERESTED IN OBJECTS!
+                continue;
+            }
+
+            let object_type = object
+                .attributes
+                .get("type")
+                .context("Object has no 'type'")?;
+
+            // parse the goofy ass object type
+            let object_type = object_type
+                .strip_prefix("0x")
+                .context("unexpected Object type format")?;
+            let object_type =
+                u32::from_str_radix(object_type, 16).context("unexpected Object type format")?;
+
+            let mut projectiles = BTreeMap::new();
+            let mut i = 0;
+            for parameter in object.children {
+                if let XMLNode::Element(parameter) = parameter {
+                    if parameter.name == "Projectile" {
+                        let projectile_id = match parameter.attributes.get("id") {
+                            Some(s) => {
+                                let id = u32::from_str_radix(s, 10)
+                                    .context("Projectile id non-integer")?;
+
+                                id
+                            }
+                            None => i,
+                        };
+
+                        let mut armor_piercing = false;
+                        for projectile_parameter in parameter.children {
+                            if let XMLNode::Element(projectile_parameter) = projectile_parameter {
+                                if projectile_parameter.name == "ArmorPiercing" {
+                                    armor_piercing = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        projectiles.insert(projectile_id, armor_piercing);
+                        i += 1;
+                    }
+                }
+            }
+
+            if projectiles.len() > 0 {
+                // save
+                PROJECTILES.lock().unwrap().insert(object_type, projectiles);
+            }
+        }
     }
 
     Ok(())

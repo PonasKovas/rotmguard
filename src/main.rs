@@ -34,7 +34,8 @@ async fn main() -> Result<()> {
         .unwrap();
 
     // Read the resource assets
-    let assets = asset_extract::extract_assets(&CONFIG.get().unwrap().assets_res)?;
+    asset_extract::extract_assets(&CONFIG.get().unwrap().assets_res)?;
+    // println!("{:?}", asset_extract::PROJECTILES.lock().unwrap());
 
     // start by creating an iptables rule to redirect *:2050 (default game port)
     // traffic to 127.0.0.1:2051
