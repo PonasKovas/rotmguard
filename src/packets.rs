@@ -1,6 +1,7 @@
 mod _101_create_success;
 mod _103_ground_damage;
 mod _10_new_tick;
+mod _11_show_effect;
 mod _18_goto;
 mod _35_enemy_shoot;
 mod _42_update;
@@ -12,6 +13,7 @@ mod _9_player_text;
 pub use _101_create_success::CreateSuccess;
 pub use _103_ground_damage::GroundDamage;
 pub use _10_new_tick::NewTick;
+pub use _11_show_effect::ShowEffect;
 pub use _18_goto::GotoPacket;
 pub use _35_enemy_shoot::EnemyShoot;
 pub use _42_update::UpdatePacket;
@@ -38,6 +40,7 @@ pub enum ClientPacket {
 #[repr(u8)]
 pub enum ServerPacket {
     NewTick(NewTick) = 10,
+    ShowEffect(ShowEffect) = 11,
     Goto(GotoPacket) = 18,
     EnemyShoot(EnemyShoot) = 35,
     Update(UpdatePacket) = 42,
@@ -86,6 +89,7 @@ impl RPRead for ServerPacket {
         let packet_id = u8::rp_read(data)?;
         let packet = match packet_id {
             10 => Self::NewTick(NewTick::rp_read(data)?),
+            11 => Self::ShowEffect(ShowEffect::rp_read(data)?),
             18 => Self::Goto(GotoPacket::rp_read(data)?),
             35 => Self::EnemyShoot(EnemyShoot::rp_read(data)?),
             42 => Self::Update(UpdatePacket::rp_read(data)?),
@@ -141,6 +145,9 @@ impl RPWrite for ServerPacket {
                 bytes_written += p.rp_write(buf)?;
             }
             Self::Update(p) => {
+                bytes_written += p.rp_write(buf)?;
+            }
+            Self::ShowEffect(p) => {
                 bytes_written += p.rp_write(buf)?;
             }
             _ => panic!("Packet id {packet_id} writing not implemented!"),

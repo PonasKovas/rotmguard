@@ -1,7 +1,9 @@
 use crate::{
     asset_extract,
     extra_datatypes::{ObjectStatusData, Stat, StatData, StatType, WorldPos},
-    packets::{AoePacket, ClientPacket, EnemyShoot, GotoPacket, Notification, ServerPacket},
+    packets::{
+        AoePacket, ClientPacket, EnemyShoot, GotoPacket, Notification, ServerPacket, ShowEffect,
+    },
     proxy::Proxy,
 };
 use anyhow::{bail, Context, Result};
@@ -73,7 +75,7 @@ impl RotmGuard {
     pub async fn handle_client_packet(proxy: &mut Proxy, packet: &ClientPacket) -> Result<bool> {
         match packet {
             ClientPacket::PlayerText(player_text) => {
-                if player_text.text == "/hi" {
+                if player_text.text.starts_with("/hi") {
                     let colors = [0xff8080, 0xff8080, 0x80ffac, 0x80c6ff, 0xc480ff];
                     let color = colors[rand::thread_rng().gen_range(0..colors.len())];
 
@@ -81,6 +83,28 @@ impl RotmGuard {
                         message: format!("hi {} :)", proxy.rotmguard.my_name),
                         picture_type: 0,
                         color,
+                    };
+                    proxy.send_client(&packet.into()).await?;
+
+                    let packet = ShowEffect {
+                        effect_type: 1,
+                        target_object_id: Some(proxy.rotmguard.my_object_id),
+                        pos1: WorldPos { x: 0.0, y: 0.0 },
+                        pos2: WorldPos { x: 1.0, y: 1.0 },
+                        color: Some(color),
+                        duration: Some(5.0),
+                        unknown: None,
+                    };
+                    proxy.send_client(&packet.into()).await?;
+
+                    let packet = ShowEffect {
+                        effect_type: 37,
+                        target_object_id: Some(proxy.rotmguard.my_object_id),
+                        pos1: WorldPos { x: 0.0, y: 0.0 },
+                        pos2: WorldPos { x: 0.0, y: 0.0 },
+                        color: Some(color),
+                        duration: Some(0.5),
+                        unknown: None,
                     };
                     proxy.send_client(&packet.into()).await?;
                     return Ok(false); // dont forward this :)
