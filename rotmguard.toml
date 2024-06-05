@@ -4,4 +4,9 @@
 #
 # Proton pfx can be found in ~/.steam/root/steamapps/compatdata/<app id>/pfx/
 # To find the `app id` of your game, in Steam library right click on it -> properties -> Updates
-assets_res = "resources.assets"
+assets_res = ""
+
+[settings]
+autonexus_hp = 20
+# fakename = "GHZD"
+dev_mode = false

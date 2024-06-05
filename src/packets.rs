@@ -5,6 +5,7 @@ mod _11_show_effect;
 mod _18_goto;
 mod _35_enemy_shoot;
 mod _42_update;
+mod _45_reconnect;
 mod _62_move;
 mod _64_aoe;
 mod _67_notification;
@@ -18,6 +19,7 @@ pub use _11_show_effect::ShowEffect;
 pub use _18_goto::GotoPacket;
 pub use _35_enemy_shoot::EnemyShoot;
 pub use _42_update::UpdatePacket;
+pub use _45_reconnect::Reconnect;
 pub use _62_move::Move;
 pub use _64_aoe::AoePacket;
 pub use _67_notification::Notification;
@@ -47,6 +49,7 @@ pub enum ServerPacket {
     Goto(GotoPacket) = 18,
     EnemyShoot(EnemyShoot) = 35,
     Update(UpdatePacket) = 42,
+    Reconnect(Reconnect) = 45,
     Aoe(AoePacket) = 64,
     Notification(Notification) = 67,
     CreateSuccess(CreateSuccess) = 101,
@@ -105,6 +108,7 @@ impl RPRead for ServerPacket {
             18 => Self::Goto(GotoPacket::rp_read(data)?),
             35 => Self::EnemyShoot(EnemyShoot::rp_read(data)?),
             42 => Self::Update(UpdatePacket::rp_read(data)?),
+            45 => Self::Reconnect(Reconnect::rp_read(data)?),
             64 => Self::Aoe(AoePacket::rp_read(data)?),
             67 => Self::Notification(Notification::rp_read(data)?),
             101 => Self::CreateSuccess(CreateSuccess::rp_read(data)?),
@@ -169,6 +173,9 @@ impl RPWrite for ServerPacket {
                 bytes_written += p.rp_write(buf)?;
             }
             Self::ShowEffect(p) => {
+                bytes_written += p.rp_write(buf)?;
+            }
+            Self::Reconnect(p) => {
                 bytes_written += p.rp_write(buf)?;
             }
             _ => panic!("Packet id {packet_id} writing not implemented!"),

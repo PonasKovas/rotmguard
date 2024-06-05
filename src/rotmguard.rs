@@ -2,7 +2,8 @@ use crate::{
     asset_extract::{self, ProjectileInfo},
     extra_datatypes::{ObjectStatusData, Stat, StatData, StatType, WorldPos},
     packets::{
-        AoePacket, ClientPacket, EnemyShoot, GotoPacket, Notification, ServerPacket, ShowEffect,
+        AoePacket, ClientPacket, EnemyShoot, GotoPacket, Notification, Reconnect, ServerPacket,
+        ShowEffect,
     },
     proxy::Proxy,
     read::RPRead,
@@ -10,6 +11,7 @@ use crate::{
 };
 use anyhow::{bail, Context, Result};
 use lru::LruCache;
+use phf::phf_map;
 use rand::prelude::*;
 use serde::Deserialize;
 use std::{
@@ -29,6 +31,27 @@ const NAME_STAT: u8 = 31;
 
 // HP AT WHICH TO NEXUS
 const AUTONEXUS_HP: i64 = 20;
+
+static SERVERS: phf::Map<&str, &str> = phf_map! {
+    "eue"=> "18.184.218.174",
+    "eusw"=> "35.180.67.120",
+    "use2"=> "54.209.152.223",
+    "eun"=> "18.159.133.120",
+    "use"=> "54.234.226.24",
+    "usw4"=> "54.235.235.140",
+    "euw2"=> "52.16.86.215",
+    "a"=> "3.0.147.127",
+    "uss3"=> "52.207.206.31",
+    "euw"=> "15.237.60.223",
+    "usw"=> "54.86.47.176",
+    "usmw2"=> "3.140.254.133",
+    "usmw"=> "18.221.120.59",
+    "uss"=> "3.82.126.16",
+    "usw3"=> "18.144.30.153",
+    "ussw"=> "54.153.13.68",
+    "usnw"=> "34.238.176.119",
+    "aus"=> "13.236.87.250"
+};
 
 #[derive(Debug, Clone)]
 pub struct RotmGuard {
@@ -266,6 +289,45 @@ impl RotmGuard {
 
                     return Ok(false); // dont forward this :)
                 }
+                if player_text.text.starts_with("/con") {
+                    let srv = match player_text.text.split(" ").skip(1).next() {
+                        Some(s) => s,
+                        None => {
+                            let packet = Notification::Behavior {
+                                message: format!("Specify a server. Example: eue"),
+                                picture_type: 0,
+                                color: 0xff3333,
+                            };
+                            proxy.send_client(&packet.into()).await?;
+
+                            return Ok(false);
+                        }
+                    };
+
+                    match SERVERS.get(srv) {
+                        Some(ip) => {
+                            let packet = Reconnect {
+                                hostname: format!("suck a dick"),
+                                address: format!("{ip}"),
+                                port: 2050,
+                                game_id: 0xfffffffe,
+                                key_time: 0xffffffff,
+                                key: Vec::new(),
+                            };
+                            proxy.send_client(&packet.into()).await?;
+                        }
+                        None => {
+                            let packet = Notification::Behavior {
+                                message: format!("Server {srv:?} is invalid."),
+                                picture_type: 0,
+                                color: 0xff3333,
+                            };
+                            proxy.send_client(&packet.into()).await?;
+                        }
+                    }
+
+                    return Ok(false); // dont forward this :)
+                }
             }
             ClientPacket::PlayerHit(player_hit) => {
                 let bullet_info = match proxy
@@ -342,12 +404,6 @@ impl RotmGuard {
             ClientPacket::Move(move_packet) => {
                 if let Some(last_record) = move_packet.move_records.last() {
                     proxy.rotmguard.position = last_record.1;
-                }
-            }
-            ClientPacket::Unknown { id: 89, bytes } => {
-                let pos = WorldPos::rp_read(&mut &bytes[4..])?;
-                if pos == proxy.rotmguard.position {
-                    return Ok(false);
                 }
             }
             ClientPacket::Unknown { id, bytes } => {
@@ -526,6 +582,30 @@ impl RotmGuard {
                         continue;
                     }
 
+                    for stat in &mut status.stats {
+                        if stat.stat_type == StatType::MaxHP {
+                            proxy.rotmguard.player_stats.max_hp = stat.stat.as_int();
+                        } else if stat.stat_type == StatType::Defense {
+                            proxy.rotmguard.player_stats.def = stat.stat.as_int();
+                        } else if stat.stat_type == StatType::Vitality {
+                            proxy.rotmguard.player_stats.vit = stat.stat.as_int();
+                        }
+
+                        if stat.stat_type == StatType::Condition {
+                            let bitmask = stat.stat.as_int();
+                            proxy.rotmguard.conditions.sick = (bitmask & 0x10) != 0;
+                            proxy.rotmguard.conditions.bleeding = (bitmask & 0x8000) != 0;
+                            proxy.rotmguard.conditions.healing = (bitmask & 0x20000) != 0;
+                            proxy.rotmguard.conditions.in_combat = (bitmask & 0x100000) != 0;
+                            proxy.rotmguard.conditions.armor_broken = (bitmask & 0x4000000) != 0;
+                        }
+                        if stat.stat_type == StatType::Condition2 {
+                            let bitmask = stat.stat.as_int();
+                            proxy.rotmguard.conditions.cursed = (bitmask & 0x40) != 0;
+                            proxy.rotmguard.conditions.exposed = (bitmask & 0x20000) != 0;
+                        }
+                    }
+
                     // remove fame updates if there are
                     status.stats.retain(|s| {
                         s.stat_type != StatType::CurrentFame
@@ -540,6 +620,8 @@ impl RotmGuard {
                         // if server hp lower than client hp flash the character and give notification for debugging purposes
                         if (proxy.rotmguard.hp - proxy.rotmguard.player_stats.server_hp as f64)
                             > AUTONEXUS_HP as f64 / 2.0
+                            && proxy.rotmguard.player_stats.server_hp
+                                != proxy.rotmguard.player_stats.max_hp
                         {
                             let packet = Notification::Behavior {
                                 message: format!(
@@ -586,32 +668,6 @@ impl RotmGuard {
                         });
                     }
 
-                    for stat in &mut status.stats {
-                        if stat.stat_type == StatType::MaxHP {
-                            proxy.rotmguard.player_stats.max_hp = stat.stat.as_int();
-                        } else if stat.stat_type == StatType::Defense {
-                            proxy.rotmguard.player_stats.def = stat.stat.as_int();
-                        } else if stat.stat_type == StatType::Vitality {
-                            proxy.rotmguard.player_stats.vit = stat.stat.as_int();
-                        }
-
-                        if stat.stat_type == StatType::Condition {
-                            let bitmask = stat.stat.as_int();
-                            println!("RECEIVED CONDITION {bitmask:x}");
-                            proxy.rotmguard.conditions.sick = (bitmask & 0x10) != 0;
-                            proxy.rotmguard.conditions.bleeding = (bitmask & 0x8000) != 0;
-                            proxy.rotmguard.conditions.healing = (bitmask & 0x20000) != 0;
-                            proxy.rotmguard.conditions.in_combat = (bitmask & 0x100000) != 0;
-                            proxy.rotmguard.conditions.armor_broken = (bitmask & 0x4000000) != 0;
-                        }
-                        if stat.stat_type == StatType::Condition2 {
-                            let bitmask = stat.stat.as_int();
-                            println!("RECEIVED CONDITION2 {bitmask:x}");
-                            proxy.rotmguard.conditions.cursed = (bitmask & 0x40) != 0;
-                            proxy.rotmguard.conditions.exposed = (bitmask & 0x20000) != 0;
-                        }
-                    }
-
                     if let Some(n) = &proxy.rotmguard.fake_name {
                         status.stats.push(StatData {
                             stat_type: StatType::Name,
@@ -640,6 +696,7 @@ impl RotmGuard {
                     // of course they add a sprinkle of JSON to the protocol
                     // and of course its invalid JSON (trailing commas) so we
                     // cant use serde_json
+                    // TODO maybe improve this a bit
                     if message.starts_with(r#"{"k":"s.plus_symbol","t":{"amount":""#)
                         && message.ends_with(r#"",}}"#)
                     {
