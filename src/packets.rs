@@ -22,7 +22,7 @@ pub use _42_update::UpdatePacket;
 pub use _45_reconnect::Reconnect;
 pub use _62_move::Move;
 pub use _64_aoe::AoePacket;
-pub use _67_notification::Notification;
+pub use _67_notification::NotificationPacket;
 pub use _90_player_hit::PlayerHit;
 pub use _9_player_text::PlayerText;
 
@@ -51,7 +51,7 @@ pub enum ServerPacket {
 	Update(UpdatePacket) = 42,
 	Reconnect(Reconnect) = 45,
 	Aoe(AoePacket) = 64,
-	Notification(Notification) = 67,
+	Notification(NotificationPacket) = 67,
 	CreateSuccess(CreateSuccess) = 101,
 	Unknown { id: u8, bytes: Vec<u8> }, // not necessarilly unknown, just not defined in this program, probably because irrelevant
 }
@@ -110,7 +110,7 @@ impl RPRead for ServerPacket {
 			42 => Self::Update(UpdatePacket::rp_read(data)?),
 			45 => Self::Reconnect(Reconnect::rp_read(data)?),
 			64 => Self::Aoe(AoePacket::rp_read(data)?),
-			67 => Self::Notification(Notification::rp_read(data)?),
+			67 => Self::Notification(NotificationPacket::rp_read(data)?),
 			101 => Self::CreateSuccess(CreateSuccess::rp_read(data)?),
 			_ => {
 				let mut bytes = Vec::new();

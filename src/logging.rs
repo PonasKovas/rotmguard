@@ -1,12 +1,9 @@
 use anyhow::Result;
 use std::{
 	collections::VecDeque,
+	fs::{create_dir_all, File},
 	io::Write,
 	sync::{Mutex, MutexGuard},
-};
-use tokio::{
-	fs::{create_dir_all, File},
-	io::AsyncWriteExt,
 };
 use tracing_subscriber::{fmt::MakeWriter, FmtSubscriber};
 
@@ -66,11 +63,11 @@ pub fn init_logger() -> Result<()> {
 	Ok(())
 }
 
-pub async fn save_logs() {
-	if let Err(e) = create_dir_all("logs/").await {
+pub fn save_logs() {
+	if let Err(e) = create_dir_all("logs/") {
 		eprintln!("ERROR: couldn't create directory logs/. {e:?}");
 	}
-	let mut log_file = match File::create(format!("logs/{}.log", chrono::Local::now())).await {
+	let mut log_file = match File::create(format!("logs/{}.log", chrono::Local::now())) {
 		Ok(file) => file,
 		Err(e) => {
 			eprintln!("ERROR: couldn't create log file: {e:?}");
@@ -79,7 +76,7 @@ pub async fn save_logs() {
 	};
 
 	for log_line in LOG_BUFFER.buffer.lock().unwrap().iter().rev() {
-		if let Err(e) = log_file.write_all(&log_line).await {
+		if let Err(e) = log_file.write_all(&log_line) {
 			eprintln!("ERROR: couldn't write to log file: {e:?}");
 		}
 	}

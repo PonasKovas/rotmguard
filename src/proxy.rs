@@ -1,5 +1,5 @@
 use crate::{
-	packets::{ClientPacket, ServerPacket},
+	packets::{ClientPacket, NotificationPacket, ServerPacket},
 	read::RPRead,
 	rotmguard::RotmGuard,
 	write::RPWrite,

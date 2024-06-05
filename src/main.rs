@@ -19,6 +19,7 @@ use tracing::{event, span, Level};
 
 mod asset_extract;
 mod config;
+pub mod constants;
 mod extra_datatypes;
 mod iptables;
 mod logging;

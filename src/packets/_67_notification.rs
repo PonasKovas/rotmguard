@@ -5,7 +5,7 @@ use crate::{read::RPRead, write::RPWrite};
 use super::ServerPacket;
 
 #[non_exhaustive]
-pub enum Notification {
+pub enum NotificationPacket {
 	StatIncrease {
 		text: String,
 	},
@@ -63,7 +63,7 @@ pub enum Notification {
 	},
 }
 
-impl RPRead for Notification {
+impl RPRead for NotificationPacket {
 	fn rp_read<R: Read>(data: &mut R) -> std::io::Result<Self>
 	where
 		Self: Sized,
@@ -72,43 +72,43 @@ impl RPRead for Notification {
 		let extra = u8::rp_read(data)?;
 
 		Ok(match notification_type {
-			0 => Notification::StatIncrease {
+			0 => NotificationPacket::StatIncrease {
 				text: String::rp_read(data)?,
 			},
-			1 => Notification::ServerMessage {
+			1 => NotificationPacket::ServerMessage {
 				text: String::rp_read(data)?,
 			},
-			2 => Notification::ErrorMessage {
+			2 => NotificationPacket::ErrorMessage {
 				text: String::rp_read(data)?,
 			},
-			3 => Notification::StickyMessage {
+			3 => NotificationPacket::StickyMessage {
 				text: String::rp_read(data)?,
 			},
-			9 => Notification::TeleportationError {
+			9 => NotificationPacket::TeleportationError {
 				text: String::rp_read(data)?,
 			},
-			4 => Notification::Global {
+			4 => NotificationPacket::Global {
 				text: String::rp_read(data)?,
 				ui_extra: u16::rp_read(data)?,
 			},
-			5 => Notification::Queue {
+			5 => NotificationPacket::Queue {
 				message_type: u32::rp_read(data)?,
 				queue_pos: u16::rp_read(data)?,
 			},
-			6 => Notification::ObjectText {
+			6 => NotificationPacket::ObjectText {
 				message: String::rp_read(data)?,
 				object_id: u32::rp_read(data)?,
 				color: u32::rp_read(data)?,
 			},
-			7 => Notification::PlayerDeath {
+			7 => NotificationPacket::PlayerDeath {
 				message: String::rp_read(data)?,
 				picture_type: u32::rp_read(data)?,
 			},
-			8 => Notification::PortalOpened {
+			8 => NotificationPacket::PortalOpened {
 				message: String::rp_read(data)?,
 				picture_type: u32::rp_read(data)?,
 			},
-			10 => Notification::PlayerCallout {
+			10 => NotificationPacket::PlayerCallout {
 				message: String::rp_read(data)?,
 				object_id: u32::rp_read(data)?,
 				stars: u16::rp_read(data)?,
@@ -119,18 +119,18 @@ impl RPRead for Notification {
 				} else {
 					None
 				};
-				Notification::ProgressBar {
+				NotificationPacket::ProgressBar {
 					message,
 					max: u32::rp_read(data)?,
 					value: u16::rp_read(data)?,
 				}
 			}
-			12 => Notification::Behavior {
+			12 => NotificationPacket::Behavior {
 				message: String::rp_read(data)?,
 				picture_type: u32::rp_read(data)?,
 				color: u32::rp_read(data)?,
 			},
-			13 => Notification::Emote {
+			13 => NotificationPacket::Emote {
 				object_id: u32::rp_read(data)?,
 				emote_type: u32::rp_read(data)?,
 			},
@@ -144,7 +144,7 @@ impl RPRead for Notification {
 	}
 }
 
-impl RPWrite for Notification {
+impl RPWrite for NotificationPacket {
 	fn rp_write<W: Write>(&self, buf: &mut W) -> std::io::Result<usize>
 	where
 		Self: Sized,
@@ -152,38 +152,38 @@ impl RPWrite for Notification {
 		let mut bytes_written = 0;
 
 		match self {
-			Notification::StatIncrease { text } => {
+			NotificationPacket::StatIncrease { text } => {
 				bytes_written += 0u8.rp_write(buf)?; // notification type
 				bytes_written += 0u8.rp_write(buf)?; // extra
 				bytes_written += text.rp_write(buf)?;
 			}
-			Notification::ServerMessage { text } => {
+			NotificationPacket::ServerMessage { text } => {
 				bytes_written += 1u8.rp_write(buf)?; // notification type
 				bytes_written += 0u8.rp_write(buf)?; // extra
 				bytes_written += text.rp_write(buf)?;
 			}
-			Notification::ErrorMessage { text } => {
+			NotificationPacket::ErrorMessage { text } => {
 				bytes_written += 2u8.rp_write(buf)?; // notification type
 				bytes_written += 0u8.rp_write(buf)?; // extra
 				bytes_written += text.rp_write(buf)?;
 			}
-			Notification::StickyMessage { text } => {
+			NotificationPacket::StickyMessage { text } => {
 				bytes_written += 3u8.rp_write(buf)?; // notification type
 				bytes_written += 0u8.rp_write(buf)?; // extra
 				bytes_written += text.rp_write(buf)?;
 			}
-			Notification::TeleportationError { text } => {
+			NotificationPacket::TeleportationError { text } => {
 				bytes_written += 9u8.rp_write(buf)?; // notification type
 				bytes_written += 0u8.rp_write(buf)?; // extra
 				bytes_written += text.rp_write(buf)?;
 			}
-			Notification::Global { text, ui_extra } => {
+			NotificationPacket::Global { text, ui_extra } => {
 				bytes_written += 4u8.rp_write(buf)?; // notification type
 				bytes_written += 0u8.rp_write(buf)?; // extra
 				bytes_written += text.rp_write(buf)?;
 				bytes_written += ui_extra.rp_write(buf)?;
 			}
-			Notification::Queue {
+			NotificationPacket::Queue {
 				message_type,
 				queue_pos,
 			} => {
@@ -192,7 +192,7 @@ impl RPWrite for Notification {
 				bytes_written += message_type.rp_write(buf)?;
 				bytes_written += queue_pos.rp_write(buf)?;
 			}
-			Notification::ObjectText {
+			NotificationPacket::ObjectText {
 				message,
 				object_id,
 				color,
@@ -203,7 +203,7 @@ impl RPWrite for Notification {
 				bytes_written += object_id.rp_write(buf)?;
 				bytes_written += color.rp_write(buf)?;
 			}
-			Notification::PlayerDeath {
+			NotificationPacket::PlayerDeath {
 				message,
 				picture_type,
 			} => {
@@ -212,7 +212,7 @@ impl RPWrite for Notification {
 				bytes_written += message.rp_write(buf)?;
 				bytes_written += picture_type.rp_write(buf)?;
 			}
-			Notification::PortalOpened {
+			NotificationPacket::PortalOpened {
 				message,
 				picture_type,
 			} => {
@@ -221,7 +221,7 @@ impl RPWrite for Notification {
 				bytes_written += message.rp_write(buf)?;
 				bytes_written += picture_type.rp_write(buf)?;
 			}
-			Notification::PlayerCallout {
+			NotificationPacket::PlayerCallout {
 				message,
 				object_id,
 				stars,
@@ -232,7 +232,7 @@ impl RPWrite for Notification {
 				bytes_written += object_id.rp_write(buf)?;
 				bytes_written += stars.rp_write(buf)?;
 			}
-			Notification::ProgressBar {
+			NotificationPacket::ProgressBar {
 				message,
 				max,
 				value,
@@ -251,7 +251,7 @@ impl RPWrite for Notification {
 				bytes_written += max.rp_write(buf)?;
 				bytes_written += value.rp_write(buf)?;
 			}
-			Notification::Behavior {
+			NotificationPacket::Behavior {
 				message,
 				picture_type,
 				color,
@@ -262,7 +262,7 @@ impl RPWrite for Notification {
 				bytes_written += picture_type.rp_write(buf)?;
 				bytes_written += color.rp_write(buf)?;
 			}
-			Notification::Emote {
+			NotificationPacket::Emote {
 				object_id,
 				emote_type,
 			} => {
@@ -277,8 +277,8 @@ impl RPWrite for Notification {
 	}
 }
 
-impl From<Notification> for ServerPacket {
-	fn from(value: Notification) -> Self {
+impl From<NotificationPacket> for ServerPacket {
+	fn from(value: NotificationPacket) -> Self {
 		Self::Notification(value)
 	}
 }

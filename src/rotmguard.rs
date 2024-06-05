@@ -3,8 +3,8 @@ use crate::{
 	config,
 	extra_datatypes::{ObjectStatusData, Stat, StatData, StatType, WorldPos},
 	packets::{
-		AoePacket, ClientPacket, EnemyShoot, GotoPacket, Notification, Reconnect, ServerPacket,
-		ShowEffect,
+		AoePacket, ClientPacket, EnemyShoot, GotoPacket, NotificationPacket, Reconnect,
+		ServerPacket, ShowEffect,
 	},
 	proxy::Proxy,
 	read::RPRead,
@@ -21,53 +21,39 @@ use std::{
 	num::NonZero,
 	time::{Duration, Instant},
 };
+use tracing::{event, Level};
+use util::Notification;
 
-static SERVERS: phf::Map<&str, &str> = phf_map! {
-	"eue"	=> "18.184.218.174",
-	"eusw"	=> "35.180.67.120",
-	"use2"	=> "54.209.152.223",
-	"eun"	=> "18.159.133.120",
-	"use"	=> "54.234.226.24",
-	"usw4"	=> "54.235.235.140",
-	"euw2"	=> "52.16.86.215",
-	"a"		=> "3.0.147.127",
-	"uss3"	=> "52.207.206.31",
-	"euw"	=> "15.237.60.223",
-	"usw"	=> "54.86.47.176",
-	"usmw2"	=> "3.140.254.133",
-	"usmw"	=> "18.221.120.59",
-	"uss"	=> "3.82.126.16",
-	"usw3"	=> "18.144.30.153",
-	"ussw"	=> "54.153.13.68",
-	"usnw"	=> "34.238.176.119",
-	"aus"	=> "13.236.87.250"
-};
+mod commands;
+mod util;
 
 #[derive(Debug, Clone)]
 pub struct RotmGuard {
-	// the simulated HP of the player
-	hp: f64,
-	// the time instant when last hit was taken
-	last_hit_instant: Instant,
 	// the player's object id
 	my_object_id: i64,
-	// the player's username
-	my_name: String,
+	// the simulated HP of the player
+	hp: f64,
+	// all important stats of the player
+	player_stats: PlayerStats,
+	// all current important condition effects of the player, such as exposed, cursed, bleeding etc
+	conditions: PlayerConditions,
+	// the current world position of the player
+	position: WorldPos,
+	// the time instant when last hit was taken
+	last_hit_instant: Instant,
+
+	// shows a fake name for screenshots
+	fake_name: Option<String>,
+
 	// all currently visible bullets. key is (bullet id, owner id)
 	bullets: LruCache<(u16, u32), Bullet>,
 	// maps the object id of a currently visible object to it's type id
 	objects: BTreeMap<i64, u16>,
-	// all important stats of the player
-	player_stats: PlayerStats,
 	// all once seen ground tiles that could deal damage. Map<(x, y) -> damage>
 	hazardous_tiles: HashMap<(i16, i16), i64>,
-	// all current important condition effects of the player, such as exposed, cursed, bleeding etc
-	conditions: PlayerConditions,
-	// shows a fake name for screenshots
-	fake_name: Option<String>,
-	// the current world position of the player
-	position: WorldPos,
+
 	// for packet investigation
+	// saves all packets server->client or client->server respectively until the given instant
 	record_sc_until: Option<Instant>,
 	record_cs_until: Option<Instant>,
 }
@@ -102,8 +88,7 @@ impl RotmGuard {
 		Self {
 			hp: 1.0,
 			last_hit_instant: Instant::now(),
-			my_object_id: 0, // CreateSuccess packet sets this
-			my_name: "?".to_owned(),
+			my_object_id: 0,
 			bullets: LruCache::new(NonZero::new(1000).unwrap()),
 			objects: BTreeMap::new(),
 			player_stats: PlayerStats {
@@ -132,193 +117,7 @@ impl RotmGuard {
 	pub async fn handle_client_packet(proxy: &mut Proxy, packet: &ClientPacket) -> Result<bool> {
 		match packet {
 			ClientPacket::PlayerText(player_text) => {
-				if player_text.text.starts_with("/hi") {
-					let colors = [0xff8080, 0xff8080, 0x80ffac, 0x80c6ff, 0xc480ff];
-					let color = colors[rand::thread_rng().gen_range(0..colors.len())];
-
-					let packet = Notification::Behavior {
-						message: format!("hi {} :)", proxy.rotmguard.my_name),
-						picture_type: 0,
-						color,
-					};
-					proxy.send_client(&packet.into()).await?;
-
-					let packet = ShowEffect {
-						effect_type: 1,
-						target_object_id: Some(proxy.rotmguard.my_object_id),
-						pos1: WorldPos { x: 0.0, y: 0.0 },
-						pos2: WorldPos { x: 1.0, y: 1.0 },
-						color: Some(color),
-						duration: Some(5.0),
-						unknown: None,
-					};
-					proxy.send_client(&packet.into()).await?;
-
-					let packet = ShowEffect {
-						effect_type: 37,
-						target_object_id: Some(proxy.rotmguard.my_object_id),
-						pos1: WorldPos { x: 0.0, y: 0.0 },
-						pos2: WorldPos { x: 0.0, y: 0.0 },
-						color: Some(color),
-						duration: Some(0.5),
-						unknown: None,
-					};
-					proxy.send_client(&packet.into()).await?;
-					return Ok(false); // dont forward this :)
-				}
-				if player_text.text.starts_with("/effect ") {
-					match u8::from_str_radix(player_text.text.split(" ").collect::<Vec<_>>()[1], 10)
-					{
-						Ok(id) => {
-							let packet = ShowEffect {
-								effect_type: id,
-								target_object_id: Some(proxy.rotmguard.my_object_id),
-								pos1: WorldPos { x: 5.0, y: 0.0 },
-								pos2: WorldPos { x: 0.0, y: 0.0 },
-								color: Some(0xffffff),
-								duration: Some(0.5),
-								unknown: None,
-							};
-							proxy.send_client(&packet.into()).await?;
-						}
-						Err(e) => {
-							let packet = Notification::ErrorMessage {
-								text: format!("{e}"),
-							};
-							proxy.send_client(&packet.into()).await?;
-						}
-					}
-					return Ok(false); // dont forward this :)
-				}
-				if player_text.text.starts_with("/fn") {
-					let fake_name = match player_text.text.split(" ").skip(1).next() {
-						Some(n) => n.to_owned(),
-						None => {
-							// generate a random name
-							let mut random_name = String::with_capacity(10);
-							let chars = "rotmguard"; // a goofy little easter egg 😊
-							for _ in 0..10 {
-								random_name.push(
-									chars
-										.chars()
-										.nth(thread_rng().gen::<usize>() % chars.len())
-										.unwrap(),
-								);
-							}
-
-							random_name
-						}
-					};
-
-					proxy.rotmguard.fake_name = Some(fake_name.clone());
-					config().settings.lock().unwrap().fakename = Some(fake_name);
-
-					return Ok(false); // dont forward this :)
-				}
-				if player_text.text.starts_with("/recsc") {
-					let time = match player_text.text.split(" ").skip(1).next() {
-						Some(t) => match t.parse::<f32>() {
-							Ok(t) => t,
-							Err(e) => {
-								let packet = Notification::Behavior {
-									message: format!("Invalid time period: {e}"),
-									picture_type: 0,
-									color: 0xff3333,
-								};
-								proxy.send_client(&packet.into()).await?;
-
-								return Ok(false);
-							}
-						},
-						None => 1.0,
-					};
-
-					let packet = Notification::Behavior {
-						message: format!("Recording server->client for {time} s"),
-						picture_type: 0,
-						color: 0x33ff33,
-					};
-					proxy.send_client(&packet.into()).await?;
-
-					proxy.rotmguard.record_sc_until =
-						Some(Instant::now() + Duration::from_secs_f32(time));
-
-					return Ok(false); // dont forward this :)
-				}
-				if player_text.text.starts_with("/reccs") {
-					let time = match player_text.text.split(" ").skip(1).next() {
-						Some(t) => match t.parse::<f32>() {
-							Ok(t) => t,
-							Err(e) => {
-								let packet = Notification::Behavior {
-									message: format!("Invalid time period: {e}"),
-									picture_type: 0,
-									color: 0xff3333,
-								};
-								proxy.send_client(&packet.into()).await?;
-
-								return Ok(false);
-							}
-						},
-						None => 1.0,
-					};
-
-					let packet = Notification::Behavior {
-						message: format!("Recording client->server for {time} s"),
-						picture_type: 0,
-						color: 0x33ff33,
-					};
-					proxy.send_client(&packet.into()).await?;
-
-					proxy.rotmguard.record_cs_until =
-						Some(Instant::now() + Duration::from_secs_f32(time));
-
-					return Ok(false); // dont forward this :)
-				}
-				if player_text.text.starts_with("/sync") {
-					proxy.rotmguard.hp = proxy.rotmguard.player_stats.server_hp as f64;
-
-					return Ok(false); // dont forward this :)
-				}
-				if player_text.text.starts_with("/con") {
-					let srv = match player_text.text.split(" ").skip(1).next() {
-						Some(s) => s,
-						None => {
-							let packet = Notification::Behavior {
-								message: format!("Specify a server. Example: eue"),
-								picture_type: 0,
-								color: 0xff3333,
-							};
-							proxy.send_client(&packet.into()).await?;
-
-							return Ok(false);
-						}
-					};
-
-					match SERVERS.get(srv) {
-						Some(ip) => {
-							let packet = Reconnect {
-								hostname: format!("suck a dick"),
-								address: format!("{ip}"),
-								port: 2050,
-								game_id: 0xfffffffe,
-								key_time: 0xffffffff,
-								key: Vec::new(),
-							};
-							proxy.send_client(&packet.into()).await?;
-						}
-						None => {
-							let packet = Notification::Behavior {
-								message: format!("Server {srv:?} is invalid."),
-								picture_type: 0,
-								color: 0xff3333,
-							};
-							proxy.send_client(&packet.into()).await?;
-						}
-					}
-
-					return Ok(false); // dont forward this :)
-				}
+				return commands::command(proxy, &player_text.text).await;
 			}
 			ClientPacket::PlayerHit(player_hit) => {
 				let bullet_info = match proxy
@@ -481,9 +280,7 @@ impl RotmGuard {
 					// handle my stats
 					if object.1.object_id == proxy.rotmguard.my_object_id {
 						for stat in &object.1.stats {
-							if stat.stat_type == StatType::Name {
-								proxy.rotmguard.my_name = stat.stat.as_str();
-							} else if stat.stat_type == StatType::HP {
+							if stat.stat_type == StatType::HP {
 								proxy.rotmguard.hp = stat.stat.as_int() as f64;
 								proxy.rotmguard.player_stats.server_hp = stat.stat.as_int();
 							} else if stat.stat_type == StatType::MaxHP {
@@ -521,23 +318,19 @@ impl RotmGuard {
 				if let Some(until) = proxy.rotmguard.record_sc_until {
 					if Instant::now() >= until {
 						proxy.rotmguard.record_sc_until = None;
-						let packet = Notification::Behavior {
-							message: format!("Finished recording"),
-							picture_type: 0,
-							color: 0x33ff33,
-						};
-						proxy.send_client(&packet.into()).await?;
+						Notification::new(format!("Finished recording"))
+							.color(0x33ff33)
+							.send(proxy)
+							.await?;
 					}
 				}
 				if let Some(until) = proxy.rotmguard.record_cs_until {
 					if Instant::now() >= until {
 						proxy.rotmguard.record_cs_until = None;
-						let packet = Notification::Behavior {
-							message: format!("Finished recording"),
-							picture_type: 0,
-							color: 0x33ff33,
-						};
-						proxy.send_client(&packet.into()).await?;
+						Notification::new(format!("Finished recording"))
+							.color(0x33ff33)
+							.send(proxy)
+							.await?;
 					}
 				}
 
@@ -613,16 +406,13 @@ impl RotmGuard {
 							> 10.0 && proxy.rotmguard.player_stats.server_hp
 							!= proxy.rotmguard.player_stats.max_hp
 						{
-							let packet = Notification::Behavior {
-								message: format!(
-									"positive delta {}",
-									proxy.rotmguard.hp
-										- proxy.rotmguard.player_stats.server_hp as f64
-								),
-								picture_type: 0,
-								color: 0x3333ff,
-							};
-							proxy.send_client(&packet.into()).await?;
+							Notification::new(format!(
+								"positive delta {}",
+								proxy.rotmguard.hp - proxy.rotmguard.player_stats.server_hp as f64
+							))
+							.color(0x3333ff)
+							.send(proxy)
+							.await?;
 
 							let packet = ShowEffect {
 								effect_type: 18,
@@ -672,7 +462,7 @@ impl RotmGuard {
 				return Ok(false);
 			}
 			ServerPacket::Notification(notification) => {
-				if let Notification::ObjectText {
+				if let NotificationPacket::ObjectText {
 					message,
 					object_id,
 					color,
@@ -776,20 +566,20 @@ impl RotmGuard {
 
 		proxy.rotmguard.hp -= damage as f64;
 
-		println!("{} damage taken, {} hp left.", damage, proxy.rotmguard.hp);
+		event!(Level::DEBUG, damage = damage, "Damage taken");
 
 		if proxy.rotmguard.hp <= config().settings.lock().unwrap().autonexus_hp as f64 {
 			// AUTONEXUS ENGAGE!!!
 			proxy.send_server(&ClientPacket::Escape).await?;
+			event!(Level::INFO, "Nexusing");
 			return Ok(false); // dont forward!!
 		}
-
-		let packet = Notification::Behavior {
-			message: format!("DAMAGE {}", damage),
-			picture_type: 0,
-			color: 0x888888,
-		};
-		proxy.send_client(&packet.into()).await?;
+		if config().settings.lock().unwrap().dev_mode {
+			Notification::new(format!("DAMAGE {}", damage))
+				.color(0x888888)
+				.send(proxy)
+				.await?;
+		}
 
 		Ok(true)
 	}
