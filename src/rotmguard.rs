@@ -1,5 +1,6 @@
 use crate::{
     asset_extract::{self, ProjectileInfo},
+    config,
     extra_datatypes::{ObjectStatusData, Stat, StatData, StatType, WorldPos},
     packets::{
         AoePacket, ClientPacket, EnemyShoot, GotoPacket, Notification, Reconnect, ServerPacket,
@@ -28,9 +29,6 @@ const MP_STAT: u8 = 4;
 const DEF_STAT: u8 = 21;
 const VIT_STAT: u8 = 26;
 const NAME_STAT: u8 = 31;
-
-// HP AT WHICH TO NEXUS
-const AUTONEXUS_HP: i64 = 20;
 
 static SERVERS: phf::Map<&str, &str> = phf_map! {
     "eue"=> "18.184.218.174",
@@ -132,7 +130,7 @@ impl RotmGuard {
                 armor_broken: false,
                 in_combat: false,
             },
-            fake_name: None,
+            fake_name: config().settings.lock().unwrap().fakename.clone(),
             position: WorldPos { x: 0.0, y: 0.0 },
             record_sc_until: None,
             record_cs_until: None,
@@ -220,7 +218,8 @@ impl RotmGuard {
                         }
                     };
 
-                    proxy.rotmguard.fake_name = Some(fake_name);
+                    proxy.rotmguard.fake_name = Some(fake_name.clone());
+                    config().settings.lock().unwrap().fakename = Some(fake_name);
 
                     return Ok(false); // dont forward this :)
                 }
@@ -619,7 +618,7 @@ impl RotmGuard {
 
                         // if server hp lower than client hp flash the character and give notification for debugging purposes
                         if (proxy.rotmguard.hp - proxy.rotmguard.player_stats.server_hp as f64)
-                            > AUTONEXUS_HP as f64 / 2.0
+                            > 10.0
                             && proxy.rotmguard.player_stats.server_hp
                                 != proxy.rotmguard.player_stats.max_hp
                         {
@@ -788,7 +787,7 @@ impl RotmGuard {
 
         println!("{} damage taken, {} hp left.", damage, proxy.rotmguard.hp);
 
-        if proxy.rotmguard.hp <= AUTONEXUS_HP as f64 {
+        if proxy.rotmguard.hp <= config().settings.lock().unwrap().autonexus_hp as f64 {
             // AUTONEXUS ENGAGE!!!
             proxy.send_server(&ClientPacket::Escape).await?;
             return Ok(false); // dont forward!!

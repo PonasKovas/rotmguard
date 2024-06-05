@@ -27,6 +27,10 @@ pub mod write;
 
 pub static CONFIG: OnceLock<config::Config> = OnceLock::new();
 
+pub fn config() -> &'static config::Config {
+    CONFIG.get().unwrap()
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     // Initialize config
@@ -36,7 +40,7 @@ async fn main() -> Result<()> {
         .unwrap();
 
     // Read the resource assets
-    asset_extract::extract_assets(&CONFIG.get().unwrap().assets_res)?;
+    asset_extract::extract_assets(&config().assets_res)?;
     // println!("{:?}", asset_extract::PROJECTILES.lock().unwrap());
 
     // start by creating an iptables rule to redirect *:2050 (default game port)
