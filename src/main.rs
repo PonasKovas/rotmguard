@@ -18,6 +18,7 @@ mod asset_extract;
 mod config;
 mod extra_datatypes;
 mod iptables;
+mod logging;
 mod packets;
 mod proxy;
 pub mod read;

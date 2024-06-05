@@ -10,3 +10,4 @@ assets_res = ""
 autonexus_hp = 20
 # fakename = "GHZD"
 dev_mode = false
+log_lines = 1000

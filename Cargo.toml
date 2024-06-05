@@ -17,4 +17,6 @@ rc4 = "0.1.0"
 serde = { version = "1.0.203", features = ["derive"] }
 tokio = { version = "1.37.0", features = ["full"] }
 toml = "0.8.13"
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }
 xmltree = "0.10.3"
