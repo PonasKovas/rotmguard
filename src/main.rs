@@ -1,3 +1,5 @@
+#![allow(warnings)]
+
 use anyhow::{bail, Context, Result};
 use hex::FromHex;
 use proxy::Proxy;

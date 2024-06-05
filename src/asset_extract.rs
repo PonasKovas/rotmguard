@@ -30,10 +30,21 @@ const NON_XML_FILES: &[&str] = &[
     "BillingMode",
 ];
 
-/// object type -> Map<projectile_type -> armor_piercing>
-pub static PROJECTILES: Mutex<BTreeMap<u32, BTreeMap<u32, bool>>> = Mutex::new(BTreeMap::new());
+/// object type -> Map<projectile_type -> projectile_info>
+pub static PROJECTILES: Mutex<BTreeMap<u32, BTreeMap<u32, ProjectileInfo>>> =
+    Mutex::new(BTreeMap::new());
 /// ground type -> damage
 pub static HAZARDOUS_GROUNDS: Mutex<BTreeMap<u32, i64>> = Mutex::new(BTreeMap::new());
+
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub struct ProjectileInfo {
+    pub armor_piercing: bool,
+    pub inflicts_cursed: bool,
+    pub inflicts_exposed: bool,
+    pub inflicts_sick: bool,
+    pub inflicts_bleeding: bool,
+    pub inflicts_armor_broken: bool,
+}
 
 pub fn extract_assets(path: &Path) -> io::Result<()> {
     let mut file = File::open(path)?;
@@ -247,16 +258,61 @@ fn process_xml_objects(objects: Vec<XMLNode>) -> anyhow::Result<()> {
                         };
 
                         let mut armor_piercing = false;
+                        let mut inflicts_cursed = false;
+                        let mut inflicts_exposed = false;
+                        let mut inflicts_sick = false;
+                        let mut inflicts_bleeding = false;
+                        let mut inflicts_armor_broken = false;
                         for projectile_parameter in parameter.children {
                             if let XMLNode::Element(projectile_parameter) = projectile_parameter {
                                 if projectile_parameter.name == "ArmorPiercing" {
                                     armor_piercing = true;
-                                    break;
+                                } else if projectile_parameter.name == "ConditionEffect" {
+                                    if projectile_parameter.children.len() == 0
+                                        || projectile_parameter.children.len() > 1
+                                    {
+                                        bail!("Invalid Object Projectile ConditionEffect. Must have only text inside");
+                                    }
+
+                                    if let XMLNode::Text(condition) =
+                                        &projectile_parameter.children[0]
+                                    {
+                                        match condition.as_str() {
+                                            "Curse" => {
+                                                inflicts_cursed = true;
+                                            }
+                                            "Exposed" => {
+                                                inflicts_exposed = true;
+                                            }
+                                            "Sick" => {
+                                                inflicts_sick = true;
+                                            }
+                                            "Bleeding" => {
+                                                inflicts_bleeding = true;
+                                            }
+                                            "Armor Broken" => {
+                                                inflicts_armor_broken = true;
+                                            }
+                                            _ => {}
+                                        }
+                                    } else {
+                                        bail!("Invalid Object Projectile ConditionEffect. Value be text");
+                                    }
                                 }
                             }
                         }
 
-                        projectiles.insert(projectile_id, armor_piercing);
+                        projectiles.insert(
+                            projectile_id,
+                            ProjectileInfo {
+                                armor_piercing,
+                                inflicts_cursed,
+                                inflicts_exposed,
+                                inflicts_sick,
+                                inflicts_bleeding,
+                                inflicts_armor_broken,
+                            },
+                        );
                         i += 1;
                     }
                 }

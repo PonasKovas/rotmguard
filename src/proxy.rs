@@ -72,13 +72,13 @@ impl Proxy {
                                 Ok(true) => {}, // 👍
                                 Ok(false) => continue, // dont forward the packet
                                 Err(e) => {
-                                    println!("Error handling client packet: {e}");
+                                    println!("Error handling client packet: {e:?}");
                                 }
 
                             }
                         },
                         Err(e) => {
-                            println!("Error parsing client packet: {e}");
+                            println!("Error parsing client packet: {e:?}");
                         }
                     }
 
@@ -99,13 +99,13 @@ impl Proxy {
                                 Ok(true) => {}, // 👍
                                 Ok(false) => continue, // dont forward the packet
                                 Err(e) => {
-                                    println!("Error handling server packet: {e}");
+                                    println!("Error handling server packet: {e:?}");
                                 }
 
                             }
                         },
                         Err(e) => {
-                            println!("Error parsing server packet: {e}");
+                            println!("Error parsing server packet: {e:?}");
                         }
                     }
 

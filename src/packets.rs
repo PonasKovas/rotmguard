@@ -5,6 +5,7 @@ mod _11_show_effect;
 mod _18_goto;
 mod _35_enemy_shoot;
 mod _42_update;
+mod _62_move;
 mod _64_aoe;
 mod _67_notification;
 mod _90_player_hit;
@@ -17,6 +18,7 @@ pub use _11_show_effect::ShowEffect;
 pub use _18_goto::GotoPacket;
 pub use _35_enemy_shoot::EnemyShoot;
 pub use _42_update::UpdatePacket;
+pub use _62_move::Move;
 pub use _64_aoe::AoePacket;
 pub use _67_notification::Notification;
 pub use _90_player_hit::PlayerHit;
@@ -29,10 +31,11 @@ use crate::{read::RPRead, write::RPWrite};
 #[repr(u8)]
 pub enum ClientPacket {
     PlayerText(PlayerText) = 9,
+    Move(Move) = 62,
     PlayerHit(PlayerHit) = 90,
     GroundDamage(GroundDamage) = 103,
     Escape = 105,
-    Unknown { id: u8 }, // not necessarilly unknown, just not defined in this program, probably because irrelevant
+    Unknown { id: u8, bytes: Vec<u8> }, // not necessarilly unknown, just not defined in this program, probably because irrelevant
 }
 
 /// From server to client
@@ -47,7 +50,7 @@ pub enum ServerPacket {
     Aoe(AoePacket) = 64,
     Notification(Notification) = 67,
     CreateSuccess(CreateSuccess) = 101,
-    Unknown { id: u8 }, // not necessarilly unknown, just not defined in this program, probably because irrelevant
+    Unknown { id: u8, bytes: Vec<u8> }, // not necessarilly unknown, just not defined in this program, probably because irrelevant
 }
 
 impl ClientPacket {
@@ -71,10 +74,19 @@ impl RPRead for ClientPacket {
         let packet_id = u8::rp_read(data)?;
         let packet = match packet_id {
             9 => Self::PlayerText(PlayerText::rp_read(data)?),
+            62 => Self::Move(Move::rp_read(data)?),
             90 => Self::PlayerHit(PlayerHit::rp_read(data)?),
             103 => Self::GroundDamage(GroundDamage::rp_read(data)?),
             105 => Self::Escape,
-            _ => Self::Unknown { id: packet_id },
+            _ => {
+                let mut bytes = Vec::new();
+                data.read_to_end(&mut bytes)?;
+
+                Self::Unknown {
+                    id: packet_id,
+                    bytes,
+                }
+            }
         };
 
         Ok(packet)
@@ -94,8 +106,17 @@ impl RPRead for ServerPacket {
             35 => Self::EnemyShoot(EnemyShoot::rp_read(data)?),
             42 => Self::Update(UpdatePacket::rp_read(data)?),
             64 => Self::Aoe(AoePacket::rp_read(data)?),
+            67 => Self::Notification(Notification::rp_read(data)?),
             101 => Self::CreateSuccess(CreateSuccess::rp_read(data)?),
-            _ => Self::Unknown { id: packet_id },
+            _ => {
+                let mut bytes = Vec::new();
+                data.read_to_end(&mut bytes)?;
+
+                Self::Unknown {
+                    id: packet_id,
+                    bytes,
+                }
+            }
         };
 
         Ok(packet)

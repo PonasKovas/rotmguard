@@ -9,6 +9,7 @@ byteorder = "1.5.0"
 ctrlc = "3.4.4"
 hex = "0.4.3"
 iptables = "0.5.1"
+lru = "0.12.3"
 nix = { version = "0.29.0", features = ["socket", "net"] }
 rand = "0.8.5"
 rc4 = "0.1.0"

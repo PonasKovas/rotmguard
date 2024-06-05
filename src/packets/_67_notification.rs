@@ -1,4 +1,6 @@
-use crate::write::RPWrite;
+use std::io::{Error, Read, Write};
+
+use crate::{read::RPRead, write::RPWrite};
 
 use super::ServerPacket;
 
@@ -61,8 +63,89 @@ pub enum Notification {
     },
 }
 
+impl RPRead for Notification {
+    fn rp_read<R: Read>(data: &mut R) -> std::io::Result<Self>
+    where
+        Self: Sized,
+    {
+        let notification_type = u8::rp_read(data)?;
+        let extra = u8::rp_read(data)?;
+
+        Ok(match notification_type {
+            0 => Notification::StatIncrease {
+                text: String::rp_read(data)?,
+            },
+            1 => Notification::ServerMessage {
+                text: String::rp_read(data)?,
+            },
+            2 => Notification::ErrorMessage {
+                text: String::rp_read(data)?,
+            },
+            3 => Notification::StickyMessage {
+                text: String::rp_read(data)?,
+            },
+            9 => Notification::TeleportationError {
+                text: String::rp_read(data)?,
+            },
+            4 => Notification::Global {
+                text: String::rp_read(data)?,
+                ui_extra: u16::rp_read(data)?,
+            },
+            5 => Notification::Queue {
+                message_type: u32::rp_read(data)?,
+                queue_pos: u16::rp_read(data)?,
+            },
+            6 => Notification::ObjectText {
+                message: String::rp_read(data)?,
+                object_id: u32::rp_read(data)?,
+                color: u32::rp_read(data)?,
+            },
+            7 => Notification::PlayerDeath {
+                message: String::rp_read(data)?,
+                picture_type: u32::rp_read(data)?,
+            },
+            8 => Notification::PortalOpened {
+                message: String::rp_read(data)?,
+                picture_type: u32::rp_read(data)?,
+            },
+            10 => Notification::PlayerCallout {
+                message: String::rp_read(data)?,
+                object_id: u32::rp_read(data)?,
+                stars: u16::rp_read(data)?,
+            },
+            11 => {
+                let message = if (extra & 3) != 0 {
+                    Some(String::rp_read(data)?)
+                } else {
+                    None
+                };
+                Notification::ProgressBar {
+                    message,
+                    max: u32::rp_read(data)?,
+                    value: u16::rp_read(data)?,
+                }
+            }
+            12 => Notification::Behavior {
+                message: String::rp_read(data)?,
+                picture_type: u32::rp_read(data)?,
+                color: u32::rp_read(data)?,
+            },
+            13 => Notification::Emote {
+                object_id: u32::rp_read(data)?,
+                emote_type: u32::rp_read(data)?,
+            },
+            u => {
+                return Err(Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("Unknown notification type {u}"),
+                ));
+            }
+        })
+    }
+}
+
 impl RPWrite for Notification {
-    fn rp_write<W: std::io::prelude::Write>(&self, buf: &mut W) -> std::io::Result<usize>
+    fn rp_write<W: Write>(&self, buf: &mut W) -> std::io::Result<usize>
     where
         Self: Sized,
     {
