@@ -32,155 +32,155 @@ use crate::{read::RPRead, write::RPWrite};
 #[non_exhaustive]
 #[repr(u8)]
 pub enum ClientPacket {
-    PlayerText(PlayerText) = 9,
-    Move(Move) = 62,
-    PlayerHit(PlayerHit) = 90,
-    GroundDamage(GroundDamage) = 103,
-    Escape = 105,
-    Unknown { id: u8, bytes: Vec<u8> }, // not necessarilly unknown, just not defined in this program, probably because irrelevant
+	PlayerText(PlayerText) = 9,
+	Move(Move) = 62,
+	PlayerHit(PlayerHit) = 90,
+	GroundDamage(GroundDamage) = 103,
+	Escape = 105,
+	Unknown { id: u8, bytes: Vec<u8> }, // not necessarilly unknown, just not defined in this program, probably because irrelevant
 }
 
 /// From server to client
 #[non_exhaustive]
 #[repr(u8)]
 pub enum ServerPacket {
-    NewTick(NewTick) = 10,
-    ShowEffect(ShowEffect) = 11,
-    Goto(GotoPacket) = 18,
-    EnemyShoot(EnemyShoot) = 35,
-    Update(UpdatePacket) = 42,
-    Reconnect(Reconnect) = 45,
-    Aoe(AoePacket) = 64,
-    Notification(Notification) = 67,
-    CreateSuccess(CreateSuccess) = 101,
-    Unknown { id: u8, bytes: Vec<u8> }, // not necessarilly unknown, just not defined in this program, probably because irrelevant
+	NewTick(NewTick) = 10,
+	ShowEffect(ShowEffect) = 11,
+	Goto(GotoPacket) = 18,
+	EnemyShoot(EnemyShoot) = 35,
+	Update(UpdatePacket) = 42,
+	Reconnect(Reconnect) = 45,
+	Aoe(AoePacket) = 64,
+	Notification(Notification) = 67,
+	CreateSuccess(CreateSuccess) = 101,
+	Unknown { id: u8, bytes: Vec<u8> }, // not necessarilly unknown, just not defined in this program, probably because irrelevant
 }
 
 impl ClientPacket {
-    pub fn discriminator(&self) -> u8 {
-        // This is safe because the enum is repr(u8)
-        unsafe { *(self as *const _ as *const u8) }
-    }
+	pub fn discriminator(&self) -> u8 {
+		// This is safe because the enum is repr(u8)
+		unsafe { *(self as *const _ as *const u8) }
+	}
 }
 impl ServerPacket {
-    pub fn discriminator(&self) -> u8 {
-        // This is safe because the enum is repr(u8)
-        unsafe { *(self as *const _ as *const u8) }
-    }
+	pub fn discriminator(&self) -> u8 {
+		// This is safe because the enum is repr(u8)
+		unsafe { *(self as *const _ as *const u8) }
+	}
 }
 
 impl RPRead for ClientPacket {
-    fn rp_read<R: std::io::prelude::Read>(data: &mut R) -> std::io::Result<Self>
-    where
-        Self: Sized,
-    {
-        let packet_id = u8::rp_read(data)?;
-        let packet = match packet_id {
-            9 => Self::PlayerText(PlayerText::rp_read(data)?),
-            62 => Self::Move(Move::rp_read(data)?),
-            90 => Self::PlayerHit(PlayerHit::rp_read(data)?),
-            103 => Self::GroundDamage(GroundDamage::rp_read(data)?),
-            105 => Self::Escape,
-            _ => {
-                let mut bytes = Vec::new();
-                data.read_to_end(&mut bytes)?;
+	fn rp_read<R: std::io::prelude::Read>(data: &mut R) -> std::io::Result<Self>
+	where
+		Self: Sized,
+	{
+		let packet_id = u8::rp_read(data)?;
+		let packet = match packet_id {
+			9 => Self::PlayerText(PlayerText::rp_read(data)?),
+			62 => Self::Move(Move::rp_read(data)?),
+			90 => Self::PlayerHit(PlayerHit::rp_read(data)?),
+			103 => Self::GroundDamage(GroundDamage::rp_read(data)?),
+			105 => Self::Escape,
+			_ => {
+				let mut bytes = Vec::new();
+				data.read_to_end(&mut bytes)?;
 
-                Self::Unknown {
-                    id: packet_id,
-                    bytes,
-                }
-            }
-        };
+				Self::Unknown {
+					id: packet_id,
+					bytes,
+				}
+			}
+		};
 
-        Ok(packet)
-    }
+		Ok(packet)
+	}
 }
 
 impl RPRead for ServerPacket {
-    fn rp_read<R: std::io::prelude::Read>(data: &mut R) -> std::io::Result<Self>
-    where
-        Self: Sized,
-    {
-        let packet_id = u8::rp_read(data)?;
-        let packet = match packet_id {
-            10 => Self::NewTick(NewTick::rp_read(data)?),
-            11 => Self::ShowEffect(ShowEffect::rp_read(data)?),
-            18 => Self::Goto(GotoPacket::rp_read(data)?),
-            35 => Self::EnemyShoot(EnemyShoot::rp_read(data)?),
-            42 => Self::Update(UpdatePacket::rp_read(data)?),
-            45 => Self::Reconnect(Reconnect::rp_read(data)?),
-            64 => Self::Aoe(AoePacket::rp_read(data)?),
-            67 => Self::Notification(Notification::rp_read(data)?),
-            101 => Self::CreateSuccess(CreateSuccess::rp_read(data)?),
-            _ => {
-                let mut bytes = Vec::new();
-                data.read_to_end(&mut bytes)?;
+	fn rp_read<R: std::io::prelude::Read>(data: &mut R) -> std::io::Result<Self>
+	where
+		Self: Sized,
+	{
+		let packet_id = u8::rp_read(data)?;
+		let packet = match packet_id {
+			10 => Self::NewTick(NewTick::rp_read(data)?),
+			11 => Self::ShowEffect(ShowEffect::rp_read(data)?),
+			18 => Self::Goto(GotoPacket::rp_read(data)?),
+			35 => Self::EnemyShoot(EnemyShoot::rp_read(data)?),
+			42 => Self::Update(UpdatePacket::rp_read(data)?),
+			45 => Self::Reconnect(Reconnect::rp_read(data)?),
+			64 => Self::Aoe(AoePacket::rp_read(data)?),
+			67 => Self::Notification(Notification::rp_read(data)?),
+			101 => Self::CreateSuccess(CreateSuccess::rp_read(data)?),
+			_ => {
+				let mut bytes = Vec::new();
+				data.read_to_end(&mut bytes)?;
 
-                Self::Unknown {
-                    id: packet_id,
-                    bytes,
-                }
-            }
-        };
+				Self::Unknown {
+					id: packet_id,
+					bytes,
+				}
+			}
+		};
 
-        Ok(packet)
-    }
+		Ok(packet)
+	}
 }
 
 impl RPWrite for ClientPacket {
-    fn rp_write<W: std::io::prelude::Write>(&self, buf: &mut W) -> std::io::Result<usize>
-    where
-        Self: Sized,
-    {
-        let mut bytes_written = 0;
+	fn rp_write<W: std::io::prelude::Write>(&self, buf: &mut W) -> std::io::Result<usize>
+	where
+		Self: Sized,
+	{
+		let mut bytes_written = 0;
 
-        let packet_id = self.discriminator();
-        bytes_written += (packet_id as u8).rp_write(buf)?;
+		let packet_id = self.discriminator();
+		bytes_written += (packet_id as u8).rp_write(buf)?;
 
-        match self {
-            Self::Escape => {}
-            _ => panic!("Packet id {packet_id} writing not implemented!"),
-        }
+		match self {
+			Self::Escape => {}
+			_ => panic!("Packet id {packet_id} writing not implemented!"),
+		}
 
-        Ok(bytes_written)
-    }
+		Ok(bytes_written)
+	}
 }
 
 impl RPWrite for ServerPacket {
-    fn rp_write<W: std::io::prelude::Write>(&self, buf: &mut W) -> std::io::Result<usize>
-    where
-        Self: Sized,
-    {
-        let mut bytes_written = 0;
+	fn rp_write<W: std::io::prelude::Write>(&self, buf: &mut W) -> std::io::Result<usize>
+	where
+		Self: Sized,
+	{
+		let mut bytes_written = 0;
 
-        let packet_id = self.discriminator();
-        bytes_written += (packet_id as u8).rp_write(buf)?;
+		let packet_id = self.discriminator();
+		bytes_written += (packet_id as u8).rp_write(buf)?;
 
-        match self {
-            Self::Notification(p) => {
-                bytes_written += p.rp_write(buf)?;
-            }
-            Self::NewTick(p) => {
-                bytes_written += p.rp_write(buf)?;
-            }
-            Self::Aoe(p) => {
-                bytes_written += p.rp_write(buf)?;
-            }
-            Self::Goto(p) => {
-                bytes_written += p.rp_write(buf)?;
-            }
-            Self::Update(p) => {
-                bytes_written += p.rp_write(buf)?;
-            }
-            Self::ShowEffect(p) => {
-                bytes_written += p.rp_write(buf)?;
-            }
-            Self::Reconnect(p) => {
-                bytes_written += p.rp_write(buf)?;
-            }
-            _ => panic!("Packet id {packet_id} writing not implemented!"),
-        }
+		match self {
+			Self::Notification(p) => {
+				bytes_written += p.rp_write(buf)?;
+			}
+			Self::NewTick(p) => {
+				bytes_written += p.rp_write(buf)?;
+			}
+			Self::Aoe(p) => {
+				bytes_written += p.rp_write(buf)?;
+			}
+			Self::Goto(p) => {
+				bytes_written += p.rp_write(buf)?;
+			}
+			Self::Update(p) => {
+				bytes_written += p.rp_write(buf)?;
+			}
+			Self::ShowEffect(p) => {
+				bytes_written += p.rp_write(buf)?;
+			}
+			Self::Reconnect(p) => {
+				bytes_written += p.rp_write(buf)?;
+			}
+			_ => panic!("Packet id {packet_id} writing not implemented!"),
+		}
 
-        Ok(bytes_written)
-    }
+		Ok(bytes_written)
+	}
 }
