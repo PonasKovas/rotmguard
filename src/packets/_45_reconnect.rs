@@ -1,10 +1,6 @@
 use super::ServerPacket;
-use crate::{
-	extra_datatypes::{ObjectStatusData, WorldPos},
-	read::RPRead,
-	write::RPWrite,
-};
-use std::io::{self, Error, ErrorKind, Read, Write};
+use crate::{read::RPRead, write::RPWrite};
+use std::io::{self, Read, Write};
 
 #[derive(Debug, Clone)]
 pub struct Reconnect {

@@ -1,21 +1,13 @@
-#![allow(warnings)]
-
 use anyhow::{bail, Context, Result};
-use hex::FromHex;
-use logging::save_logs;
 use nix::NixPath;
 use proxy::Proxy;
-use std::cell::OnceCell;
-use std::collections::BTreeMap;
 use std::fs;
-use std::io::{BufRead, ErrorKind, Read};
+use std::io::ErrorKind;
 use std::sync::{Arc, OnceLock};
-use tokio::io::ErrorKind::WouldBlock;
-use tokio::io::{self, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::select;
 use tokio::sync::Notify;
-use tracing::{error, event, info, span, Level};
+use tracing::{error, info};
 
 mod asset_extract;
 mod config;

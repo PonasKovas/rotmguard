@@ -1,8 +1,6 @@
-use std::io::{Error, Read, Write};
-
-use crate::{read::RPRead, write::RPWrite};
-
 use super::ServerPacket;
+use crate::{read::RPRead, write::RPWrite};
+use std::io::{Error, Read, Write};
 
 #[non_exhaustive]
 #[derive(Debug)]

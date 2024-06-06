@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 mod _101_create_success;
 mod _103_ground_damage;
 mod _10_new_tick;

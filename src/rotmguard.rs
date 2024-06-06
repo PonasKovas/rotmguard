@@ -1,28 +1,21 @@
 use crate::{
 	asset_extract::{self, ProjectileInfo},
 	config,
-	extra_datatypes::{ObjectStatusData, Stat, StatData, StatType, WorldPos},
-	packets::{
-		AoePacket, ClientPacket, EnemyShoot, GotoPacket, NotificationPacket, Reconnect,
-		ServerPacket, ShowEffect,
-	},
+	extra_datatypes::{Stat, StatData, StatType, WorldPos},
+	packets::{ClientPacket, NotificationPacket, ServerPacket, ShowEffect},
 	proxy::Proxy,
-	read::RPRead,
-	rotmguard,
 };
-use anyhow::{bail, Context, Result};
+use anyhow::Result;
 use derivative::Derivative;
 use lru::LruCache;
-use phf::phf_map;
-use rand::prelude::*;
 use serde::Deserialize;
 use std::{
 	collections::{BTreeMap, HashMap},
 	hash::{DefaultHasher, Hash, Hasher},
 	num::NonZero,
-	time::{Duration, Instant},
+	time::Instant,
 };
-use tracing::{debug, error, event, info, instrument, span, trace, warn, Level};
+use tracing::{debug, error, instrument, trace, warn};
 use util::Notification;
 
 mod commands;
@@ -534,13 +527,19 @@ impl RotmGuard {
 					}
 
 					let amount_healed = match json5::from_str::<H>(message) {
-						Ok(h) => match i64::from_str_radix(&h.t.amount, 10) {
-							Ok(n) => n,
-							Err(e) => {
-								error!("Error parsing heal notification amount: {e:?}");
+						Ok(h) => {
+							if h.k != "s.plus_symbol" {
+								error!("Unexpected object notification for heal. k not equal to 's.plus_symbol'");
 								return Ok(true);
 							}
-						},
+							match i64::from_str_radix(&h.t.amount, 10) {
+								Ok(n) => n,
+								Err(e) => {
+									error!("Error parsing heal notification amount: {e:?}");
+									return Ok(true);
+								}
+							}
+						}
 						Err(e) => {
 							error!("Error parsing object notification: {e:?}");
 							return Ok(true);

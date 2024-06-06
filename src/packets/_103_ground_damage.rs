@@ -1,7 +1,6 @@
-use std::io::Read;
-
 use super::ClientPacket;
 use crate::{extra_datatypes::WorldPos, read::RPRead};
+use std::io::Read;
 
 #[derive(Debug, Clone, Copy)]
 pub struct GroundDamage {

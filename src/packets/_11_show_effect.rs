@@ -1,10 +1,10 @@
 use super::ServerPacket;
 use crate::{
-	extra_datatypes::{ObjectStatusData, WorldPos},
+	extra_datatypes::WorldPos,
 	read::{read_compressed_int, RPRead},
 	write::{write_compressed_int, RPWrite},
 };
-use std::io::{self, Error, ErrorKind, Read, Write};
+use std::io::{self, Read, Write};
 
 #[derive(Debug, Clone)]
 pub struct ShowEffect {

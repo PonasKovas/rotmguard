@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 mod object_status_data;
 mod statdata;
 mod worldpos;

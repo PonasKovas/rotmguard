@@ -1,5 +1,5 @@
 use super::ServerPacket;
-use crate::{extra_datatypes::WorldPos, read::RPRead, write::RPWrite};
+use crate::{extra_datatypes::WorldPos, read::RPRead};
 use std::io::ErrorKind;
 
 #[derive(Debug, Clone, Copy)]

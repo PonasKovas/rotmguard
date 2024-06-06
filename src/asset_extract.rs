@@ -1,12 +1,11 @@
 use anyhow::{bail, Context};
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
-use serde::{Deserialize, Serialize};
 use std::{
 	collections::BTreeMap,
-	fs::{self, File},
+	fs::File,
 	io::{self, Error, Read, Seek},
 	path::Path,
-	sync::{Mutex, OnceLock},
+	sync::Mutex,
 };
 use tracing::{error, info};
 use xmltree::XMLNode;

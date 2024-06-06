@@ -1,10 +1,5 @@
 use super::ServerPacket;
-use crate::{
-	extra_datatypes::{ObjectStatusData, WorldPos},
-	read::RPRead,
-	write::RPWrite,
-};
-use std::io::{self, Error, ErrorKind};
+use crate::read::RPRead;
 
 #[derive(Debug, Clone)]
 pub struct CreateSuccess {

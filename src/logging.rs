@@ -5,10 +5,8 @@ use std::{
 	io::Write,
 	sync::{Mutex, MutexGuard},
 };
-use tracing::{error, event, info, level_filters::LevelFilter, Level};
-use tracing_subscriber::{
-	fmt::MakeWriter, layer::SubscriberExt, EnvFilter, FmtSubscriber, Layer, Registry,
-};
+use tracing::{error, info, level_filters::LevelFilter};
+use tracing_subscriber::{fmt::MakeWriter, layer::SubscriberExt, EnvFilter, Layer, Registry};
 
 use crate::config;
 

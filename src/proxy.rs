@@ -1,10 +1,9 @@
 use crate::{
-	packets::{ClientPacket, NotificationPacket, ServerPacket},
+	packets::{ClientPacket, ServerPacket},
 	read::RPRead,
 	rotmguard::RotmGuard,
 	write::RPWrite,
 };
-use anyhow::{bail, Result};
 use hex::FromHex;
 use rc4::{consts::U13, KeyInit, Rc4, StreamCipher};
 use tokio::{
@@ -12,7 +11,7 @@ use tokio::{
 	net::TcpStream,
 	select,
 };
-use tracing::{error, instrument, span, Level};
+use tracing::{error, instrument};
 
 const RC4_K_S_TO_C: &'static str = "c91d9eec420160730d825604e0";
 const RC4_K_C_TO_S: &'static str = "5a4d2016bc16dc64883194ffd9";
