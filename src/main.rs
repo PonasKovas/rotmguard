@@ -66,33 +66,41 @@ async fn server(exit: Arc<Notify>) -> Result<()> {
 	let listener = TcpListener::bind("127.0.0.1:2051").await?;
 
 	loop {
-		let (socket, _) = listener.accept().await?;
-
-		// linux shenanigans 🤓
-		// basically, since the connection was forwarded to ourselves using iptables, we need to obtain
-		// the original destination address so we can connect to it
-		let original_dst = std::net::IpAddr::from(
-			nix::sys::socket::getsockopt(&socket, nix::sys::socket::sockopt::OriginalDst)?
-				.sin_addr
-				.s_addr
-				.to_le_bytes(),
-		);
-
-		info!("Connecting to {original_dst}");
-		let real_server = TcpStream::connect((original_dst, 2051)).await?;
-
-		let mut proxy = Proxy::new(socket, real_server);
-
-		let exit_clone = Arc::clone(&exit);
-		tokio::spawn(async move {
-			select! {
-				Err(e) = proxy.run() => {
-					if e.kind() != ErrorKind::UnexpectedEof {
-						error!("{e:?}");
-					}
-				},
-				_ = exit_clone.notified() => {}
-			}
-		});
+		if let Err(e) = accept_con(&exit, &listener).await {
+			error!("{e:?}");
+		}
 	}
+}
+
+async fn accept_con(exit: &Arc<Notify>, listener: &TcpListener) -> Result<()> {
+	let (socket, _) = listener.accept().await?;
+
+	// linux shenanigans 🤓
+	// basically, since the connection was forwarded to ourselves using iptables, we need to obtain
+	// the original destination address so we can connect to it
+	let original_dst = std::net::IpAddr::from(
+		nix::sys::socket::getsockopt(&socket, nix::sys::socket::sockopt::OriginalDst)?
+			.sin_addr
+			.s_addr
+			.to_le_bytes(),
+	);
+
+	info!("Connecting to {original_dst}");
+	let real_server = TcpStream::connect((original_dst, 2051)).await?;
+
+	let mut proxy = Proxy::new(socket, real_server);
+
+	let exit_clone = Arc::clone(&exit);
+	tokio::spawn(async move {
+		select! {
+			Err(e) = proxy.run() => {
+				if e.kind() != ErrorKind::UnexpectedEof {
+					error!("{e:?}");
+				}
+			},
+			_ = exit_clone.notified() => {}
+		}
+	});
+
+	Ok(())
 }
