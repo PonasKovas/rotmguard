@@ -28,7 +28,7 @@ Compile the program with `cargo build --release` (or download binary from [relea
 sudo ./target/release/rotmguard
 ```
 
-You do **need root privileges** to run this tool, because **iptables** requires them.
+You **need root privileges** to run this tool, because **iptables** requires them.
 
 Once `rotmguard` is up and running, just start playing the game and it should be working. You can always check if you're connected through the `rotmguard` proxy by typing `/hi` command in-game.
 
