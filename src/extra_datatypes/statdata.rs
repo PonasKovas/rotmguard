@@ -38,7 +38,7 @@ pub enum StatType {
 impl Stat {
 	pub fn as_int(&self) -> i64 {
 		match self {
-			Stat::String(s) => i64::from_str_radix(s, 10).expect("StatType not valid int"),
+			Stat::String(s) => s.parse::<i64>().expect("StatType not valid int"),
 			Stat::Int(i) => *i,
 		}
 	}

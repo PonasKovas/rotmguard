@@ -20,7 +20,7 @@ pub async fn command(proxy: &mut Proxy, text: &str) -> Result<bool> {
 		let colors = [0xff8080, 0xff8080, 0x80ffac, 0x80c6ff, 0xc480ff];
 		let color = colors[thread_rng().gen_range(0..colors.len())];
 
-		Notification::new(format!("hi :)"))
+		Notification::new("hi :)".to_owned())
 			.color(color)
 			.send(proxy)
 			.await?;
@@ -52,7 +52,7 @@ pub async fn command(proxy: &mut Proxy, text: &str) -> Result<bool> {
 	// `/effect <effect id>` allows you to test different visual effects
 	// to maybe use them somewhere in this program
 	if text.starts_with("/effect ") {
-		match u8::from_str_radix(text.split(" ").collect::<Vec<_>>()[1], 10) {
+		match text.split(" ").nth(1).unwrap().parse::<u8>() {
 			Ok(id) => {
 				let packet = ShowEffect {
 					effect_type: id,
@@ -79,7 +79,7 @@ pub async fn command(proxy: &mut Proxy, text: &str) -> Result<bool> {
 	// if youre goofy enough 😊
 	if text.starts_with("/fn") || text.starts_with("/name") || text.starts_with("/fakename")
 	{
-		let fake_name = match text.split(" ").skip(1).next() {
+		let fake_name = match text.split(" ").nth(1) {
 			Some(n) => n.to_owned(),
 			None => {
 				// generate a random name
@@ -107,7 +107,7 @@ pub async fn command(proxy: &mut Proxy, text: &str) -> Result<bool> {
 	// packets for specified number of seconds (or 1 second if unspecified).
 	// Useful for inspecting packets and figuring out what they mean 🤯
 	if text.starts_with("/recsc") || text.starts_with("/reccs") {
-		let time = match text.split(" ").skip(1).next() {
+		let time = match text.split(" ").nth(1) {
 			Some(t) => match t.parse::<f32>() {
 				Ok(t) => t,
 				Err(e) => {
@@ -148,10 +148,10 @@ pub async fn command(proxy: &mut Proxy, text: &str) -> Result<bool> {
 	// `/con <server>` quickly and conveniently connects you to the specified server
 	// Use a short name for the server: for example if you wanted to connect to EUEast, type eue
 	if text.starts_with("/con") {
-		let srv = match text.split(" ").skip(1).next() {
+		let srv = match text.split(" ").nth(1) {
 			Some(s) => s,
 			None => {
-				Notification::new(format!("Specify a server. Example: eue"))
+				Notification::new("Specify a server. Example: eue".to_owned())
 					.color(0xff3333)
 					.send(proxy)
 					.await?;
@@ -160,11 +160,11 @@ pub async fn command(proxy: &mut Proxy, text: &str) -> Result<bool> {
 			}
 		};
 
-		match SERVERS.get(srv) {
+		match SERVERS.get(&srv.to_lowercase()) {
 			Some(ip) => {
 				let packet = Reconnect {
-					hostname: format!("have fun :)"),
-					address: format!("{ip}"),
+					hostname: "have fun :)".to_owned(),
+					address: ip.to_string(),
 					port: 2050,
 					game_id: 0xfffffffe,
 					key_time: 0xffffffff,
@@ -207,7 +207,7 @@ pub async fn command(proxy: &mut Proxy, text: &str) -> Result<bool> {
 	// When the player dies the logs are saved automatically
 	if text.starts_with("/savelogs") {
 		save_logs();
-		Notification::new(format!("Logs saved"))
+		Notification::new("Logs saved".to_owned())
 			.color(0x33ff33)
 			.send(proxy)
 			.await?;

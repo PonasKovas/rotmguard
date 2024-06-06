@@ -310,16 +310,14 @@ impl RotmGuard {
 				let hazard_tile_register = asset_extract::HAZARDOUS_GROUNDS.lock().unwrap();
 				let mut added_tiles = Vec::new(); // logging purposes
 				for tile in &update.tiles {
-					match hazard_tile_register.get(&(tile.tile_type as u32)) {
-						Some(damage) => {
-							// Add the tile
-							proxy
-								.rotmguard
-								.hazardous_tiles
-								.insert((tile.x, tile.y), *damage);
-							added_tiles.push(((tile.x, tile.y), damage));
-						}
-						None => {} // dont care about normal tiles
+					// we only care about tiles that can do damage
+					if let Some(damage) = hazard_tile_register.get(&(tile.tile_type as u32)) {
+						// Add the tile
+						proxy
+							.rotmguard
+							.hazardous_tiles
+							.insert((tile.x, tile.y), *damage);
+						added_tiles.push(((tile.x, tile.y), damage));
 					}
 				}
 
@@ -340,7 +338,7 @@ impl RotmGuard {
 				if let Some(until) = proxy.rotmguard.record_sc_until {
 					if Instant::now() >= until {
 						proxy.rotmguard.record_sc_until = None;
-						Notification::new(format!("Finished recording"))
+						Notification::new("Finished recording".to_owned())
 							.color(0x33ff33)
 							.send(proxy)
 							.await?;
@@ -349,7 +347,7 @@ impl RotmGuard {
 				if let Some(until) = proxy.rotmguard.record_cs_until {
 					if Instant::now() >= until {
 						proxy.rotmguard.record_cs_until = None;
-						Notification::new(format!("Finished recording"))
+						Notification::new("Finished recording".to_owned())
 							.color(0x33ff33)
 							.send(proxy)
 							.await?;
@@ -502,59 +500,56 @@ impl RotmGuard {
 
 				return Ok(false);
 			}
-			ServerPacket::Notification(notification) => {
-				if let NotificationPacket::ObjectText {
-					message,
-					object_id,
-					color: 0x00ff00, // green means heal
-				} = notification
-				{
-					// only interested in ourselves
-					if *object_id as i64 != proxy.rotmguard.my_object_id {
-						return Ok(true);
-					}
+			ServerPacket::Notification(NotificationPacket::ObjectText {
+				message,
+				object_id,
+				color: 0x00ff00, // green means heal
+			}) => {
+				// only interested in ourselves
+				if *object_id as i64 != proxy.rotmguard.my_object_id {
+					return Ok(true);
+				}
 
-					// of course they add a sprinkle of JSON to the protocol
-					// and of course its invalid JSON too (trailing commas)
-					#[derive(Deserialize)]
-					struct H {
-						k: String,
-						t: T,
-					}
-					#[derive(Deserialize)]
-					struct T {
-						amount: String,
-					}
+				// of course they add a sprinkle of JSON to the protocol
+				// and of course its invalid JSON too (trailing commas)
+				#[derive(Deserialize)]
+				struct H {
+					k: String,
+					t: T,
+				}
+				#[derive(Deserialize)]
+				struct T {
+					amount: String,
+				}
 
-					let amount_healed = match json5::from_str::<H>(message) {
-						Ok(h) => {
-							if h.k != "s.plus_symbol" {
-								error!("Unexpected object notification for heal. k not equal to 's.plus_symbol'");
-								return Ok(true);
-							}
-							match i64::from_str_radix(&h.t.amount, 10) {
-								Ok(n) => n,
-								Err(e) => {
-									error!("Error parsing heal notification amount: {e:?}");
-									return Ok(true);
-								}
-							}
-						}
-						Err(e) => {
-							error!("Error parsing object notification: {e:?}");
+				let amount_healed = match json5::from_str::<H>(message) {
+					Ok(h) => {
+						if h.k != "s.plus_symbol" {
+							error!("Unexpected object notification for heal. k not equal to 's.plus_symbol'");
 							return Ok(true);
 						}
-					};
+						match h.t.amount.parse::<i64>() {
+							Ok(n) => n,
+							Err(e) => {
+								error!("Error parsing heal notification amount: {e:?}");
+								return Ok(true);
+							}
+						}
+					}
+					Err(e) => {
+						error!("Error parsing object notification: {e:?}");
+						return Ok(true);
+					}
+				};
 
-					proxy.rotmguard.hp = (proxy.rotmguard.hp + amount_healed as f64)
-						.min(proxy.rotmguard.player_stats.max_hp as f64);
+				proxy.rotmguard.hp = (proxy.rotmguard.hp + amount_healed as f64)
+					.min(proxy.rotmguard.player_stats.max_hp as f64);
 
-					debug!(
-						heal_amount = amount_healed,
-						hp_left = proxy.rotmguard.hp,
-						"Healed"
-					);
-				}
+				debug!(
+					heal_amount = amount_healed,
+					hp_left = proxy.rotmguard.hp,
+					"Healed"
+				);
 			}
 			ServerPacket::Aoe(aoe) => {
 				// first check if this AOE will affect us

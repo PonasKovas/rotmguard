@@ -105,7 +105,7 @@ impl RPWrite for String {
 		let len = string_bytes.len();
 
 		(len as u16).rp_write(buf)?;
-		buf.write_all(&string_bytes)?;
+		buf.write_all(string_bytes)?;
 
 		Ok(2 + string_bytes.len())
 	}
@@ -116,7 +116,7 @@ pub fn write_compressed_int<W: Write>(value: &i64, buf: &mut W) -> io::Result<us
 	let mut value = value.abs();
 
 	let mut byte = (value & 0b00111111) as u8;
-	value = value >> 6;
+	value >>= 6;
 	if value != 0 {
 		byte |= 0b10000000;
 	}
@@ -129,7 +129,7 @@ pub fn write_compressed_int<W: Write>(value: &i64, buf: &mut W) -> io::Result<us
 
 	while value != 0 {
 		let mut byte = (value & 0b01111111) as u8;
-		value = value >> 7;
+		value >>= 7;
 		if value != 0 {
 			byte |= 0b10000000;
 		}

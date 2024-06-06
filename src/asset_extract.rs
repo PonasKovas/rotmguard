@@ -56,7 +56,7 @@ pub fn extract_assets(path: &Path) -> io::Result<()> {
 
 	file.read_exact(&mut [0; 4 * 2])?; // 2 ints
 	let version = file.read_i32::<BigEndian>()?;
-	file.read_exact(&mut [0; 4 * 1])?; // int
+	file.read_exact(&mut [0; 4])?; // int
 	let big_endian = file.read_u8()? != 0;
 	file.read_exact(&mut [0; 3])?;
 	let metadata_size = file.read_u32::<BigEndian>()? as u64;
@@ -105,7 +105,8 @@ pub fn extract_assets(path: &Path) -> io::Result<()> {
 	// Types
 	let types_count = file.read_u32::<LittleEndian>()? as usize;
 	let mut types = vec![0; types_count];
-	for i in 0..types_count {
+
+	for t in types.iter_mut() {
 		let class_id = file.read_i32::<LittleEndian>()?;
 		file.read_exact(&mut [0; 1 + 2])?; // is_stripped_type + script_type_index
 		if class_id == 114 {
@@ -113,7 +114,7 @@ pub fn extract_assets(path: &Path) -> io::Result<()> {
 		}
 		file.read_exact(&mut [0; 16])?; // old_type_hash
 
-		types[i] = class_id;
+		*t = class_id;
 	}
 
 	// Objects
@@ -143,7 +144,7 @@ pub fn extract_assets(path: &Path) -> io::Result<()> {
 		}
 
 		// now we gotta jump to the actual object data to read it, and then jump back for next iteration
-		let position = file.seek(io::SeekFrom::Current(0))?;
+		let position = file.stream_position()?;
 
 		file.seek(io::SeekFrom::Start(byte_start))?;
 
@@ -156,7 +157,7 @@ pub fn extract_assets(path: &Path) -> io::Result<()> {
 		};
 		align_stream(&mut file)?;
 
-		if !NON_XML_FILES.into_iter().any(|&n| n == name) {
+		if !NON_XML_FILES.iter().any(|&n| n == name) {
 			// We only want XML files
 			let bytes_n = file.read_u32::<LittleEndian>()?;
 			let mut xml = vec![0; bytes_n as usize];
@@ -199,7 +200,7 @@ fn read_nul_terminated_string<R: Read>(reader: &mut R) -> io::Result<String> {
 }
 
 fn align_stream<S: Seek + Read>(stream: &mut S) -> io::Result<()> {
-	let position = stream.seek(io::SeekFrom::Current(0))?;
+	let position = stream.stream_position()?;
 	let bytes_to_skip = (4 - (position % 4)) % 4;
 	for _ in 0..bytes_to_skip {
 		stream.read_u8()?;
@@ -247,12 +248,7 @@ fn process_xml_objects(objects: Vec<XMLNode>) -> anyhow::Result<()> {
 				if let XMLNode::Element(parameter) = parameter {
 					if parameter.name == "Projectile" {
 						let projectile_id = match parameter.attributes.get("id") {
-							Some(s) => {
-								let id = u32::from_str_radix(s, 10)
-									.context("Projectile id non-integer")?;
-
-								id
-							}
+							Some(s) => s.parse::<u32>().context("Projectile id non-integer")?,
 							None => i,
 						};
 
@@ -267,7 +263,7 @@ fn process_xml_objects(objects: Vec<XMLNode>) -> anyhow::Result<()> {
 								if projectile_parameter.name == "ArmorPiercing" {
 									armor_piercing = true;
 								} else if projectile_parameter.name == "ConditionEffect" {
-									if projectile_parameter.children.len() == 0
+									if projectile_parameter.children.is_empty()
 										|| projectile_parameter.children.len() > 1
 									{
 										bail!("Invalid Object Projectile ConditionEffect. Must have only text inside");
@@ -317,7 +313,7 @@ fn process_xml_objects(objects: Vec<XMLNode>) -> anyhow::Result<()> {
 				}
 			}
 
-			if projectiles.len() > 0 {
+			if !projectiles.is_empty() {
 				// save
 				PROJECTILES.lock().unwrap().insert(object_type, projectiles);
 			}
@@ -355,12 +351,13 @@ fn process_xml_grounds(grounds: Vec<XMLNode>) -> anyhow::Result<()> {
 						continue;
 					}
 
-					if parameter.children.len() == 0 || parameter.children.len() > 1 {
+					if parameter.children.is_empty() || parameter.children.len() > 1 {
 						bail!("Invalid Ground MinDamage. Must have only text");
 					}
 
 					if let XMLNode::Text(dmg) = &parameter.children[0] {
-						damage = i64::from_str_radix(dmg, 10)
+						damage = dmg
+							.parse::<i64>()
 							.context("Invalid Ground MinDamage, must be integer")?;
 						break;
 					} else {

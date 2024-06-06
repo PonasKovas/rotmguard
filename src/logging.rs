@@ -87,7 +87,7 @@ pub fn save_logs() {
 	};
 
 	for log_line in LOG_BUFFER.buffer.lock().unwrap().iter().rev() {
-		if let Err(e) = log_file.write_all(&log_line) {
+		if let Err(e) = log_file.write_all(log_line) {
 			error!("couldn't write to log file: {e:?}");
 			return;
 		}

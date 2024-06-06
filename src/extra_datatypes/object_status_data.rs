@@ -22,7 +22,7 @@ impl RPRead for ObjectStatusData {
 		let position = WorldPos::rp_read(data)?;
 
 		let n_stats = read_compressed_int(data)?;
-		if n_stats < 0 || n_stats > 10000 {
+		if !(0..=10000).contains(&n_stats) {
 			return Err(Error::new(
 				io::ErrorKind::InvalidData,
 				format!("Invalid number of stats ({n_stats}) in ObjectStatusData. (max 10000)"),

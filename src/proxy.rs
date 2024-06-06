@@ -13,8 +13,8 @@ use tokio::{
 };
 use tracing::{error, instrument};
 
-const RC4_K_S_TO_C: &'static str = "c91d9eec420160730d825604e0";
-const RC4_K_C_TO_S: &'static str = "5a4d2016bc16dc64883194ffd9";
+const RC4_K_S_TO_C: &str = "c91d9eec420160730d825604e0";
+const RC4_K_C_TO_S: &str = "5a4d2016bc16dc64883194ffd9";
 
 // Default buffer size for reading and writing packets
 const DEFAULT_BUFFER_SIZE: usize = 64 * 1024;
@@ -59,7 +59,7 @@ impl Proxy {
 		}
 	}
 	#[instrument(skip(self), fields(ip = ?self.server.get_ref().peer_addr()?))]
-	pub async fn run(self: &mut Self) -> io::Result<()> {
+	pub async fn run(&mut self) -> io::Result<()> {
 		let mut buf = vec![0u8; DEFAULT_BUFFER_SIZE];
 		loop {
 			select! {
@@ -87,7 +87,7 @@ impl Proxy {
 					// forward the packet
 					self.rc4.cipher_server(&mut raw_packet[5..]);
 
-					self.server.write_all(&raw_packet).await?;
+					self.server.write_all(raw_packet).await?;
 					self.server.flush().await?;
 				},
 				b = self.server.read_u8() => {
@@ -114,7 +114,7 @@ impl Proxy {
 					// forward the packet
 					self.rc4.cipher_client(&mut raw_packet[5..]);
 
-					self.client.write_all(&raw_packet).await?;
+					self.client.write_all(raw_packet).await?;
 					self.client.flush().await?;
 				},
 			}

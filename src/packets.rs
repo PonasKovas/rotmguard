@@ -142,8 +142,8 @@ impl RPWrite for ClientPacket {
 	{
 		let mut bytes_written = 0;
 
-		let packet_id = self.discriminator();
-		bytes_written += (packet_id as u8).rp_write(buf)?;
+		let packet_id: u8 = self.discriminator();
+		bytes_written += packet_id.rp_write(buf)?;
 
 		match self {
 			Self::Escape => {}
@@ -161,8 +161,8 @@ impl RPWrite for ServerPacket {
 	{
 		let mut bytes_written = 0;
 
-		let packet_id = self.discriminator();
-		bytes_written += (packet_id as u8).rp_write(buf)?;
+		let packet_id: u8 = self.discriminator();
+		bytes_written += packet_id.rp_write(buf)?;
 
 		match self {
 			Self::Notification(p) => {

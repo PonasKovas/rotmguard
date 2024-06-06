@@ -36,7 +36,7 @@ impl RPRead for UpdatePacket {
 
 		// Tiles
 		let tiles_n = read_compressed_int(data)?;
-		if tiles_n < 0 || tiles_n > 10000 {
+		if !(0..=10000).contains(&tiles_n) {
 			return Err(Error::new(
 				io::ErrorKind::InvalidData,
 				format!("Invalid number of tiles ({tiles_n}) in UpdatePacket. (max 10000)"),
@@ -53,7 +53,7 @@ impl RPRead for UpdatePacket {
 
 		// New Objects
 		let new_objects_n = read_compressed_int(data)?;
-		if new_objects_n < 0 || new_objects_n > 10000 {
+		if !(0..=10000).contains(&new_objects_n) {
 			return Err(Error::new(
 				io::ErrorKind::InvalidData,
 				format!(
@@ -69,7 +69,7 @@ impl RPRead for UpdatePacket {
 
 		// Objects to remove
 		let to_remove_n = read_compressed_int(data)?;
-		if to_remove_n < 0 || to_remove_n > 10000 {
+		if !(0..=10000).contains(&to_remove_n) {
 			return Err(Error::new(
 				io::ErrorKind::InvalidData,
 				format!(
