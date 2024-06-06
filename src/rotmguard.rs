@@ -22,7 +22,7 @@ use std::{
 	num::NonZero,
 	time::{Duration, Instant},
 };
-use tracing::{debug, error, event, instrument, span, trace, warn, Level};
+use tracing::{debug, error, event, info, instrument, span, trace, warn, Level};
 use util::Notification;
 
 mod commands;
@@ -598,6 +598,17 @@ impl RotmGuard {
 					}
 
 					return RotmGuard::take_damage(proxy, damage).await;
+				}
+			}
+			ServerPacket::Text(text) => {
+				// if chat message is from me and fake name set, replace the name
+				if let Some(fake_name) = &proxy.rotmguard.fake_name {
+					if text.object_id as i64 == proxy.rotmguard.my_object_id {
+						let mut text = text.clone();
+						text.name = fake_name.clone();
+						proxy.send_client(&text.into()).await?;
+						return Ok(false);
+					}
 				}
 			}
 			ServerPacket::Unknown {
