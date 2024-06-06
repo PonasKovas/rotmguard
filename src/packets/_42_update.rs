@@ -1,3 +1,5 @@
+use derivative::Derivative;
+
 use super::ServerPacket;
 use crate::{
 	extra_datatypes::{ObjectStatusData, WorldPos},
@@ -6,13 +8,16 @@ use crate::{
 };
 use std::io::{self, Error, ErrorKind, Read, Write};
 
-#[derive(Debug, Clone)]
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
 pub struct UpdatePacket {
 	pub player_position: WorldPos,
 	pub level_type: u8,
-	pub tiles: Vec<TileData>,                      // x, y, type
+	#[derivative(Debug = "ignore")]
+	pub tiles: Vec<TileData>, // x, y, type
+	#[derivative(Debug = "ignore")]
 	pub new_objects: Vec<(u16, ObjectStatusData)>, // object type, statuses
-	pub to_remove: Vec<i64>,                       // object that left the viewport
+	pub to_remove: Vec<i64>, // object that left the viewport
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

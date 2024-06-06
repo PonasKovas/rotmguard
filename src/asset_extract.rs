@@ -8,6 +8,7 @@ use std::{
 	path::Path,
 	sync::{Mutex, OnceLock},
 };
+use tracing::{error, info};
 use xmltree::XMLNode;
 
 const NON_XML_FILES: &[&str] = &[
@@ -118,10 +119,10 @@ pub fn extract_assets(path: &Path) -> io::Result<()> {
 
 	// Objects
 	let object_count = file.read_u32::<LittleEndian>()?;
-	println!("Reading {object_count} objects from assets file.");
+	info!("Reading {object_count} objects from assets file.");
 	for i in 0..object_count {
 		if i != 0 && i % (object_count / 5) == 0 {
-			println!("{i} / {object_count} objects read...");
+			info!("{i} / {object_count} objects read...");
 		}
 
 		// align the stream
@@ -168,15 +169,14 @@ pub fn extract_assets(path: &Path) -> io::Result<()> {
 			};
 
 			if let Err(e) = process_xml(&xml) {
-				println!("Error processing {name} XML asset: {e}");
-				// println!("{xml}");
+				error!("Error processing {name} XML asset: {e}");
 			}
 		}
 
 		file.seek(io::SeekFrom::Start(position))?;
 	}
 
-	println!("All assets extracted and read.");
+	info!("All assets extracted and read.");
 
 	Ok(())
 }

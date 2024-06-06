@@ -31,6 +31,7 @@ use crate::{read::RPRead, write::RPWrite};
 /// From client to server
 #[non_exhaustive]
 #[repr(u8)]
+#[derive(Debug)]
 pub enum ClientPacket {
 	PlayerText(PlayerText) = 9,
 	Move(Move) = 62,
@@ -43,6 +44,7 @@ pub enum ClientPacket {
 /// From server to client
 #[non_exhaustive]
 #[repr(u8)]
+#[derive(Debug)]
 pub enum ServerPacket {
 	NewTick(NewTick) = 10,
 	ShowEffect(ShowEffect) = 11,

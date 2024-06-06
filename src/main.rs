@@ -15,7 +15,7 @@ use tokio::io::{self, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::select;
 use tokio::sync::Notify;
-use tracing::{event, span, Level};
+use tracing::{error, event, info, span, Level};
 
 mod asset_extract;
 mod config;
@@ -47,7 +47,7 @@ async fn main() -> Result<()> {
 	// Initialize logger
 	logging::init_logger()?;
 
-	event!(Level::INFO, "Starting rotmguard.");
+	info!("Starting rotmguard.");
 
 	// Read the resource assets
 	if config().assets_res.is_empty() {
@@ -66,7 +66,7 @@ async fn main() -> Result<()> {
 	let exit_clone = Arc::clone(&exit);
 	select! {
 		res = server(exit_clone) => res,
-		_ = exit.notified() => { println!("Exiting..."); Ok(()) }
+		_ = exit.notified() => { info!("Exiting..."); Ok(()) }
 	}
 }
 
@@ -86,7 +86,7 @@ async fn server(exit: Arc<Notify>) -> Result<()> {
 				.to_le_bytes(),
 		);
 
-		println!("Connecting to {original_dst}");
+		info!("Connecting to {original_dst}");
 		let real_server = TcpStream::connect((original_dst, 2051)).await?;
 
 		let mut proxy = Proxy::new(socket, real_server);
@@ -96,7 +96,7 @@ async fn server(exit: Arc<Notify>) -> Result<()> {
 			select! {
 				Err(e) = proxy.run() => {
 					if e.kind() != ErrorKind::UnexpectedEof {
-						println!("ERROR: {e:?}");
+						error!("{e:?}");
 					}
 				},
 				_ = exit_clone.notified() => {}

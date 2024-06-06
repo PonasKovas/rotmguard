@@ -5,7 +5,10 @@ use std::{
 	io::Write,
 	sync::{Mutex, MutexGuard},
 };
-use tracing_subscriber::{fmt::MakeWriter, FmtSubscriber};
+use tracing::{error, event, info, level_filters::LevelFilter, Level};
+use tracing_subscriber::{
+	fmt::MakeWriter, layer::SubscriberExt, EnvFilter, FmtSubscriber, Layer, Registry,
+};
 
 use crate::config;
 
@@ -54,32 +57,43 @@ impl<'a> MakeWriter<'a> for &'static LogBuffer {
 }
 
 pub fn init_logger() -> Result<()> {
-	FmtSubscriber::builder()
-		.with_env_filter("rotmguard=trace")
-		.json()
+	// this is for saving logs in a file
+	let logbuffer_layer = tracing_subscriber::fmt::layer()
 		.with_writer(&LOG_BUFFER)
-		.init();
+		.json()
+		.with_filter(LevelFilter::TRACE);
+
+	// and this one for printing to stdout
+	let filter =
+		EnvFilter::try_from_env("ROTMGUARD_LOG").unwrap_or(EnvFilter::new("rotmguard=INFO"));
+	let stdout_layer = tracing_subscriber::fmt::layer()
+		.with_writer(std::io::stdout)
+		.with_filter(filter);
+
+	let subscriber = Registry::default().with(stdout_layer).with(logbuffer_layer);
+	tracing::subscriber::set_global_default(subscriber).expect("Failed to set subscriber");
 
 	Ok(())
 }
 
 pub fn save_logs() {
 	if let Err(e) = create_dir_all("logs/") {
-		eprintln!("ERROR: couldn't create directory logs/. {e:?}");
+		error!("couldn't create directory logs/. {e:?}");
 	}
 	let mut log_file = match File::create(format!("logs/{}.log", chrono::Local::now())) {
 		Ok(file) => file,
 		Err(e) => {
-			eprintln!("ERROR: couldn't create log file: {e:?}");
+			error!("couldn't create log file: {e:?}");
 			return;
 		}
 	};
 
 	for log_line in LOG_BUFFER.buffer.lock().unwrap().iter().rev() {
 		if let Err(e) = log_file.write_all(&log_line) {
-			eprintln!("ERROR: couldn't write to log file: {e:?}");
+			error!("couldn't write to log file: {e:?}");
+			return;
 		}
 	}
 
-	println!("Logs saved!");
+	info!("Logs saved!");
 }

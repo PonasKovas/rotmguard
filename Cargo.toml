@@ -8,8 +8,10 @@ anyhow = "1.0.86"
 byteorder = "1.5.0"
 chrono = "0.4.38"
 ctrlc = "3.4.4"
+derivative = "2.2.0"
 hex = "0.4.3"
 iptables = "0.5.1"
+json5 = "0.4.1"
 lru = "0.12.3"
 nix = { version = "0.29.0", features = ["socket", "net"] }
 phf = { version = "0.11.2", features = ["macros"] }

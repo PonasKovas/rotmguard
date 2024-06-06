@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
 use iptables::IPTables;
+use tracing::{error, info};
 
 pub struct IpTablesRule {
 	iptables: IPTables,
@@ -31,7 +32,7 @@ impl IpTablesRule {
 			bail!("Error creating iptables rule: {}", e);
 		}
 
-		println!("IPTables rule created successfully.");
+		info!("IPTables rule created successfully.");
 
 		Ok(Self { iptables })
 	}
@@ -51,8 +52,8 @@ impl Drop for IpTablesRule {
 				"OUTPUT",
 				"-p tcp --dport 2051 -j DNAT --to-destination :2050",
 			)) {
-			Ok(_) => println!("Successfully removed iptables rule."),
-			Err(e) => println!("ERROR: couldn't delete iptables rule: {}", e),
+			Ok(_) => info!("Successfully removed iptables rule."),
+			Err(e) => error!("couldn't delete iptables rule: {e}"),
 		}
 	}
 }

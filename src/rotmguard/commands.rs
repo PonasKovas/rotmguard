@@ -163,7 +163,7 @@ pub async fn command(proxy: &mut Proxy, text: &str) -> Result<bool> {
 		match SERVERS.get(srv) {
 			Some(ip) => {
 				let packet = Reconnect {
-					hostname: format!("suck a dick"),
+					hostname: format!("have fun :)"),
 					address: format!("{ip}"),
 					port: 2050,
 					game_id: 0xfffffffe,

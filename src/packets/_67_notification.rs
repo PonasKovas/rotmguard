@@ -5,6 +5,7 @@ use crate::{read::RPRead, write::RPWrite};
 use super::ServerPacket;
 
 #[non_exhaustive]
+#[derive(Debug)]
 pub enum NotificationPacket {
 	StatIncrease {
 		text: String,

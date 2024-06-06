@@ -12,7 +12,7 @@ use tokio::{
 	net::TcpStream,
 	select,
 };
-use tracing::instrument;
+use tracing::{error, instrument, span, Level};
 
 const RC4_K_S_TO_C: &'static str = "c91d9eec420160730d825604e0";
 const RC4_K_C_TO_S: &'static str = "5a4d2016bc16dc64883194ffd9";
@@ -59,6 +59,7 @@ impl Proxy {
 			write_buf: vec![0u8; DEFAULT_BUFFER_SIZE],
 		}
 	}
+	#[instrument(skip(self), fields(ip = ?self.server.get_ref().peer_addr()?))]
 	pub async fn run(self: &mut Self) -> io::Result<()> {
 		let mut buf = vec![0u8; DEFAULT_BUFFER_SIZE];
 		loop {
@@ -74,13 +75,13 @@ impl Proxy {
 								Ok(true) => {}, // 👍
 								Ok(false) => continue, // dont forward the packet
 								Err(e) => {
-									println!("Error handling client packet: {e:?}");
+									error!("Error handling client packet: {e:?}");
 								}
 
 							}
 						},
 						Err(e) => {
-							println!("Error parsing client packet: {e:?}");
+							error!("Error parsing client packet: {e:?}");
 						}
 					}
 
@@ -101,13 +102,13 @@ impl Proxy {
 								Ok(true) => {}, // 👍
 								Ok(false) => continue, // dont forward the packet
 								Err(e) => {
-									println!("Error handling server packet: {e:?}");
+									error!("Error handling server packet: {e:?}");
 								}
 
 							}
 						},
 						Err(e) => {
-							println!("Error parsing server packet: {e:?}");
+							error!("Error parsing server packet: {e:?}");
 						}
 					}
 

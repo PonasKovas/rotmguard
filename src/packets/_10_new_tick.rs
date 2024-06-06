@@ -1,3 +1,5 @@
+use derivative::Derivative;
+
 use super::ServerPacket;
 use crate::{
 	extra_datatypes::{ObjectStatusData, WorldPos},
@@ -6,12 +8,14 @@ use crate::{
 };
 use std::io::{self, Error, ErrorKind, Write};
 
-#[derive(Debug, Clone)]
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
 pub struct NewTick {
 	pub tick_id: u32,
 	pub tick_time: u32,
 	pub real_time_ms: u32,
 	pub last_real_time_ms: u16,
+	#[derivative(Debug = "ignore")]
 	pub statuses: Vec<ObjectStatusData>,
 }
 
