@@ -3,10 +3,9 @@ use nix::NixPath;
 use proxy::Proxy;
 use std::fs;
 use std::io::ErrorKind;
-use std::sync::{Arc, OnceLock};
+use std::sync::OnceLock;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::select;
-use tokio::sync::Notify;
 use tracing::{error, info};
 
 mod asset_extract;
@@ -50,29 +49,26 @@ async fn main() -> Result<()> {
 	// create an iptables rule to redirect all game traffic to our proxy
 	let _iptables_rule = iptables::IpTablesRule::create()?;
 
-	// Set up exit notify structure for shutting down clean
-	let exit = Arc::new(Notify::new());
-	let exit_clone = Arc::clone(&exit);
-	ctrlc::set_handler(move || exit_clone.notify_waiters()).expect("Error setting Ctrl-C handler");
-
-	let exit_clone = Arc::clone(&exit);
 	select! {
-		res = server(exit_clone) => res,
-		_ = exit.notified() => { info!("Exiting..."); Ok(()) }
+		res = server() => res,
+		_ = tokio::signal::ctrl_c() => {
+			info!("Exiting...");
+			Ok(())
+		}
 	}
 }
 
-async fn server(exit: Arc<Notify>) -> Result<()> {
+async fn server() -> Result<()> {
 	let listener = TcpListener::bind("127.0.0.1:2051").await?;
 
 	loop {
-		if let Err(e) = accept_con(&exit, &listener).await {
+		if let Err(e) = accept_con(&listener).await {
 			error!("{e:?}");
 		}
 	}
 }
 
-async fn accept_con(exit: &Arc<Notify>, listener: &TcpListener) -> Result<()> {
+async fn accept_con(listener: &TcpListener) -> Result<()> {
 	let (socket, _) = listener.accept().await?;
 
 	// linux shenanigans 🤓
@@ -90,15 +86,11 @@ async fn accept_con(exit: &Arc<Notify>, listener: &TcpListener) -> Result<()> {
 
 	let mut proxy = Proxy::new(socket, real_server);
 
-	let exit_clone = Arc::clone(&exit);
 	tokio::spawn(async move {
-		select! {
-			Err(e) = proxy.run() => {
-				if e.kind() != ErrorKind::UnexpectedEof {
-					error!("{e:?}");
-				}
-			},
-			_ = exit_clone.notified() => {}
+		if let Err(e) = proxy.run().await {
+			if e.kind() != ErrorKind::UnexpectedEof {
+				error!("{e:?}");
+			}
 		}
 	});
 
