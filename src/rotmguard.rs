@@ -2,6 +2,7 @@ use crate::{
 	asset_extract::{self, ProjectileInfo},
 	config,
 	extra_datatypes::{Stat, StatData, StatType, WorldPos},
+	logging::save_logs,
 	packets::{ClientPacket, NotificationPacket, ServerPacket, ShowEffect},
 	proxy::Proxy,
 };
@@ -610,6 +611,7 @@ impl RotmGuard {
 				bytes: _bytes,
 			} => {
 				error!("DEATH");
+				save_logs();
 			}
 			ServerPacket::Unknown { id, bytes } => {
 				if [8].contains(id) {
