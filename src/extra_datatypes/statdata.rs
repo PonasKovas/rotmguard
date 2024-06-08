@@ -31,6 +31,7 @@ pub enum StatType {
 	Name = 31,
 	CurrentFame = 57,
 	ClassQuestFame = 58,
+	GuildName = 62,
 	Condition2 = 96,
 	Other(u8),
 }
@@ -77,6 +78,7 @@ impl RPRead for StatData {
 			31 => StatType::Name,
 			57 => StatType::CurrentFame,
 			58 => StatType::ClassQuestFame,
+			62 => StatType::GuildName,
 			96 => StatType::Condition2,
 			i => StatType::Other(i),
 		};

@@ -415,6 +415,12 @@ impl RotmGuard {
 						stat: Stat::String(n.clone()),
 						secondary_stat: -1,
 					});
+					// remove guild name also
+					my_status.stats.push(StatData {
+						stat_type: StatType::GuildName,
+						stat: Stat::String("".to_owned()),
+						secondary_stat: -1,
+					});
 				}
 
 				// Save the important stats and status effects
