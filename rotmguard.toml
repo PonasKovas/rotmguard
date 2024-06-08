@@ -11,3 +11,12 @@ autonexus_hp = 20
 # fakename = "GHZD"
 dev_mode = false
 log_lines = 1000
+
+# True = debuff disabled
+[settings.debuffs]
+blind = true
+hallucinating = true
+drunk = true
+confused = true
+unstable = true
+darkness = true
