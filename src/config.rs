@@ -18,11 +18,34 @@ pub struct Settings {
 	/// HP at which to autonexus. Recommended value 20
 	pub autonexus_hp: i64,
 	/// Will show a fake name for the client if set.
-	#[serde(skip_serializing_if = "Option::is_none")]
 	#[serde(default)]
 	pub fakename: Option<String>,
 	/// If true, will activate developer mode.
 	pub dev_mode: bool,
 	/// How many log lines to save up to the event that triggered a log save
 	pub log_lines: usize,
+	/// Which client-side debuffs to disable
+	pub debuffs: Debuffs,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Debuffs {
+	/// If true will be disabled
+	#[serde(default)]
+	pub blind: bool,
+	/// If true will be disabled
+	#[serde(default)]
+	pub hallucinating: bool,
+	/// If true will be disabled
+	#[serde(default)]
+	pub drunk: bool,
+	/// If true will be disabled
+	#[serde(default)]
+	pub confused: bool,
+	/// If true will be disabled
+	#[serde(default)]
+	pub unstable: bool,
+	/// If true will be disabled
+	#[serde(default)]
+	pub darkness: bool,
 }

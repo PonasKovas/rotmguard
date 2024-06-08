@@ -35,6 +35,8 @@ pub struct RotmGuard {
 	conditions: PlayerConditions,
 	// the current world position of the player
 	position: WorldPos,
+	// a list of positions through which the player moved in the last tick
+	last_tick_positions: Vec<WorldPos>,
 	// the time instant when last hit was taken
 	last_hit_instant: Instant,
 
@@ -112,6 +114,7 @@ impl RotmGuard {
 			position: WorldPos { x: 0.0, y: 0.0 },
 			record_sc_until: None,
 			record_cs_until: None,
+			last_tick_positions: Vec::new(),
 		}
 	}
 	// True to forward packet, false to block
@@ -192,6 +195,9 @@ impl RotmGuard {
 				return RotmGuard::take_damage(proxy, *damage).await;
 			}
 			ClientPacket::Move(move_packet) => {
+				proxy.rotmguard.last_tick_positions =
+					move_packet.move_records.iter().map(|r| r.1).collect();
+
 				if let Some(last_record) = move_packet.move_records.last() {
 					proxy.rotmguard.position = last_record.1;
 				}
@@ -230,7 +236,11 @@ impl RotmGuard {
 				let shooter_object_type = match proxy.rotmguard.objects.get(&shooter_id) {
 					Some(object_type) => *object_type as u32,
 					None => {
-						trace!("EnemyShoot packet with non-visible owner");
+						let dst = ((enemy_shoot.position.x - proxy.rotmguard.position.x).powi(2)
+							+ (enemy_shoot.position.y - proxy.rotmguard.position.y).powi(2))
+						.sqrt();
+						trace!(distance = dst, "EnemyShoot packet with non-visible owner");
+
 						// this happens all the time, server sends info about bullets that are not even in visible range
 						// its safe to assume that the client ignores these too
 						return Ok(true);
@@ -418,12 +428,34 @@ impl RotmGuard {
 					}
 
 					if stat.stat_type == StatType::Condition {
-						let bitmask = stat.stat.as_int();
+						let mut bitmask = stat.stat.as_int();
 						proxy.rotmguard.conditions.sick = (bitmask & 0x10) != 0;
 						proxy.rotmguard.conditions.bleeding = (bitmask & 0x8000) != 0;
 						proxy.rotmguard.conditions.healing = (bitmask & 0x20000) != 0;
 						proxy.rotmguard.conditions.in_combat = (bitmask & 0x100000) != 0;
 						proxy.rotmguard.conditions.armor_broken = (bitmask & 0x4000000) != 0;
+
+						// remove client-side debuffs
+						let cfg_debuffs = &config().settings.lock().unwrap().debuffs;
+						if cfg_debuffs.blind {
+							bitmask = bitmask & !0x80;
+						}
+						if cfg_debuffs.hallucinating {
+							bitmask = bitmask & !0x100;
+						}
+						if cfg_debuffs.drunk {
+							bitmask = bitmask & !0x200;
+						}
+						if cfg_debuffs.confused {
+							bitmask = bitmask & !0x400;
+						}
+						if cfg_debuffs.unstable {
+							bitmask = bitmask & !0x20000000;
+						}
+						if cfg_debuffs.darkness {
+							bitmask = bitmask & !0x40000000;
+						}
+						stat.stat = Stat::Int(bitmask);
 					}
 					if stat.stat_type == StatType::Condition2 {
 						let bitmask = stat.stat.as_int();
@@ -443,7 +475,10 @@ impl RotmGuard {
 						&& proxy.rotmguard.player_stats.server_hp
 							!= proxy.rotmguard.player_stats.max_hp
 					{
-						error!("server hp lower than client hp");
+						error!(
+							server_hp = proxy.rotmguard.player_stats.server_hp,
+							"server hp lower than client hp"
+						);
 						// flash the character and give notification for debugging purposes
 						if config().settings.lock().unwrap().dev_mode {
 							Notification::new(format!(
@@ -453,6 +488,8 @@ impl RotmGuard {
 							.color(0xff3333)
 							.send(proxy)
 							.await?;
+
+							save_logs();
 
 							let packet = ShowEffect {
 								effect_type: 18,
@@ -554,19 +591,22 @@ impl RotmGuard {
 			}
 			ServerPacket::Aoe(aoe) => {
 				// first check if this AOE will affect us
-				let my_pos = proxy.rotmguard.position;
 				let aoe_pos = aoe.position;
 
-				let distance =
-					((my_pos.x - aoe_pos.x).powi(2) + (my_pos.y - aoe_pos.y).powi(2)).sqrt();
+				let mut affects_me = false;
 
-				trace!(
-					player_in_radius = distance <= aoe.radius,
-					player_pos = ?my_pos,
-					"AOE"
-				);
+				for pos in &proxy.rotmguard.last_tick_positions {
+					let distance =
+						((pos.x - aoe_pos.x).powi(2) + (pos.y - aoe_pos.y).powi(2)).sqrt();
 
-				if distance <= aoe.radius {
+					if distance <= aoe.radius {
+						affects_me = true;
+					}
+				}
+
+				trace!(affects_me, "AOE");
+
+				if affects_me {
 					let mut damage =
 						if aoe.armor_piercing || proxy.rotmguard.conditions.armor_broken {
 							aoe.damage as i64
