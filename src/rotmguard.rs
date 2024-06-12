@@ -3,7 +3,7 @@ use crate::{
 	config,
 	extra_datatypes::{Stat, StatData, StatType, WorldPos},
 	logging::save_logs,
-	packets::{ClientPacket, NotificationPacket, ServerPacket, ShowEffect},
+	packets::{AoePacket, ClientPacket, NotificationPacket, Reconnect, ServerPacket, ShowEffect},
 	proxy::Proxy,
 };
 use anyhow::Result;
@@ -13,10 +13,12 @@ use serde::Deserialize;
 use std::{
 	collections::{BTreeMap, HashMap},
 	hash::{DefaultHasher, Hash, Hasher},
+	mem::swap,
 	num::NonZero,
 	time::Instant,
 };
-use tracing::{debug, error, instrument, trace, warn};
+use tokio::io::AsyncWriteExt;
+use tracing::{debug, error, info, instrument, trace, warn};
 use util::Notification;
 
 mod commands;
@@ -59,6 +61,8 @@ pub struct RotmGuard {
 	record_sc_until: Option<Instant>,
 	#[derivative(Debug = "ignore")]
 	record_cs_until: Option<Instant>,
+
+	last_tick_aoes: Vec<AoePacket>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -115,6 +119,7 @@ impl RotmGuard {
 			record_sc_until: None,
 			record_cs_until: None,
 			last_tick_positions: Vec::new(),
+			last_tick_aoes: Vec::new(),
 		}
 	}
 	// True to forward packet, false to block
@@ -185,9 +190,8 @@ impl RotmGuard {
 					Some(damage) => damage,
 					None => {
 						error!("Player claims to take ground damage when not standing on hazardous ground! Maybe your assets are outdated?");
-						warn!("Nexusing");
+						RotmGuard::nexus(proxy).await?;
 
-						proxy.send_server(&ClientPacket::Escape).await?;
 						return Ok(false);
 					}
 				};
@@ -195,12 +199,16 @@ impl RotmGuard {
 				return RotmGuard::take_damage(proxy, *damage).await;
 			}
 			ClientPacket::Move(move_packet) => {
+				// this is basically client-side version of the tick
+
 				proxy.rotmguard.last_tick_positions =
 					move_packet.move_records.iter().map(|r| r.1).collect();
 
 				if let Some(last_record) = move_packet.move_records.last() {
 					proxy.rotmguard.position = last_record.1;
 				}
+
+				return RotmGuard::check_aoes(proxy).await;
 			}
 			ClientPacket::Unknown { id, bytes } => {
 				if [81, 31].contains(id) {
@@ -596,50 +604,7 @@ impl RotmGuard {
 				);
 			}
 			ServerPacket::Aoe(aoe) => {
-				// first check if this AOE will affect us
-				let aoe_pos = aoe.position;
-
-				let mut affects_me = false;
-
-				for pos in &proxy.rotmguard.last_tick_positions {
-					let distance =
-						((pos.x - aoe_pos.x).powi(2) + (pos.y - aoe_pos.y).powi(2)).sqrt();
-
-					if distance <= aoe.radius {
-						affects_me = true;
-					}
-				}
-
-				trace!(affects_me, "AOE");
-
-				if affects_me {
-					let mut damage =
-						if aoe.armor_piercing || proxy.rotmguard.conditions.armor_broken {
-							aoe.damage as i64
-						} else {
-							let mut def = proxy.rotmguard.player_stats.def;
-							if proxy.rotmguard.conditions.exposed {
-								def -= 20;
-							}
-							(aoe.damage as i64 - def).max(aoe.damage as i64 / 10)
-						};
-
-					if proxy.rotmguard.conditions.cursed {
-						damage = (damage as f64 * 1.25).floor() as i64;
-					}
-
-					match aoe.effect {
-						5 => {
-							proxy.rotmguard.conditions.sick = true;
-						}
-						16 => {
-							proxy.rotmguard.conditions.bleeding = true;
-						}
-						_ => {}
-					}
-
-					return RotmGuard::take_damage(proxy, damage).await;
-				}
+				proxy.rotmguard.last_tick_aoes.push(aoe.clone());
 			}
 			ServerPacket::Text(text) => {
 				// if chat message is from me and fake name set, replace the name
@@ -694,8 +659,7 @@ impl RotmGuard {
 
 		if proxy.rotmguard.hp <= config().settings.lock().unwrap().autonexus_hp as f64 {
 			// AUTONEXUS ENGAGE!!!
-			proxy.send_server(&ClientPacket::Escape).await?;
-			warn!("Nexusing");
+			RotmGuard::nexus(proxy).await?;
 			return Ok(false); // dont forward!!
 		}
 		if config().settings.lock().unwrap().dev_mode {
@@ -703,6 +667,93 @@ impl RotmGuard {
 				.color(0x888888)
 				.send(proxy)
 				.await?;
+		}
+
+		Ok(true)
+	}
+	/// Nexuses
+	pub async fn nexus(proxy: &mut Proxy) -> Result<()> {
+		proxy.send_server(&ClientPacket::Escape).await?;
+		// we also want to speed up disconnection from the server
+		// to hopefully increase chances of survival
+		proxy
+			.send_client(
+				&Reconnect {
+					hostname: "nexus".to_owned(),
+					address: proxy.server.get_ref().peer_addr()?.ip().to_string(),
+					port: 2050,
+					game_id: 0xfffffffe,
+					key_time: 0xffffffff,
+					key: Vec::new(),
+				}
+				.into(),
+			)
+			.await?;
+		// and cherry on top - shutdown server tcpstream
+		proxy.server.shutdown().await?;
+
+		warn!("Nexusing");
+
+		Ok(())
+	}
+	/// Checks all last tick AOEs received if any of them affect us and takes damage accordingly
+	/// If returns false - that means nexusing
+	async fn check_aoes(proxy: &mut Proxy) -> Result<bool> {
+		let mut aoes = Vec::new();
+		swap(&mut aoes, &mut proxy.rotmguard.last_tick_aoes);
+
+		for aoe in aoes {
+			// first check if this AOE will affect us
+
+			// let mut affects_me = false;
+
+			// // check all positions that happened in the last tick
+			// for pos in &proxy.rotmguard.last_tick_positions {
+			// 	let distance =
+			// 		((aoe.position.x - pos.x).powi(2) + (aoe.position.y - pos.y).powi(2)).sqrt();
+
+			// 	if distance <= aoe.radius {
+			// 		affects_me = true;
+			// 		break;
+			// 	}
+			// }
+
+			let distance = ((aoe.position.x - proxy.rotmguard.position.x).powi(2)
+				+ (aoe.position.y - proxy.rotmguard.position.y).powi(2))
+			.sqrt();
+			let affects_me = distance <= aoe.radius;
+
+			trace!(affects_me, "AOE");
+
+			if affects_me {
+				let mut damage = if aoe.armor_piercing || proxy.rotmguard.conditions.armor_broken {
+					aoe.damage as i64
+				} else {
+					let mut def = proxy.rotmguard.player_stats.def;
+					if proxy.rotmguard.conditions.exposed {
+						def -= 20;
+					}
+					(aoe.damage as i64 - def).max(aoe.damage as i64 / 10)
+				};
+
+				if proxy.rotmguard.conditions.cursed {
+					damage = (damage as f64 * 1.25).floor() as i64;
+				}
+
+				match aoe.effect {
+					5 => {
+						proxy.rotmguard.conditions.sick = true;
+					}
+					16 => {
+						proxy.rotmguard.conditions.bleeding = true;
+					}
+					_ => {}
+				}
+
+				if RotmGuard::take_damage(proxy, damage).await? == false {
+					return Ok(false);
+				}
+			}
 		}
 
 		Ok(true)
