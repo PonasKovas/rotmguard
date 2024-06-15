@@ -7,6 +7,7 @@ use crate::{
 	proxy::Proxy,
 };
 use anyhow::Result;
+use commands::{RECORD_CS_UNTIL, RECORD_SC_UNTIL};
 use derivative::Derivative;
 use lru::LruCache;
 use serde::Deserialize;
@@ -54,13 +55,6 @@ pub struct RotmGuard {
 	// all once seen ground tiles that could deal damage. Map<(x, y) -> damage>
 	#[derivative(Debug = "ignore")]
 	hazardous_tiles: HashMap<(i16, i16), i64>,
-
-	// for packet investigation
-	// saves all packets server->client or client->server respectively until the given instant
-	#[derivative(Debug = "ignore")]
-	record_sc_until: Option<Instant>,
-	#[derivative(Debug = "ignore")]
-	record_cs_until: Option<Instant>,
 
 	last_tick_aoes: Vec<AoePacket>,
 }
@@ -116,8 +110,6 @@ impl RotmGuard {
 			},
 			fake_name: config().settings.lock().unwrap().fakename.clone(),
 			position: WorldPos { x: 0.0, y: 0.0 },
-			record_sc_until: None,
-			record_cs_until: None,
 			last_tick_positions: Vec::new(),
 			last_tick_aoes: Vec::new(),
 		}
@@ -216,7 +208,7 @@ impl RotmGuard {
 					return Ok(true);
 				}
 				trace!("Unknown packet");
-				if let Some(until) = proxy.rotmguard.record_cs_until {
+				if let Some(until) = *RECORD_CS_UNTIL.lock().unwrap() {
 					if Instant::now() < until {
 						let mut hasher = DefaultHasher::new();
 						until.hash(&mut hasher);
@@ -354,18 +346,20 @@ impl RotmGuard {
 			ServerPacket::NewTick(new_tick) => {
 				let tick_time = new_tick.tick_time as f64 / 1000.0; // in seconds
 
-				if let Some(until) = proxy.rotmguard.record_sc_until {
+				let rec_sc_until = *RECORD_SC_UNTIL.lock().unwrap();
+				if let Some(until) = rec_sc_until {
 					if Instant::now() >= until {
-						proxy.rotmguard.record_sc_until = None;
+						*RECORD_SC_UNTIL.lock().unwrap() = None;
 						Notification::new("Finished recording".to_owned())
 							.color(0x33ff33)
 							.send(proxy)
 							.await?;
 					}
 				}
-				if let Some(until) = proxy.rotmguard.record_cs_until {
+				let rec_cs_until = *RECORD_CS_UNTIL.lock().unwrap();
+				if let Some(until) = rec_cs_until {
 					if Instant::now() >= until {
-						proxy.rotmguard.record_cs_until = None;
+						*RECORD_CS_UNTIL.lock().unwrap() = None;
 						Notification::new("Finished recording".to_owned())
 							.color(0x33ff33)
 							.send(proxy)
@@ -629,7 +623,7 @@ impl RotmGuard {
 					// skip some common spammy useless packets
 					return Ok(true);
 				}
-				if let Some(until) = proxy.rotmguard.record_sc_until {
+				if let Some(until) = *RECORD_SC_UNTIL.lock().unwrap() {
 					if Instant::now() < until {
 						let mut hasher = DefaultHasher::new();
 						until.hash(&mut hasher);

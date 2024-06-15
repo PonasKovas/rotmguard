@@ -1,5 +1,4 @@
-use std::time::{Duration, Instant};
-
+use super::util::Notification;
 use crate::{
 	config,
 	constants::SERVERS,
@@ -10,8 +9,15 @@ use crate::{
 };
 use anyhow::Result;
 use rand::{thread_rng, Rng};
+use std::{
+	sync::Mutex,
+	time::{Duration, Instant},
+};
 
-use super::util::Notification;
+// for packet investigation
+// saves all packets server->client or client->server respectively until the given instant
+pub static RECORD_SC_UNTIL: Mutex<Option<Instant>> = Mutex::new(None);
+pub static RECORD_CS_UNTIL: Mutex<Option<Instant>> = Mutex::new(None);
 
 pub async fn command(proxy: &mut Proxy, text: &str) -> Result<bool> {
 	// `/hi`, `/rotmguard` are simple commands that send a notification
@@ -123,11 +129,11 @@ pub async fn command(proxy: &mut Proxy, text: &str) -> Result<bool> {
 		};
 
 		let message = if text.starts_with("/recsc") {
-			proxy.rotmguard.record_sc_until = Some(Instant::now() + Duration::from_secs_f32(time));
+			*RECORD_SC_UNTIL.lock().unwrap() = Some(Instant::now() + Duration::from_secs_f32(time));
 
 			format!("Recording server->client for {time} s")
 		} else {
-			proxy.rotmguard.record_cs_until = Some(Instant::now() + Duration::from_secs_f32(time));
+			*RECORD_CS_UNTIL.lock().unwrap() = Some(Instant::now() + Duration::from_secs_f32(time));
 
 			format!("Recording client->server for {time} s")
 		};
