@@ -48,6 +48,7 @@ pub struct ProjectileInfo {
 	pub inflicts_armor_broken: bool,
 }
 
+/// This cleans up and reverses the changes to resources.assets file on drop
 pub struct EditedAssetsGuard {
 	real_assets_path: PathBuf,
 	edited_assets_path: Option<PathBuf>,
@@ -72,7 +73,7 @@ impl Drop for EditedAssetsGuard {
 pub fn extract_assets(path: &Path) -> io::Result<EditedAssetsGuard> {
 	let mut file = File::open(path)?;
 
-	// If forcing debuffs, read the whole file into memory so it can be edited and written instead of the original file
+	// If forcing debuffs, read the whole file into memory so it can be edited and written to replace the original file
 	let mut force_debuffs = if config().settings.lock().unwrap().force_debuffs {
 		let mut contents = Vec::new();
 		file.read_to_end(&mut contents)?;
@@ -216,7 +217,6 @@ pub fn extract_assets(path: &Path) -> io::Result<EditedAssetsGuard> {
 
 	if let Some(contents) = force_debuffs {
 		// rename the original file and write the edited file in its place
-		// this is later cleaned up in main.rs
 		let mut original_path = path.as_os_str().to_owned();
 		original_path.push(".rotmguard");
 		std::fs::rename(path, &original_path)?;
@@ -274,7 +274,7 @@ fn process_xml(
 	let mut xml = xmltree::Element::parse(raw_xml.as_bytes()).unwrap();
 
 	match xml.name.as_str() {
-		"Objects" => process_xml_objects(&mut xml.children, force_debuffs)?,
+		"Objects" => process_xml_objects(&mut xml.children, force_debuffs.is_some())?,
 		"GroundTypes" => process_xml_grounds(&mut xml.children)?,
 		_ => return Ok(()), // Not Interested 👍
 	}
@@ -301,40 +301,7 @@ fn process_xml(
 	Ok(())
 }
 
-fn process_xml_objects(
-	objects: &mut Vec<XMLNode>,
-	force_debuffs: &mut Option<Vec<u8>>,
-) -> anyhow::Result<()> {
-	let remove_blind = if force_debuffs.is_some() {
-		config().settings.lock().unwrap().debuffs.blind
-	} else {
-		false
-	};
-	let remove_hallucinating = if force_debuffs.is_some() {
-		config().settings.lock().unwrap().debuffs.hallucinating
-	} else {
-		false
-	};
-	let remove_drunk = if force_debuffs.is_some() {
-		config().settings.lock().unwrap().debuffs.drunk
-	} else {
-		false
-	};
-	let remove_confused = if force_debuffs.is_some() {
-		config().settings.lock().unwrap().debuffs.confused
-	} else {
-		false
-	};
-	let remove_unstable = if force_debuffs.is_some() {
-		config().settings.lock().unwrap().debuffs.unstable
-	} else {
-		false
-	};
-	let remove_darkness = if force_debuffs.is_some() {
-		config().settings.lock().unwrap().debuffs.darkness
-	} else {
-		false
-	};
+fn process_xml_objects(objects: &mut Vec<XMLNode>, force_debuffs: bool) -> anyhow::Result<()> {
 	for object in objects {
 		if let XMLNode::Element(object) = object {
 			if object.name != "Object" {
@@ -404,17 +371,21 @@ fn process_xml_objects(
 											}
 											_ => {}
 										}
-										// Client-side debuffs for antidebuff
-										if (condition.as_str() == "Blind" && remove_blind)
-											|| (condition.as_str() == "Hallucinating"
-												&& remove_hallucinating) || (condition.as_str()
-											== "Drunk" && remove_drunk) || (condition.as_str()
-											== "Confused"
-											&& remove_confused) || (condition.as_str() == "Unstable"
-											&& remove_unstable) || (condition.as_str() == "Darkness"
-											&& remove_darkness)
-										{
-											parameter.children.remove(projectile_parameter_i);
+										// Client-side debuffs for force antidebuff
+										if force_debuffs {
+											let debuffs =
+												&config().settings.lock().unwrap().debuffs;
+											let c = condition.as_str();
+											if (c == "Blind" && debuffs.blind)
+												|| (c == "Hallucinating" && debuffs.hallucinating)
+												|| (c == "Drunk" && debuffs.drunk) || (c
+												== "Confused"
+												&& debuffs.confused) || (c == "Unstable"
+												&& debuffs.unstable) || (c == "Darkness"
+												&& debuffs.darkness)
+											{
+												parameter.children.remove(projectile_parameter_i);
+											}
 										}
 									} else {
 										bail!("Invalid Object Projectile ConditionEffect. Value be text");
