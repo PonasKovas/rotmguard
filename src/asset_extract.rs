@@ -75,12 +75,7 @@ pub fn extract_assets(path: &Path) -> io::Result<EditedAssetsGuard> {
 
 	// If forcing debuffs, read the whole file into memory so it can be edited and written to replace the original file
 	let mut force_debuffs = if config().settings.lock().unwrap().force_debuffs {
-		let mut contents = Vec::new();
-		file.read_to_end(&mut contents)?;
-
-		file = File::open(path)?;
-
-		Some(contents)
+		Some(std::fs::read(path)?)
 	} else {
 		None
 	};
