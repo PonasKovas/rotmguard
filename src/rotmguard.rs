@@ -85,6 +85,8 @@ pub struct PlayerConditions {
 	armored: bool,
 	armor_broken: bool,
 	in_combat: bool,
+	invulnerable: bool,
+	invincible: bool,
 }
 
 impl RotmGuard {
@@ -113,6 +115,8 @@ impl RotmGuard {
 				armored: false,
 				armor_broken: false,
 				in_combat: false,
+				invulnerable: false,
+				invincible: false,
 			},
 			fake_name: config().settings.lock().unwrap().fakename.clone(),
 
@@ -143,6 +147,10 @@ impl RotmGuard {
 						return Ok(false); // Dont forward the packet then, better get DCed than die.
 					}
 				};
+
+				if proxy.rotmguard.conditions.invulnerable {
+					return Ok(true); // ignore if invulnerable
+				}
 
 				let mut damage =
 					if bullet_info.info.armor_piercing || proxy.rotmguard.conditions.armor_broken {
@@ -222,6 +230,10 @@ impl RotmGuard {
 						return Ok(false);
 					}
 				};
+
+				if proxy.rotmguard.conditions.invulnerable {
+					return Ok(true); // dont check AOEs
+				}
 
 				for aoe in aoes {
 					// first check if this AOE will affect us
@@ -536,6 +548,8 @@ impl RotmGuard {
 							proxy.rotmguard.conditions.bleeding = (bitmask & 0x8000) != 0;
 							proxy.rotmguard.conditions.healing = (bitmask & 0x20000) != 0;
 							proxy.rotmguard.conditions.in_combat = (bitmask & 0x100000) != 0;
+							proxy.rotmguard.conditions.invincible = (bitmask & 0x800000) != 0;
+							proxy.rotmguard.conditions.invulnerable = (bitmask & 0x1000000) != 0;
 							proxy.rotmguard.conditions.armored = (bitmask & 0x2000000) != 0;
 							proxy.rotmguard.conditions.armor_broken = (bitmask & 0x4000000) != 0;
 
@@ -742,6 +756,10 @@ impl RotmGuard {
 	// Modifies the client hp and nexuses if necessary
 	// This does not consider defense or any status effects.
 	pub async fn take_damage(proxy: &mut Proxy, damage: i64) -> Result<bool> {
+		if proxy.rotmguard.conditions.invincible {
+			return Ok(true);
+		}
+
 		proxy.rotmguard.hit_this_tick = true;
 		proxy.rotmguard.conditions.in_combat = true;
 

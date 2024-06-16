@@ -4,11 +4,13 @@ use std::{
 	collections::BTreeMap,
 	fs::File,
 	io::{self, Error, Read, Seek},
-	path::Path,
+	path::{Path, PathBuf},
 	sync::Mutex,
 };
 use tracing::{error, info};
 use xmltree::XMLNode;
+
+use crate::config;
 
 const NON_XML_FILES: &[&str] = &[
 	"manifest_xml",
@@ -46,8 +48,41 @@ pub struct ProjectileInfo {
 	pub inflicts_armor_broken: bool,
 }
 
-pub fn extract_assets(path: &Path) -> io::Result<()> {
+pub struct EditedAssetsGuard {
+	real_assets_path: PathBuf,
+	edited_assets_path: Option<PathBuf>,
+}
+
+impl Drop for EditedAssetsGuard {
+	fn drop(&mut self) {
+		if let Some(edited_assets_path) = &self.edited_assets_path {
+			// delete the edited assets and rename original back to its place
+			if let Err(e) = std::fs::remove_file(edited_assets_path)
+				.and_then(|_| std::fs::rename(&self.real_assets_path, edited_assets_path))
+			{
+				error!("Error reversing changes to game files: {e:?}");
+				error!("To do it manually: delete the `resources.assets` file, and rename `resources.assets.rotgmuard` to `resources.assets`.")
+			} else {
+				info!("Successfully reversed changed to game files.");
+			}
+		}
+	}
+}
+
+pub fn extract_assets(path: &Path) -> io::Result<EditedAssetsGuard> {
 	let mut file = File::open(path)?;
+
+	// If forcing debuffs, read the whole file into memory so it can be edited and written instead of the original file
+	let mut force_debuffs = if config().settings.lock().unwrap().force_debuffs {
+		let mut contents = Vec::new();
+		file.read_to_end(&mut contents)?;
+
+		file = File::open(path)?;
+
+		Some(contents)
+	} else {
+		None
+	};
 
 	let real_size = file.metadata().unwrap().len();
 
@@ -160,6 +195,7 @@ pub fn extract_assets(path: &Path) -> io::Result<()> {
 		if !NON_XML_FILES.iter().any(|&n| n == name) {
 			// We only want XML files
 			let bytes_n = file.read_u32::<LittleEndian>()?;
+			let xml_position = file.stream_position()?;
 			let mut xml = vec![0; bytes_n as usize];
 			file.read_exact(&mut xml)?;
 
@@ -168,7 +204,7 @@ pub fn extract_assets(path: &Path) -> io::Result<()> {
 				Err(e) => return Err(Error::new(io::ErrorKind::InvalidData, e)),
 			};
 
-			if let Err(e) = process_xml(&xml) {
+			if let Err(e) = process_xml(&xml, &mut force_debuffs, xml_position as usize) {
 				error!("Error processing {name} XML asset: {e}");
 			}
 		}
@@ -178,7 +214,27 @@ pub fn extract_assets(path: &Path) -> io::Result<()> {
 
 	info!("All assets extracted and read.");
 
-	Ok(())
+	if let Some(contents) = force_debuffs {
+		// rename the original file and write the edited file in its place
+		// this is later cleaned up in main.rs
+		let mut original_path = path.as_os_str().to_owned();
+		original_path.push(".rotmguard");
+		std::fs::rename(path, &original_path)?;
+
+		std::fs::write(path, &contents)?;
+
+		info!("Assets edited to force anti-debuffs.");
+
+		return Ok(EditedAssetsGuard {
+			real_assets_path: Path::new(&original_path).to_path_buf(),
+			edited_assets_path: Some(path.to_path_buf()),
+		});
+	}
+
+	Ok(EditedAssetsGuard {
+		real_assets_path: path.to_path_buf(),
+		edited_assets_path: None,
+	})
 }
 
 fn read_nul_terminated_string<R: Read>(reader: &mut R) -> io::Result<String> {
@@ -210,19 +266,75 @@ fn align_stream<S: Seek + Read>(stream: &mut S) -> io::Result<()> {
 }
 
 // Parses XML asset and adds to the registry
-fn process_xml(xml: &str) -> anyhow::Result<()> {
-	let xml = xmltree::Element::parse(xml.as_bytes()).unwrap();
+fn process_xml(
+	raw_xml: &str,
+	force_debuffs: &mut Option<Vec<u8>>,
+	xml_pos: usize,
+) -> anyhow::Result<()> {
+	let mut xml = xmltree::Element::parse(raw_xml.as_bytes()).unwrap();
 
 	match xml.name.as_str() {
-		"Objects" => process_xml_objects(xml.children)?,
-		"GroundTypes" => process_xml_grounds(xml.children)?,
+		"Objects" => process_xml_objects(&mut xml.children, force_debuffs)?,
+		"GroundTypes" => process_xml_grounds(&mut xml.children)?,
 		_ => return Ok(()), // Not Interested 👍
+	}
+
+	if let Some(file) = force_debuffs {
+		let mut edited_xml = Vec::with_capacity(raw_xml.len());
+
+		xml.write(&mut edited_xml)?;
+
+		// add spaces to the end to make sure old and edited XMLs have the same
+		// length to not fuck up the rest of the file
+		let to_add = match raw_xml.len().checked_sub(edited_xml.len()) {
+			Some(n) => n,
+			None => bail!("Tried to force remove condition effect but XML length increased??"),
+		};
+
+		for _ in 0..to_add {
+			edited_xml.push(b' '); // hopefully spaces dont fuck up the format?
+		}
+
+		file[xml_pos..(xml_pos + raw_xml.len())].copy_from_slice(&edited_xml);
 	}
 
 	Ok(())
 }
 
-fn process_xml_objects(objects: Vec<XMLNode>) -> anyhow::Result<()> {
+fn process_xml_objects(
+	objects: &mut Vec<XMLNode>,
+	force_debuffs: &mut Option<Vec<u8>>,
+) -> anyhow::Result<()> {
+	let remove_blind = if force_debuffs.is_some() {
+		config().settings.lock().unwrap().debuffs.blind
+	} else {
+		false
+	};
+	let remove_hallucinating = if force_debuffs.is_some() {
+		config().settings.lock().unwrap().debuffs.hallucinating
+	} else {
+		false
+	};
+	let remove_drunk = if force_debuffs.is_some() {
+		config().settings.lock().unwrap().debuffs.drunk
+	} else {
+		false
+	};
+	let remove_confused = if force_debuffs.is_some() {
+		config().settings.lock().unwrap().debuffs.confused
+	} else {
+		false
+	};
+	let remove_unstable = if force_debuffs.is_some() {
+		config().settings.lock().unwrap().debuffs.unstable
+	} else {
+		false
+	};
+	let remove_darkness = if force_debuffs.is_some() {
+		config().settings.lock().unwrap().debuffs.darkness
+	} else {
+		false
+	};
 	for object in objects {
 		if let XMLNode::Element(object) = object {
 			if object.name != "Object" {
@@ -244,7 +356,7 @@ fn process_xml_objects(objects: Vec<XMLNode>) -> anyhow::Result<()> {
 
 			let mut projectiles = BTreeMap::new();
 			let mut i = 0;
-			for parameter in object.children {
+			for parameter in &mut object.children {
 				if let XMLNode::Element(parameter) = parameter {
 					if parameter.name == "Projectile" {
 						let projectile_id = match parameter.attributes.get("id") {
@@ -258,8 +370,10 @@ fn process_xml_objects(objects: Vec<XMLNode>) -> anyhow::Result<()> {
 						let mut inflicts_sick = false;
 						let mut inflicts_bleeding = false;
 						let mut inflicts_armor_broken = false;
-						for projectile_parameter in parameter.children {
-							if let XMLNode::Element(projectile_parameter) = projectile_parameter {
+						for projectile_parameter_i in (0..parameter.children.len()).rev() {
+							if let XMLNode::Element(projectile_parameter) =
+								&parameter.children[projectile_parameter_i]
+							{
 								if projectile_parameter.name == "ArmorPiercing" {
 									armor_piercing = true;
 								} else if projectile_parameter.name == "ConditionEffect" {
@@ -289,6 +403,18 @@ fn process_xml_objects(objects: Vec<XMLNode>) -> anyhow::Result<()> {
 												inflicts_armor_broken = true;
 											}
 											_ => {}
+										}
+										// Client-side debuffs for antidebuff
+										if (condition.as_str() == "Blind" && remove_blind)
+											|| (condition.as_str() == "Hallucinating"
+												&& remove_hallucinating) || (condition.as_str()
+											== "Drunk" && remove_drunk) || (condition.as_str()
+											== "Confused"
+											&& remove_confused) || (condition.as_str() == "Unstable"
+											&& remove_unstable) || (condition.as_str() == "Darkness"
+											&& remove_darkness)
+										{
+											parameter.children.remove(projectile_parameter_i);
 										}
 									} else {
 										bail!("Invalid Object Projectile ConditionEffect. Value be text");
@@ -323,7 +449,7 @@ fn process_xml_objects(objects: Vec<XMLNode>) -> anyhow::Result<()> {
 	Ok(())
 }
 
-fn process_xml_grounds(grounds: Vec<XMLNode>) -> anyhow::Result<()> {
+fn process_xml_grounds(grounds: &mut Vec<XMLNode>) -> anyhow::Result<()> {
 	for object in grounds {
 		if let XMLNode::Element(object) = object {
 			if object.name != "Ground" {
@@ -345,7 +471,7 @@ fn process_xml_grounds(grounds: Vec<XMLNode>) -> anyhow::Result<()> {
 
 			let mut damage = 0i64;
 			// Now each ground type has both MinDamage and MaxDamage but they're always equal
-			for parameter in object.children {
+			for parameter in &mut object.children {
 				if let XMLNode::Element(parameter) = parameter {
 					if parameter.name != "MinDamage" {
 						continue;

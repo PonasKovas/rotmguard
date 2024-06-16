@@ -44,7 +44,7 @@ async fn main() -> Result<()> {
 	if config().assets_res.is_empty() {
 		bail!("assets_res not set. Please edit your rotmguard.toml!");
 	}
-	asset_extract::extract_assets(&config().assets_res)?;
+	let _assets_guard = asset_extract::extract_assets(&config().assets_res)?;
 
 	// create an iptables rule to redirect all game traffic to our proxy
 	let _iptables_rule = iptables::IpTablesRule::create()?;

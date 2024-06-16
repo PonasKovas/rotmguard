@@ -12,6 +12,10 @@ autonexus_hp = 20
 dev_mode = false
 log_lines = 5000
 
+# If true, will edit game files to remove the client-side debuffs completely
+# For this to work, you have to launch the game AFTER rotmguard is already running
+force_debuffs = true
+
 # True = debuff disabled
 [settings.debuffs]
 blind = true

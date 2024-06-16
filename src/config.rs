@@ -24,6 +24,8 @@ pub struct Settings {
 	pub dev_mode: bool,
 	/// How many log lines to save up to the event that triggered a log save
 	pub log_lines: usize,
+	/// If true, will edit game files to remove the client-side debuffs completely
+	pub force_debuffs: bool,
 	/// Which client-side debuffs to disable
 	pub debuffs: Debuffs,
 }
