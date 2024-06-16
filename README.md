@@ -10,9 +10,9 @@
 
 ### Features
 
- - **Autonexus.** Keep in mind that even the best autonexus won't save your wizard if you're gonna goof around and walk over enemies that EP. Just try to avoid walking over enemies and you should be fine. *If you do end up dying while using this tool (and you were not goofing around and walking over enemies) please open an issue! Also if you have it recorded the video would help too!*
+ - **Autonexus.** Keep in mind that even the best autonexus won't save your wizard if you're gonna goof around and walk over enemies that EP.
  - **Fake name.** Changes your name on the top left corner of the screen and when you type something in chat.
- - **/con** command to quickly and conveniently connect to servers.
+ - **Anti-Debuffs** Removes client-side debuffs such as confused, blind, etc.
  - Might add more later, also feel free to open PRs!
 
 ### Dependencies
