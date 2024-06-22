@@ -632,26 +632,8 @@ impl RotmGuard {
 							proxy.rotmguard.conditions.armored = (bitmask & 0x2000000) != 0;
 							proxy.rotmguard.conditions.armor_broken = (bitmask & 0x4000000) != 0;
 
-							// remove client-side debuffs
-							let cfg_debuffs = &config().settings.lock().unwrap().debuffs;
-							if cfg_debuffs.blind {
-								bitmask = bitmask & !0x80;
-							}
-							if cfg_debuffs.hallucinating {
-								bitmask = bitmask & !0x100;
-							}
-							if cfg_debuffs.drunk {
-								bitmask = bitmask & !0x200;
-							}
-							if cfg_debuffs.confused {
-								bitmask = bitmask & !0x400;
-							}
-							if cfg_debuffs.unstable {
-								bitmask = bitmask & !0x20000000;
-							}
-							if cfg_debuffs.darkness {
-								bitmask = bitmask & !0x40000000;
-							}
+							bitmask = remove_client_side_debuffs(bitmask);
+
 							stat.stat = Stat::Int(bitmask);
 						}
 						StatType::Condition2 => {
@@ -760,7 +742,7 @@ impl RotmGuard {
 						my_status.stats.push(StatData {
 							stat_type: StatType::Speed,
 							stat: Stat::Int(speed),
-							secondary_stat: 0,
+							secondary_stat: -1,
 						});
 					}
 				} else {
@@ -774,7 +756,7 @@ impl RotmGuard {
 						my_status.stats.push(StatData {
 							stat_type: StatType::Speed,
 							stat: Stat::Int(proxy.rotmguard.player_stats.spd),
-							secondary_stat: 0,
+							secondary_stat: -1,
 						});
 					}
 				}
@@ -794,11 +776,11 @@ impl RotmGuard {
 						my_status.stats.push(StatData {
 							stat_type: StatType::Condition,
 							stat: Stat::Int(if proxy.rotmguard.fake_slow {
-								proxy.rotmguard.last_conditions | 0x8
+								remove_client_side_debuffs(proxy.rotmguard.last_conditions | 0x8)
 							} else {
-								proxy.rotmguard.last_conditions
+								remove_client_side_debuffs(proxy.rotmguard.last_conditions)
 							}),
-							secondary_stat: 0,
+							secondary_stat: -1,
 						});
 					}
 				}
@@ -946,4 +928,28 @@ impl RotmGuard {
 
 		def
 	}
+}
+
+fn remove_client_side_debuffs(mut bitmask: i64) -> i64 {
+	let cfg_debuffs = &config().settings.lock().unwrap().debuffs;
+	if cfg_debuffs.blind {
+		bitmask = bitmask & !0x80;
+	}
+	if cfg_debuffs.hallucinating {
+		bitmask = bitmask & !0x100;
+	}
+	if cfg_debuffs.drunk {
+		bitmask = bitmask & !0x200;
+	}
+	if cfg_debuffs.confused {
+		bitmask = bitmask & !0x400;
+	}
+	if cfg_debuffs.unstable {
+		bitmask = bitmask & !0x20000000;
+	}
+	if cfg_debuffs.darkness {
+		bitmask = bitmask & !0x40000000;
+	}
+
+	bitmask
 }
