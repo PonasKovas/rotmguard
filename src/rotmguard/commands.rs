@@ -1,4 +1,4 @@
-use super::util::Notification;
+use super::{util::Notification, AntiPush};
 use crate::{
 	config,
 	constants::SERVERS,
@@ -215,6 +215,25 @@ pub async fn command(proxy: &mut Proxy, text: &str) -> Result<bool> {
 		save_logs();
 		Notification::new("Logs saved".to_owned())
 			.color(0x33ff33)
+			.send(proxy)
+			.await?;
+
+		return Ok(false);
+	}
+	// `/antipush` toggles the ANTI-PUSH cheat
+	// which disables all pushing ground, but slows you so you dont get DCed
+	if text.starts_with("/antipush") || text.starts_with("/ap") {
+		let msg = if proxy.rotmguard.anti_push.enabled {
+			proxy.rotmguard.anti_push.enabled = false;
+			"Antipush disabled."
+		} else {
+			proxy.rotmguard.anti_push.enabled = true;
+			"Antipush enabled."
+		};
+		proxy.rotmguard.anti_push.synced = false;
+
+		Notification::new(msg.to_owned())
+			.color(0xff33ff)
 			.send(proxy)
 			.await?;
 

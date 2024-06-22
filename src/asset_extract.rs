@@ -1,7 +1,7 @@
 use anyhow::{bail, Context};
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use std::{
-	collections::BTreeMap,
+	collections::{BTreeMap, BTreeSet},
 	fs::File,
 	io::{self, Error, Read, Seek},
 	path::{Path, PathBuf},
@@ -37,6 +37,8 @@ pub static PROJECTILES: Mutex<BTreeMap<u32, BTreeMap<u32, ProjectileInfo>>> =
 	Mutex::new(BTreeMap::new());
 /// ground type -> damage
 pub static HAZARDOUS_GROUNDS: Mutex<BTreeMap<u32, i64>> = Mutex::new(BTreeMap::new());
+/// grounds that push the player like conveyors
+pub static PUSH_GROUNDS: Mutex<BTreeSet<u32>> = Mutex::new(BTreeSet::new());
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct ProjectileInfo {
@@ -435,33 +437,36 @@ fn process_xml_grounds(grounds: &mut Vec<XMLNode>) -> anyhow::Result<()> {
 			let ground_type =
 				u32::from_str_radix(ground_type, 16).context("unexpected Ground type format")?;
 
-			let mut damage = 0i64;
-			// Now each ground type has both MinDamage and MaxDamage but they're always equal
-			for parameter in &mut object.children {
-				if let XMLNode::Element(parameter) = parameter {
-					if parameter.name != "MinDamage" {
-						continue;
-					}
+			let params = object.children.iter().filter_map(|p| {
+				if let XMLNode::Element(p) = p {
+					Some(p)
+				} else {
+					None
+				}
+			});
 
-					if parameter.children.is_empty() || parameter.children.len() > 1 {
-						bail!("Invalid Ground MinDamage. Must have only text");
-					}
+			if let Some(param) = params.clone().find(|p| p.name == "MaxDamage") {
+				if param.children.is_empty() || param.children.len() > 1 {
+					bail!("Invalid Ground MaxDamage. Must have only text");
+				}
 
-					if let XMLNode::Text(dmg) = &parameter.children[0] {
-						damage = dmg
-							.parse::<i64>()
-							.context("Invalid Ground MinDamage, must be integer")?;
-						break;
-					} else {
-						bail!("Invalid Ground MinDamage. Value be text");
-					}
+				if let XMLNode::Text(dmg) = &param.children[0] {
+					let damage = dmg
+						.parse::<i64>()
+						.context("Invalid Ground MaxDamage, must be integer")?;
+
+					HAZARDOUS_GROUNDS
+						.lock()
+						.unwrap()
+						.insert(ground_type, damage);
+				} else {
+					bail!("Invalid Ground MaxDamage. Value be text");
 				}
 			}
 
-			HAZARDOUS_GROUNDS
-				.lock()
-				.unwrap()
-				.insert(ground_type, damage);
+			if let Some(_) = params.clone().find(|p| p.name == "Push") {
+				PUSH_GROUNDS.lock().unwrap().insert(ground_type);
+			}
 		}
 	}
 

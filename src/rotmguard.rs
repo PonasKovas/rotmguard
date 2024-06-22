@@ -3,7 +3,7 @@ use crate::{
 	config,
 	extra_datatypes::{Stat, StatData, StatType, WorldPos},
 	logging::save_logs,
-	packets::{AoePacket, ClientPacket, NotificationPacket, ServerPacket, ShowEffect},
+	packets::{AoePacket, ClientPacket, NotificationPacket, ServerPacket, ShowEffect, TileData},
 	proxy::Proxy,
 };
 use anyhow::Result;
@@ -23,6 +23,9 @@ use util::Notification;
 
 mod commands;
 mod util;
+
+// the tile with which all pushing tiles are replaced when antipush enabled
+const ANTI_PUSH_TILE: u16 = 0x223f; // Sprite white square
 
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
@@ -59,6 +62,16 @@ pub struct RotmGuard {
 	// is received, and then check them at next Move packet
 	last_tick_aoes_buffer: Vec<AoePacket>,
 	aoes: BTreeMap<u32, Vec<AoePacket>>,
+
+	anti_push: AntiPush,
+	#[derivative(Debug = "ignore")]
+	visible_push_tiles: BTreeMap<(i16, i16), u16>, // position -> original tile type
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct AntiPush {
+	pub enabled: bool,
+	pub synced: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -73,6 +86,7 @@ pub struct PlayerStats {
 	max_hp: i64,
 	def: i64,
 	vit: i64,
+	spd: i64,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -87,6 +101,7 @@ pub struct PlayerConditions {
 	in_combat: bool,
 	invulnerable: bool,
 	invincible: bool,
+	slowed: bool,
 }
 
 impl RotmGuard {
@@ -97,13 +112,14 @@ impl RotmGuard {
 			hit_this_tick: false,
 			tick_when_last_hit: 0,
 			position: WorldPos { x: 0.0, y: 0.0 },
-			bullets: LruCache::new(NonZero::new(1000).unwrap()),
+			bullets: LruCache::new(NonZero::new(10000).unwrap()),
 			objects: BTreeMap::new(),
 			player_stats: PlayerStats {
 				server_hp: 0,
 				max_hp: 0,
 				def: 0,
 				vit: 0,
+				spd: 0,
 			},
 			hazardous_tiles: HashMap::new(),
 			conditions: PlayerConditions {
@@ -117,11 +133,18 @@ impl RotmGuard {
 				in_combat: false,
 				invulnerable: false,
 				invincible: false,
+				slowed: false,
 			},
 			fake_name: config().settings.lock().unwrap().fakename.clone(),
 
 			last_tick_aoes_buffer: Vec::new(),
 			aoes: BTreeMap::new(),
+
+			anti_push: AntiPush {
+				enabled: false,
+				synced: true,
+			},
+			visible_push_tiles: BTreeMap::new(),
 		}
 	}
 	// True to forward packet, false to block
@@ -389,6 +412,9 @@ impl RotmGuard {
 			}
 			// This packet only adds/removes new objects, doesnt update existing ones
 			ServerPacket::Update(update) => {
+				// make a mutable copy bcs we might want to modify (if antipush enabled)
+				let mut update = update.clone();
+
 				// remove objects that left the visible area
 				for object in &update.to_remove {
 					proxy.rotmguard.objects.remove(object);
@@ -408,6 +434,8 @@ impl RotmGuard {
 								proxy.rotmguard.player_stats.def = stat.stat.as_int();
 							} else if stat.stat_type == StatType::Vitality {
 								proxy.rotmguard.player_stats.vit = stat.stat.as_int();
+							} else if stat.stat_type == StatType::Speed {
+								proxy.rotmguard.player_stats.spd = stat.stat.as_int();
 							}
 						}
 					}
@@ -415,19 +443,55 @@ impl RotmGuard {
 					proxy.rotmguard.objects.insert(object.1.object_id, object.0);
 				}
 
-				// Add hazardous tiles if any are visible
-				let hazard_tile_register = asset_extract::HAZARDOUS_GROUNDS.lock().unwrap();
-				let mut added_tiles = Vec::new(); // logging purposes
-				for tile in &update.tiles {
-					// we only care about tiles that can do damage
-					if let Some(damage) = hazard_tile_register.get(&(tile.tile_type as u32)) {
-						// Add the tile
-						proxy
-							.rotmguard
-							.hazardous_tiles
-							.insert((tile.x, tile.y), *damage);
-						added_tiles.push(((tile.x, tile.y), damage));
+				{
+					// Add hazardous tiles if any are visible
+					let hazard_tile_register = asset_extract::HAZARDOUS_GROUNDS.lock().unwrap();
+					let push_tile_register = asset_extract::PUSH_GROUNDS.lock().unwrap();
+					for tile in &mut update.tiles {
+						let tile_type = tile.tile_type as u32;
+
+						// we care about tiles that can do damage
+						if let Some(damage) = hazard_tile_register.get(&tile_type) {
+							// Add the tile
+							proxy
+								.rotmguard
+								.hazardous_tiles
+								.insert((tile.x, tile.y), *damage);
+						}
+						// or tiles that can push you
+						if push_tile_register.contains(&tile_type) {
+							proxy
+								.rotmguard
+								.visible_push_tiles
+								.insert((tile.x, tile.y), tile.tile_type);
+
+							if proxy.rotmguard.anti_push.enabled {
+								tile.tile_type = ANTI_PUSH_TILE;
+							}
+						}
 					}
+				}
+
+				// sync antipush if not synced
+				// that means update all tiles that were sent previously to remove push or to revert
+				if !proxy.rotmguard.anti_push.synced {
+					for (&(x, y), &tile_type) in &proxy.rotmguard.visible_push_tiles {
+						if update.tiles.iter().find(|t| t.x == x && t.y == y).is_some() {
+							continue;
+						}
+
+						if proxy.rotmguard.anti_push.enabled {
+							update.tiles.push(TileData {
+								x,
+								y,
+								tile_type: ANTI_PUSH_TILE,
+							});
+						} else {
+							update.tiles.push(TileData { x, y, tile_type });
+						}
+					}
+
+					proxy.rotmguard.anti_push.synced = true;
 				}
 
 				trace!(
@@ -436,9 +500,12 @@ impl RotmGuard {
 						.iter()
 						.map(|o| (o.1.object_id, o.0))
 						.collect::<Vec<_>>(),
-					tiles = ?added_tiles,
-					"Adding objects and hazardous tiles"
+					"Adding objects "
 				);
+
+				proxy.send_client(&update.into()).await?;
+
+				return Ok(false);
 			}
 			// This packet updates existing objects
 			ServerPacket::NewTick(new_tick) => {
@@ -542,8 +609,12 @@ impl RotmGuard {
 						StatType::HP => {
 							proxy.rotmguard.player_stats.server_hp = stat.stat.as_int();
 						}
+						StatType::Speed => {
+							proxy.rotmguard.player_stats.spd = stat.stat.as_int();
+						}
 						StatType::Condition => {
 							let mut bitmask = stat.stat.as_int();
+							proxy.rotmguard.conditions.slowed = (bitmask & 0x8) != 0;
 							proxy.rotmguard.conditions.sick = (bitmask & 0x10) != 0;
 							proxy.rotmguard.conditions.bleeding = (bitmask & 0x8000) != 0;
 							proxy.rotmguard.conditions.healing = (bitmask & 0x20000) != 0;
@@ -652,6 +723,52 @@ impl RotmGuard {
 						stat: Stat::Int(proxy.rotmguard.player_stats.max_hp),
 						secondary_stat: -1,
 					});
+				}
+
+				// antipush reduce speed
+				if proxy.rotmguard.anti_push.enabled {
+					let speed = if proxy.rotmguard.conditions.slowed {
+						// disable slowed because we take care of that by editing spd directly
+						if let Some(c) = my_status
+							.stats
+							.iter_mut()
+							.find(|s| s.stat_type == StatType::Condition)
+						{
+							c.stat = Stat::Int(c.stat.as_int() & !0x8);
+						}
+
+						-34
+					} else {
+						proxy.rotmguard.player_stats.spd - 21
+					};
+
+					if let Some(spd) = my_status
+						.stats
+						.iter_mut()
+						.find(|s| s.stat_type == StatType::Speed)
+					{
+						spd.stat = Stat::Int(speed);
+					} else {
+						my_status.stats.push(StatData {
+							stat_type: StatType::Speed,
+							stat: Stat::Int(speed),
+							secondary_stat: 0,
+						});
+					}
+				} else {
+					if let Some(spd) = my_status
+						.stats
+						.iter_mut()
+						.find(|s| s.stat_type == StatType::Speed)
+					{
+						spd.stat = Stat::Int(proxy.rotmguard.player_stats.spd);
+					} else {
+						my_status.stats.push(StatData {
+							stat_type: StatType::Speed,
+							stat: Stat::Int(proxy.rotmguard.player_stats.spd),
+							secondary_stat: 0,
+						});
+					}
 				}
 
 				proxy.send_client(&new_tick.into()).await?;
