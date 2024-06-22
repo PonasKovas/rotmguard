@@ -1,4 +1,4 @@
-use super::{util::Notification, AntiPush};
+use super::util::Notification;
 use crate::{
 	config,
 	constants::SERVERS,
@@ -231,6 +231,22 @@ pub async fn command(proxy: &mut Proxy, text: &str) -> Result<bool> {
 			"Antipush enabled."
 		};
 		proxy.rotmguard.anti_push.synced = false;
+
+		Notification::new(msg.to_owned())
+			.color(0xff33ff)
+			.send(proxy)
+			.await?;
+
+		return Ok(false);
+	}
+	// `/slow` toggles a permanent slow effect
+	if text.starts_with("/slow") {
+		proxy.rotmguard.fake_slow = !proxy.rotmguard.fake_slow;
+		let msg = if proxy.rotmguard.fake_slow {
+			"Slow enabled."
+		} else {
+			"Slow disabled."
+		};
 
 		Notification::new(msg.to_owned())
 			.color(0xff33ff)

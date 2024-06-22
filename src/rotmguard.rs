@@ -18,7 +18,7 @@ use std::{
 	num::NonZero,
 	time::Instant,
 };
-use tracing::{debug, error, info, instrument, trace, warn};
+use tracing::{debug, error, instrument, trace, warn};
 use util::Notification;
 
 mod commands;
@@ -66,6 +66,9 @@ pub struct RotmGuard {
 	anti_push: AntiPush,
 	#[derivative(Debug = "ignore")]
 	visible_push_tiles: BTreeMap<(i16, i16), u16>, // position -> original tile type
+
+	fake_slow: bool,
+	last_conditions: i64,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -145,6 +148,9 @@ impl RotmGuard {
 				synced: true,
 			},
 			visible_push_tiles: BTreeMap::new(),
+
+			fake_slow: false,
+			last_conditions: 0,
 		}
 	}
 	// True to forward packet, false to block
@@ -614,6 +620,8 @@ impl RotmGuard {
 						}
 						StatType::Condition => {
 							let mut bitmask = stat.stat.as_int();
+							proxy.rotmguard.last_conditions = bitmask;
+
 							proxy.rotmguard.conditions.slowed = (bitmask & 0x8) != 0;
 							proxy.rotmguard.conditions.sick = (bitmask & 0x10) != 0;
 							proxy.rotmguard.conditions.bleeding = (bitmask & 0x8000) != 0;
@@ -766,6 +774,30 @@ impl RotmGuard {
 						my_status.stats.push(StatData {
 							stat_type: StatType::Speed,
 							stat: Stat::Int(proxy.rotmguard.player_stats.spd),
+							secondary_stat: 0,
+						});
+					}
+				}
+
+				// fake slow
+				// for the sake of simplicity it will only work when antipush is disabled
+				if !proxy.rotmguard.anti_push.enabled {
+					if let Some(c) = my_status
+						.stats
+						.iter_mut()
+						.find(|s| s.stat_type == StatType::Condition)
+					{
+						if proxy.rotmguard.fake_slow {
+							c.stat = Stat::Int(c.stat.as_int() | 0x8);
+						}
+					} else {
+						my_status.stats.push(StatData {
+							stat_type: StatType::Condition,
+							stat: Stat::Int(if proxy.rotmguard.fake_slow {
+								proxy.rotmguard.last_conditions | 0x8
+							} else {
+								proxy.rotmguard.last_conditions
+							}),
 							secondary_stat: 0,
 						});
 					}
