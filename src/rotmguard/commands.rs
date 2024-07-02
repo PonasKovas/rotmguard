@@ -241,12 +241,13 @@ pub async fn command(proxy: &mut Proxy, text: &str) -> Result<bool> {
 	}
 	// `/slow` toggles a permanent slow effect
 	if text.starts_with("/slow") {
-		proxy.rotmguard.fake_slow = !proxy.rotmguard.fake_slow;
-		let msg = if proxy.rotmguard.fake_slow {
+		proxy.rotmguard.fake_slow.enabled = !proxy.rotmguard.fake_slow.enabled;
+		let msg = if proxy.rotmguard.fake_slow.enabled {
 			"Slow enabled."
 		} else {
 			"Slow disabled."
 		};
+		proxy.rotmguard.fake_slow.synced = false;
 
 		Notification::new(msg.to_owned())
 			.color(0xff33ff)

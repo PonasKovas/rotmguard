@@ -67,12 +67,18 @@ pub struct RotmGuard {
 	#[derivative(Debug = "ignore")]
 	visible_push_tiles: BTreeMap<(i16, i16), u16>, // position -> original tile type
 
-	fake_slow: bool,
+	fake_slow: FakeSlow,
 	last_conditions: i64,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct AntiPush {
+	pub enabled: bool,
+	pub synced: bool,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct FakeSlow {
 	pub enabled: bool,
 	pub synced: bool,
 }
@@ -149,7 +155,10 @@ impl RotmGuard {
 			},
 			visible_push_tiles: BTreeMap::new(),
 
-			fake_slow: false,
+			fake_slow: FakeSlow {
+				enabled: false,
+				synced: true,
+			},
 			last_conditions: 0,
 		}
 	}
@@ -769,19 +778,21 @@ impl RotmGuard {
 						.iter_mut()
 						.find(|s| s.stat_type == StatType::Condition)
 					{
-						if proxy.rotmguard.fake_slow {
+						if proxy.rotmguard.fake_slow.enabled {
 							c.stat = Stat::Int(c.stat.as_int() | 0x8);
 						}
-					} else {
+					} else if !proxy.rotmguard.fake_slow.synced {
 						my_status.stats.push(StatData {
 							stat_type: StatType::Condition,
-							stat: Stat::Int(if proxy.rotmguard.fake_slow {
+							stat: Stat::Int(if proxy.rotmguard.fake_slow.enabled {
 								remove_client_side_debuffs(proxy.rotmguard.last_conditions | 0x8)
 							} else {
 								remove_client_side_debuffs(proxy.rotmguard.last_conditions)
 							}),
 							secondary_stat: -1,
 						});
+
+						proxy.rotmguard.fake_slow.synced = true;
 					}
 				}
 
