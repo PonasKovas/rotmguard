@@ -58,10 +58,10 @@ pub struct EditedAssetsGuard {
 
 impl Drop for EditedAssetsGuard {
 	fn drop(&mut self) {
-		if let Some(edited_assets_path) = &self.edited_assets_path {
+		if let Some(edited_assets_path) = self.edited_assets_path.take() {
 			// delete the edited assets and rename original back to its place
-			if let Err(e) = std::fs::remove_file(edited_assets_path)
-				.and_then(|_| std::fs::rename(&self.real_assets_path, edited_assets_path))
+			if let Err(e) = std::fs::remove_file(&edited_assets_path)
+				.and_then(|_| std::fs::rename(&self.real_assets_path, &edited_assets_path))
 			{
 				error!("Error reversing changes to game files: {e:?}");
 				error!("To do it manually: delete the `resources.assets` file, and rename `resources.assets.rotgmuard` to `resources.assets`.")
@@ -219,6 +219,25 @@ pub fn extract_assets(path: &Path) -> io::Result<EditedAssetsGuard> {
 		std::fs::rename(path, &original_path)?;
 
 		std::fs::write(path, &contents)?;
+
+		// Set the owner and group IDs to match with the parent directory instead of being root.
+		let parent_dir = path.parent().unwrap_or(&Path::new("."));
+		let (o_id, g_id) = match file_owner::owner_group(parent_dir) {
+			Ok(r) => r,
+			Err(e) => {
+				return Err(Error::other(format!(
+					"Couldn't get the owner of {parent_dir:?}: {e:?}"
+				)));
+			}
+		};
+		match file_owner::set_owner_group(path, o_id, g_id) {
+			Ok(_) => {}
+			Err(e) => {
+				return Err(Error::other(format!(
+					"Couldn't set the owner of {path:?}: {e:?}"
+				)));
+			}
+		}
 
 		info!("Assets edited to force anti-debuffs.");
 

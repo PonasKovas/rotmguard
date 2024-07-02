@@ -6,12 +6,13 @@ use crate::{
 };
 use hex::FromHex;
 use rc4::{consts::U13, KeyInit, Rc4, StreamCipher};
+use std::time::Instant;
 use tokio::{
 	io::{self, AsyncReadExt, AsyncWriteExt, BufReader},
 	net::TcpStream,
 	select,
 };
-use tracing::{error, instrument};
+use tracing::{error, instrument, warn};
 
 const RC4_K_S_TO_C: &str = "c91d9eec420160730d825604e0";
 const RC4_K_C_TO_S: &str = "5a4d2016bc16dc64883194ffd9";
@@ -70,7 +71,13 @@ impl Proxy {
 
 					match ClientPacket::rp_read(&mut &raw_packet[4..]) {
 						Ok(p) => {
-							match RotmGuard::handle_client_packet(self, &p).await {
+							let now = Instant::now();
+							let r = RotmGuard::handle_client_packet(self, &p).await;
+							let elapsed = now.elapsed().as_secs_f64();
+							if elapsed > 0.001 {
+								warn!(packet = ?p, "Took {elapsed:.6} s to handle client packet.");
+							}
+							match r {
 								Ok(true) => {}, // 👍
 								Ok(false) => continue, // dont forward the packet
 								Err(e) => {
@@ -97,7 +104,13 @@ impl Proxy {
 
 					match ServerPacket::rp_read(&mut &raw_packet[4..]) {
 						Ok(p) => {
-							match RotmGuard::handle_server_packet(self, &p).await {
+							let now = Instant::now();
+							let r = RotmGuard::handle_server_packet(self, &p).await;
+							let elapsed = now.elapsed().as_secs_f64();
+							if elapsed > 0.001 {
+								warn!(packet = ?p, "Took {elapsed:.6} s to handle server packet.");
+							}
+							match r {
 								Ok(true) => {}, // 👍
 								Ok(false) => continue, // dont forward the packet
 								Err(e) => {

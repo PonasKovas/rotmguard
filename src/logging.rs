@@ -1,14 +1,14 @@
+use crate::config;
 use anyhow::Result;
 use std::{
 	collections::VecDeque,
 	fs::{create_dir_all, File},
 	io::Write,
+	path::Path,
 	sync::{Mutex, MutexGuard},
 };
 use tracing::{error, info, level_filters::LevelFilter};
 use tracing_subscriber::{fmt::MakeWriter, layer::SubscriberExt, EnvFilter, Layer, Registry};
-
-use crate::config;
 
 static LOG_BUFFER: LogBuffer = LogBuffer {
 	buffer: Mutex::new(VecDeque::new()),
@@ -75,11 +75,29 @@ pub fn init_logger() -> Result<()> {
 }
 
 pub fn save_logs() {
-	if let Err(e) = create_dir_all("logs/") {
-		error!("couldn't create directory logs/. {e:?}");
+	if !Path::new("logs/").exists() {
+		if let Err(e) = create_dir_all("logs/") {
+			error!("couldn't create directory logs/. {e:?}");
+		}
+
+		// Set the owner and group IDs to match with the parent directory instead of being root.
+		let (o_id, g_id) =
+			file_owner::owner_group(".").expect("Couldnt get owner of current directory");
+		file_owner::set_owner_group("logs/", o_id, g_id)
+			.expect("Couldnt set the owner of logs/ directory.");
 	}
-	let mut log_file = match File::create(format!("logs/{}.log", chrono::Local::now())) {
-		Ok(file) => file,
+
+	let path = format!("logs/{}.log", chrono::Local::now());
+	let mut log_file = match File::create(&path) {
+		Ok(file) => {
+			// Set the owner and group IDs to match with the parent directory instead of being root.
+			let (o_id, g_id) =
+				file_owner::owner_group("logs/").expect("Couldnt get owner of logs/ directory");
+			file_owner::set_owner_group(&path, o_id, g_id)
+				.expect("Couldnt set the owner of logs/ directory.");
+
+			file
+		}
 		Err(e) => {
 			error!("couldn't create log file: {e:?}");
 			return;

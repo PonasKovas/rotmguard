@@ -269,15 +269,15 @@ impl RotmGuard {
 					}
 				};
 
+				let mut aoes: Vec<(AoePacket, bool)> =
+					aoes.into_iter().map(|a| (a, false)).collect();
+
 				if proxy.rotmguard.conditions.invulnerable {
 					return Ok(true); // dont check AOEs
 				}
 
-				for aoe in aoes {
+				for (aoe, affects_me) in &mut aoes {
 					// first check if this AOE will affect us
-
-					let mut affects_me = false;
-
 					if move_packet.move_records.len() > 0 {
 						// check all positions that happened in the last tick
 						for pos in &move_packet.move_records {
@@ -286,7 +286,7 @@ impl RotmGuard {
 							.sqrt();
 
 							if distance <= aoe.radius {
-								affects_me = true;
+								*affects_me = true;
 								break;
 							}
 						}
@@ -296,13 +296,11 @@ impl RotmGuard {
 							+ (aoe.position.y - proxy.rotmguard.position.y).powi(2))
 						.sqrt();
 						if distance <= aoe.radius {
-							affects_me = true;
+							*affects_me = true;
 						}
 					}
 
-					trace!(affects_me, ?aoe, "AOE");
-
-					if affects_me {
+					if *affects_me {
 						let mut damage =
 							if aoe.armor_piercing || proxy.rotmguard.conditions.armor_broken {
 								aoe.damage as i64
@@ -336,6 +334,10 @@ impl RotmGuard {
 							return Ok(false);
 						}
 					}
+				}
+
+				if !aoes.is_empty() {
+					trace!(?aoes, "AOEs");
 				}
 			}
 			ClientPacket::Unknown { id, bytes } => {
