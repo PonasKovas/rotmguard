@@ -1,11 +1,11 @@
 use super::ServerPacket;
-use crate::{read::RPRead, write::RPWrite};
+use crate::{extra_datatypes::ObjectId, read::RPRead, write::RPWrite};
 use std::io::{self, Read, Write};
 
 #[derive(Debug, Clone)]
 pub struct TextPacket {
 	pub name: String,
-	pub object_id: u32,
+	pub object_id: ObjectId,
 	pub num_stars: u16,
 	pub bubble_time: u8,
 	pub recipient: String,
@@ -22,7 +22,7 @@ impl RPRead for TextPacket {
 	{
 		Ok(Self {
 			name: String::rp_read(data)?,
-			object_id: u32::rp_read(data)?,
+			object_id: ObjectId(u32::rp_read(data)?),
 			num_stars: u16::rp_read(data)?,
 			bubble_time: u8::rp_read(data)?,
 			recipient: String::rp_read(data)?,
@@ -42,7 +42,7 @@ impl RPWrite for TextPacket {
 		let mut written = 0;
 
 		written += self.name.rp_write(buf)?;
-		written += self.object_id.rp_write(buf)?;
+		written += self.object_id.0.rp_write(buf)?;
 		written += self.num_stars.rp_write(buf)?;
 		written += self.bubble_time.rp_write(buf)?;
 		written += self.recipient.rp_write(buf)?;

@@ -1,29 +1,40 @@
+#![feature(result_flattening)]
+
 use anyhow::{bail, Context, Result};
+use lru::LruCache;
+use module::{Module, ModuleType};
 use nix::NixPath;
 use proxy::Proxy;
+use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::io::ErrorKind;
-use std::sync::OnceLock;
+use std::num::NonZeroUsize;
+use std::sync::{Arc, OnceLock};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::select;
+use tokio::sync::Mutex;
 use tracing::{error, info};
 
 mod asset_extract;
 mod config;
-pub mod constants;
+mod constants;
 mod extra_datatypes;
 mod iptables;
 mod logging;
+mod module;
 mod packets;
 mod proxy;
-pub mod read;
+mod read;
 mod rotmguard;
 mod tests;
-pub mod write;
+mod util;
+mod write;
 
-pub static CONFIG: OnceLock<config::Config> = OnceLock::new();
+type Modules = Arc<Mutex<Vec<ModuleType>>>;
 
-pub fn config() -> &'static config::Config {
+static CONFIG: OnceLock<config::Config> = OnceLock::new();
+
+fn config() -> &'static config::Config {
 	CONFIG.get().unwrap()
 }
 
@@ -38,7 +49,7 @@ async fn main() -> Result<()> {
 	// Initialize logger
 	logging::init_logger()?;
 
-	info!("Starting rotmguard.");
+	info!("Reading assets.");
 
 	// Read the resource assets
 	if config().assets_res.is_empty() {
@@ -49,8 +60,20 @@ async fn main() -> Result<()> {
 	// create an iptables rule to redirect all game traffic to our proxy
 	let _iptables_rule = iptables::IpTablesRule::create()?;
 
+	let modules: Modules = Arc::new(Mutex::new(vec![
+		module::Commands {}.into(),
+		module::Autonexus {
+			hp: 0.0,
+			tick_when_last_hit: 0,
+			bullets: LruCache::new(NonZeroUsize::new(10000).unwrap()),
+			objects: BTreeMap::new(),
+			hazardous_tiles: HashMap::new(),
+		}
+		.into(),
+	]));
+
 	select! {
-		res = server() => res,
+		res = server(modules) => res,
 		_ = tokio::signal::ctrl_c() => {
 			info!("Exiting...");
 			Ok(())
@@ -58,17 +81,17 @@ async fn main() -> Result<()> {
 	}
 }
 
-async fn server() -> Result<()> {
+async fn server(modules: Modules) -> Result<()> {
 	let listener = TcpListener::bind("127.0.0.1:2051").await?;
 
 	loop {
-		if let Err(e) = accept_con(&listener).await {
+		if let Err(e) = accept_con(&listener, Arc::clone(&modules)).await {
 			error!("{e:?}");
 		}
 	}
 }
 
-async fn accept_con(listener: &TcpListener) -> Result<()> {
+async fn accept_con(listener: &TcpListener, modules: Modules) -> Result<()> {
 	let (socket, _) = listener.accept().await?;
 
 	// linux shenanigans 🤓
@@ -82,9 +105,9 @@ async fn accept_con(listener: &TcpListener) -> Result<()> {
 	);
 
 	info!("Connecting to {original_dst}");
-	let real_server = TcpStream::connect((original_dst, 2051)).await?;
+	let real_server = TcpStream::connect((original_dst, 2051)).await?; // iptables rule will redirect this to port 2050
 
-	let mut proxy = Proxy::new(socket, real_server);
+	let mut proxy = Proxy::new(socket, real_server, modules);
 
 	tokio::spawn(async move {
 		if let Err(e) = proxy.run().await {

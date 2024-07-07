@@ -1,7 +1,7 @@
 use super::ServerPacket;
 use crate::{extra_datatypes::ObjectStatusData, read::RPRead, write::RPWrite};
 use derivative::Derivative;
-use std::io::{self, Error, Write};
+use std::io::{self, Error, Read, Write};
 
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
@@ -15,7 +15,7 @@ pub struct NewTick {
 }
 
 impl RPRead for NewTick {
-	fn rp_read<R: std::io::prelude::Read>(data: &mut R) -> io::Result<Self>
+	fn rp_read<R: Read>(data: &mut R) -> io::Result<Self>
 	where
 		Self: Sized,
 	{

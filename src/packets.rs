@@ -15,6 +15,8 @@ mod _67_notification;
 mod _90_player_hit;
 mod _9_player_text;
 
+use std::io::{Read, Write};
+
 pub use _101_create_success::CreateSuccess;
 pub use _103_ground_damage::GroundDamage;
 pub use _10_new_tick::NewTick;
@@ -77,7 +79,7 @@ impl ServerPacket {
 }
 
 impl RPRead for ClientPacket {
-	fn rp_read<R: std::io::prelude::Read>(data: &mut R) -> std::io::Result<Self>
+	fn rp_read<R: Read>(data: &mut R) -> std::io::Result<Self>
 	where
 		Self: Sized,
 	{
@@ -104,7 +106,7 @@ impl RPRead for ClientPacket {
 }
 
 impl RPRead for ServerPacket {
-	fn rp_read<R: std::io::prelude::Read>(data: &mut R) -> std::io::Result<Self>
+	fn rp_read<R: Read>(data: &mut R) -> std::io::Result<Self>
 	where
 		Self: Sized,
 	{
@@ -136,18 +138,37 @@ impl RPRead for ServerPacket {
 }
 
 impl RPWrite for ClientPacket {
-	fn rp_write<W: std::io::prelude::Write>(&self, buf: &mut W) -> std::io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> std::io::Result<usize>
 	where
 		Self: Sized,
 	{
 		let mut bytes_written = 0;
 
-		let packet_id: u8 = self.discriminator();
-		bytes_written += packet_id.rp_write(buf)?;
+		if let Self::Unknown { id, bytes: _ } = self {
+			bytes_written += id.rp_write(buf)?;
+		} else {
+			let packet_id: u8 = self.discriminator();
+			bytes_written += packet_id.rp_write(buf)?;
+		}
 
 		match self {
+			Self::PlayerText(p) => {
+				bytes_written += p.rp_write(buf)?;
+			}
+			Self::Move(p) => {
+				bytes_written += p.rp_write(buf)?;
+			}
+			Self::PlayerHit(p) => {
+				bytes_written += p.rp_write(buf)?;
+			}
+			Self::GroundDamage(p) => {
+				bytes_written += p.rp_write(buf)?;
+			}
 			Self::Escape => {}
-			_ => panic!("Packet id {packet_id} writing not implemented!"),
+			Self::Unknown { id: _, bytes } => {
+				buf.write_all(bytes)?;
+				bytes_written += bytes.len();
+			}
 		}
 
 		Ok(bytes_written)
@@ -155,14 +176,18 @@ impl RPWrite for ClientPacket {
 }
 
 impl RPWrite for ServerPacket {
-	fn rp_write<W: std::io::prelude::Write>(&self, buf: &mut W) -> std::io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> std::io::Result<usize>
 	where
 		Self: Sized,
 	{
 		let mut bytes_written = 0;
 
-		let packet_id: u8 = self.discriminator();
-		bytes_written += packet_id.rp_write(buf)?;
+		if let Self::Unknown { id, bytes: _ } = self {
+			bytes_written += id.rp_write(buf)?;
+		} else {
+			let packet_id: u8 = self.discriminator();
+			bytes_written += packet_id.rp_write(buf)?;
+		}
 
 		match self {
 			Self::Notification(p) => {
@@ -189,7 +214,16 @@ impl RPWrite for ServerPacket {
 			Self::Text(p) => {
 				bytes_written += p.rp_write(buf)?;
 			}
-			_ => panic!("Packet id {packet_id} writing not implemented!"),
+			Self::EnemyShoot(p) => {
+				bytes_written += p.rp_write(buf)?;
+			}
+			Self::CreateSuccess(p) => {
+				bytes_written += p.rp_write(buf)?;
+			}
+			Self::Unknown { id: _, bytes } => {
+				buf.write_all(bytes)?;
+				bytes_written += bytes.len();
+			}
 		}
 
 		Ok(bytes_written)

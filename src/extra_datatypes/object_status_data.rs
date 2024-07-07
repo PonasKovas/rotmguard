@@ -1,14 +1,13 @@
+use super::{ObjectId, StatData, WorldPos};
 use crate::{
 	read::{read_compressed_int, RPRead},
 	write::{write_compressed_int, RPWrite},
 };
 use std::io::{self, Error, Read, Write};
 
-use super::{StatData, WorldPos};
-
 #[derive(Debug, Clone)]
 pub struct ObjectStatusData {
-	pub object_id: i64,
+	pub object_id: ObjectId,
 	pub position: WorldPos,
 	pub stats: Vec<StatData>,
 }
@@ -18,7 +17,7 @@ impl RPRead for ObjectStatusData {
 	where
 		Self: Sized,
 	{
-		let object_id = read_compressed_int(data)?;
+		let object_id = ObjectId(read_compressed_int(data)? as u32);
 		let position = WorldPos::rp_read(data)?;
 
 		let n_stats = read_compressed_int(data)?;
@@ -49,7 +48,7 @@ impl RPWrite for ObjectStatusData {
 	{
 		let mut written = 0;
 
-		written += write_compressed_int(&self.object_id, buf)?;
+		written += write_compressed_int(&(self.object_id.0 as i64), buf)?;
 		written += self.position.rp_write(buf)?;
 
 		written += write_compressed_int(&(self.stats.len() as i64), buf)?;

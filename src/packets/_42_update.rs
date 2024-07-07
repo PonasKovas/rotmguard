@@ -1,6 +1,6 @@
 use super::ServerPacket;
 use crate::{
-	extra_datatypes::{ObjectStatusData, WorldPos},
+	extra_datatypes::{ObjectId, ObjectStatusData, WorldPos},
 	read::{read_compressed_int, RPRead},
 	write::{write_compressed_int, RPWrite},
 };
@@ -16,7 +16,7 @@ pub struct UpdatePacket {
 	pub tiles: Vec<TileData>, // x, y, type
 	#[derivative(Debug = "ignore")]
 	pub new_objects: Vec<(u16, ObjectStatusData)>, // object type, statuses
-	pub to_remove: Vec<i64>, // object that left the viewport
+	pub to_remove: Vec<ObjectId>, // object that left the viewport
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -80,7 +80,7 @@ impl RPRead for UpdatePacket {
 
 		let mut to_remove = Vec::with_capacity(to_remove_n as usize);
 		for _ in 0..to_remove_n {
-			to_remove.push(read_compressed_int(data)?);
+			to_remove.push(ObjectId(read_compressed_int(data)? as u32));
 		}
 
 		Ok(Self {
@@ -115,7 +115,7 @@ impl RPWrite for UpdatePacket {
 		}
 		written += write_compressed_int(&(self.to_remove.len() as i64), buf)?;
 		for obj in &self.to_remove {
-			written += write_compressed_int(obj, buf)?;
+			written += write_compressed_int(&(obj.0 as i64), buf)?;
 		}
 
 		Ok(written)

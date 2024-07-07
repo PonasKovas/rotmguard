@@ -1,22 +1,41 @@
 use super::ClientPacket;
-use crate::read::RPRead;
-use std::io::Read;
+use crate::{
+	extra_datatypes::{ObjectId, ProjectileId},
+	read::RPRead,
+	write::RPWrite,
+};
+use std::io::{self, Read, Write};
 
 #[derive(Debug, Clone, Copy)]
 pub struct PlayerHit {
-	pub bullet_id: u16,
-	pub owner_id: u32,
+	pub bullet_id: ProjectileId,
 }
 
 impl RPRead for PlayerHit {
-	fn rp_read<R: Read>(data: &mut R) -> std::io::Result<Self>
+	fn rp_read<R: Read>(data: &mut R) -> io::Result<Self>
 	where
 		Self: Sized,
 	{
 		Ok(Self {
-			bullet_id: u16::rp_read(data)?,
-			owner_id: u32::rp_read(data)?,
+			bullet_id: ProjectileId {
+				id: u16::rp_read(data)?,
+				owner_id: ObjectId(u32::rp_read(data)?),
+			},
 		})
+	}
+}
+
+impl RPWrite for PlayerHit {
+	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	where
+		Self: Sized,
+	{
+		let mut written = 0;
+
+		written += self.bullet_id.id.rp_write(buf)?;
+		written += self.bullet_id.owner_id.0.rp_write(buf)?;
+
+		Ok(written)
 	}
 }
 

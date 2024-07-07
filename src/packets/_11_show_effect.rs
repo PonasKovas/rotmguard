@@ -1,6 +1,6 @@
 use super::ServerPacket;
 use crate::{
-	extra_datatypes::WorldPos,
+	extra_datatypes::{ObjectId, WorldPos},
 	read::{read_compressed_int, RPRead},
 	write::{write_compressed_int, RPWrite},
 };
@@ -9,7 +9,7 @@ use std::io::{self, Read, Write};
 #[derive(Debug, Clone)]
 pub struct ShowEffect {
 	pub effect_type: u8,
-	pub target_object_id: Option<i64>,
+	pub target_object_id: Option<ObjectId>,
 	pub pos1: WorldPos,
 	pub pos2: WorldPos,
 	pub color: Option<u32>,
@@ -26,7 +26,7 @@ impl RPRead for ShowEffect {
 		let bitmask = u8::rp_read(data)?;
 
 		let target_object_id = if (bitmask & 0b01000000) != 0 {
-			Some(read_compressed_int(data)?)
+			Some(ObjectId(read_compressed_int(data)? as u32))
 		} else {
 			None
 		};
@@ -102,7 +102,7 @@ impl RPWrite for ShowEffect {
 		written += bitmask.rp_write(buf)?;
 
 		if let Some(id) = self.target_object_id {
-			written += write_compressed_int(&id, buf)?;
+			written += write_compressed_int(&(id.0 as i64), buf)?;
 		}
 		written += self.pos1.rp_write(buf)?;
 		written += self.pos2.rp_write(buf)?;

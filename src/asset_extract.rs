@@ -66,7 +66,7 @@ impl Drop for EditedAssetsGuard {
 				error!("Error reversing changes to game files: {e:?}");
 				error!("To do it manually: delete the `resources.assets` file, and rename `resources.assets.rotgmuard` to `resources.assets`.")
 			} else {
-				info!("Successfully reversed changed to game files.");
+				info!("Successfully reversed changes to game files.");
 			}
 		}
 	}

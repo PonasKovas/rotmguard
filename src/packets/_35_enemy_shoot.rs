@@ -1,11 +1,14 @@
 use super::ServerPacket;
-use crate::{extra_datatypes::WorldPos, read::RPRead};
-use std::io::ErrorKind;
+use crate::{
+	extra_datatypes::{ObjectId, ProjectileId, WorldPos},
+	read::RPRead,
+	write::RPWrite,
+};
+use std::io::{self, ErrorKind, Read, Write};
 
 #[derive(Debug, Clone, Copy)]
 pub struct EnemyShoot {
-	pub bullet_id: u16,
-	pub owner_id: u32,
+	pub bullet_id: ProjectileId,
 	pub bullet_type: u8,
 	pub position: WorldPos,
 	pub angle: f32,
@@ -15,12 +18,14 @@ pub struct EnemyShoot {
 }
 
 impl RPRead for EnemyShoot {
-	fn rp_read<R: std::io::prelude::Read>(data: &mut R) -> std::io::Result<Self>
+	fn rp_read<R: Read>(data: &mut R) -> io::Result<Self>
 	where
 		Self: Sized,
 	{
-		let bullet_id = u16::rp_read(data)?;
-		let owner_id = u32::rp_read(data)?;
+		let bullet_id = ProjectileId {
+			id: u16::rp_read(data)?,
+			owner_id: ObjectId(u32::rp_read(data)?),
+		};
 		let bullet_type = u8::rp_read(data)?;
 		let position = WorldPos::rp_read(data)?;
 		let angle = f32::rp_read(data)?;
@@ -30,7 +35,6 @@ impl RPRead for EnemyShoot {
 			Ok(numshots) => {
 				let packet = Self {
 					bullet_id,
-					owner_id,
 					bullet_type,
 					position,
 					angle,
@@ -44,7 +48,6 @@ impl RPRead for EnemyShoot {
 				if e.kind() == ErrorKind::UnexpectedEof {
 					let packet = Self {
 						bullet_id,
-						owner_id,
 						bullet_type,
 						position,
 						angle,
@@ -58,6 +61,29 @@ impl RPRead for EnemyShoot {
 				}
 			}
 		}
+	}
+}
+
+impl RPWrite for EnemyShoot {
+	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	where
+		Self: Sized,
+	{
+		let mut written = 0;
+
+		written += self.bullet_id.id.rp_write(buf)?;
+		written += self.bullet_id.owner_id.0.rp_write(buf)?;
+		written += self.bullet_type.rp_write(buf)?;
+		written += self.position.rp_write(buf)?;
+		written += self.angle.rp_write(buf)?;
+		written += self.damage.rp_write(buf)?;
+
+		if self.numshots != 1 {
+			written += self.numshots.rp_write(buf)?;
+			written += self.angle_between_shots.rp_write(buf)?;
+		}
+
+		Ok(written)
 	}
 }
 

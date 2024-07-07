@@ -1,5 +1,7 @@
+use std::io::{self, Read, Write};
+
 use super::ClientPacket;
-use crate::read::RPRead;
+use crate::{read::RPRead, write::RPWrite};
 
 #[derive(Debug, Clone)]
 pub struct PlayerText {
@@ -7,13 +9,26 @@ pub struct PlayerText {
 }
 
 impl RPRead for PlayerText {
-	fn rp_read<R: std::io::prelude::Read>(data: &mut R) -> std::io::Result<Self>
+	fn rp_read<R: Read>(data: &mut R) -> io::Result<Self>
 	where
 		Self: Sized,
 	{
 		Ok(Self {
 			text: String::rp_read(data)?,
 		})
+	}
+}
+
+impl RPWrite for PlayerText {
+	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	where
+		Self: Sized,
+	{
+		let mut written = 0;
+
+		written += self.text.rp_write(buf)?;
+
+		Ok(written)
 	}
 }
 

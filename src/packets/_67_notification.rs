@@ -1,5 +1,5 @@
 use super::ServerPacket;
-use crate::{read::RPRead, write::RPWrite};
+use crate::{extra_datatypes::ObjectId, read::RPRead, write::RPWrite};
 use std::io::{Error, Read, Write};
 
 #[non_exhaustive]
@@ -30,7 +30,7 @@ pub enum NotificationPacket {
 	},
 	ObjectText {
 		message: String,
-		object_id: u32,
+		object_id: ObjectId,
 		color: u32,
 	},
 	PlayerDeath {
@@ -43,7 +43,7 @@ pub enum NotificationPacket {
 	},
 	PlayerCallout {
 		message: String,
-		object_id: u32,
+		object_id: ObjectId,
 		stars: u16,
 	},
 	ProgressBar {
@@ -96,7 +96,7 @@ impl RPRead for NotificationPacket {
 			},
 			6 => NotificationPacket::ObjectText {
 				message: String::rp_read(data)?,
-				object_id: u32::rp_read(data)?,
+				object_id: ObjectId(u32::rp_read(data)?),
 				color: u32::rp_read(data)?,
 			},
 			7 => NotificationPacket::PlayerDeath {
@@ -109,7 +109,7 @@ impl RPRead for NotificationPacket {
 			},
 			10 => NotificationPacket::PlayerCallout {
 				message: String::rp_read(data)?,
-				object_id: u32::rp_read(data)?,
+				object_id: ObjectId(u32::rp_read(data)?),
 				stars: u16::rp_read(data)?,
 			},
 			11 => {
@@ -199,7 +199,7 @@ impl RPWrite for NotificationPacket {
 				bytes_written += 6u8.rp_write(buf)?; // notification type
 				bytes_written += 0u8.rp_write(buf)?; // extra
 				bytes_written += message.rp_write(buf)?;
-				bytes_written += object_id.rp_write(buf)?;
+				bytes_written += object_id.0.rp_write(buf)?;
 				bytes_written += color.rp_write(buf)?;
 			}
 			NotificationPacket::PlayerDeath {
@@ -228,7 +228,7 @@ impl RPWrite for NotificationPacket {
 				bytes_written += 10u8.rp_write(buf)?; // notification type
 				bytes_written += 0u8.rp_write(buf)?; // extra
 				bytes_written += message.rp_write(buf)?;
-				bytes_written += object_id.rp_write(buf)?;
+				bytes_written += object_id.0.rp_write(buf)?;
 				bytes_written += stars.rp_write(buf)?;
 			}
 			NotificationPacket::ProgressBar {

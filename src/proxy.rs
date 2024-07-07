@@ -1,16 +1,24 @@
 use crate::{
+	module::Module,
 	packets::{ClientPacket, ServerPacket},
 	read::RPRead,
 	rotmguard::RotmGuard,
 	write::RPWrite,
+	Modules,
 };
 use hex::FromHex;
 use rc4::{consts::U13, KeyInit, Rc4, StreamCipher};
-use std::time::Instant;
+use std::{
+	collections::VecDeque,
+	io::ErrorKind,
+	sync::{atomic::AtomicBool, Arc},
+	time::Instant,
+};
 use tokio::{
 	io::{self, AsyncReadExt, AsyncWriteExt, BufReader},
 	net::TcpStream,
 	select,
+	sync::Mutex,
 };
 use tracing::{error, instrument, warn};
 
@@ -22,11 +30,16 @@ const DEFAULT_BUFFER_SIZE: usize = 64 * 1024;
 
 pub struct Proxy {
 	pub rotmguard: RotmGuard,
+	pub modules: Modules,
 	pub client: BufReader<TcpStream>,
 	pub server: BufReader<TcpStream>,
 	rc4: Rc4State,
 	// buffer used for writing packets
 	write_buf: Vec<u8>,
+
+	// if true will not read incoming data from the server
+	// because client is behind and we need to wait for it to catch up
+	pub pause_server_read: bool,
 }
 
 struct Rc4State {
@@ -37,9 +50,10 @@ struct Rc4State {
 }
 
 impl Proxy {
-	pub fn new(client: TcpStream, server: TcpStream) -> Self {
+	pub fn new(client: TcpStream, server: TcpStream, modules: Modules) -> Self {
 		Self {
 			rotmguard: RotmGuard::new(),
+			modules,
 			client: BufReader::new(client),
 			server: BufReader::new(server),
 			rc4: Rc4State {
@@ -57,6 +71,8 @@ impl Proxy {
 				),
 			},
 			write_buf: vec![0u8; DEFAULT_BUFFER_SIZE],
+
+			pause_server_read: false,
 		}
 	}
 	#[instrument(skip(self), fields(ip = ?self.server.get_ref().peer_addr()?))]
@@ -65,20 +81,32 @@ impl Proxy {
 		loop {
 			select! {
 				b = self.client.read_u8() => {
-					let raw_packet = read_raw_packet(&mut self.client, &mut buf, b?).await?;
+					let raw_packet = match b {
+						Ok(b) => Ok(read_raw_packet(&mut self.client, &mut buf, b).await),
+						Err(e) => Err(e),
+					};
+					let raw_packet = match raw_packet.flatten() {
+						Ok(p) => p,
+						Err(e) => {
+							if [ErrorKind::ConnectionReset, ErrorKind::UnexpectedEof].contains(&e.kind()) {
+								for module in &mut *Arc::clone(&self.modules).lock().await {
+									module.disconnect(self, false).await?;
+								}
+							}
+							return Err(e);
+						}
+					};
 
 					self.rc4.decipher_client(&mut raw_packet[5..]);
 
 					match ClientPacket::rp_read(&mut &raw_packet[4..]) {
-						Ok(p) => {
-							let now = Instant::now();
-							let r = RotmGuard::handle_client_packet(self, &p).await;
-							let elapsed = now.elapsed().as_secs_f64();
-							if elapsed > 0.001 {
-								warn!(packet = ?p, "Took {elapsed:.6} s to handle client packet.");
-							}
-							match r {
-								Ok(true) => {}, // 👍
+						Ok(mut p) => {
+							match RotmGuard::handle_client_packet(self, &mut p).await {
+								Ok(true) => {
+									// 👍
+									// forward the packet
+									self.send_server(&p).await?;
+								},
 								Ok(false) => continue, // dont forward the packet
 								Err(e) => {
 									error!("Error handling client packet: {e:?}");
@@ -90,28 +118,34 @@ impl Proxy {
 							error!("Error parsing client packet: {e:?}");
 						}
 					}
-
-					// forward the packet
-					self.rc4.cipher_server(&mut raw_packet[5..]);
-
-					self.server.write_all(raw_packet).await?;
-					self.server.flush().await?;
 				},
-				b = self.server.read_u8() => {
-					let raw_packet = read_raw_packet(&mut self.server, &mut buf, b?).await?;
+				b = self.server.read_u8(), if !self.pause_server_read => {
+					let raw_packet = match b {
+						Ok(b) => Ok(read_raw_packet(&mut self.server, &mut buf, b).await),
+						Err(e) => Err(e),
+					};
+					let raw_packet = match raw_packet.flatten() {
+						Ok(p) => p,
+						Err(e) => {
+							if [ErrorKind::ConnectionReset, ErrorKind::UnexpectedEof].contains(&e.kind()) {
+								for module in &mut *Arc::clone(&self.modules).lock().await {
+									module.disconnect(self, true).await?;
+								}
+							}
+							return Err(e);
+						}
+					};
 
 					self.rc4.decipher_server(&mut raw_packet[5..]);
 
 					match ServerPacket::rp_read(&mut &raw_packet[4..]) {
-						Ok(p) => {
-							let now = Instant::now();
-							let r = RotmGuard::handle_server_packet(self, &p).await;
-							let elapsed = now.elapsed().as_secs_f64();
-							if elapsed > 0.001 {
-								warn!(packet = ?p, "Took {elapsed:.6} s to handle server packet.");
-							}
-							match r {
-								Ok(true) => {}, // 👍
+						Ok(mut p) => {
+							match RotmGuard::handle_server_packet(self, &mut p).await {
+								Ok(true) => {
+									// 👍
+									// forward the packet
+									self.send_client(&p).await?;
+								},
 								Ok(false) => continue, // dont forward the packet
 								Err(e) => {
 									error!("Error handling server packet: {e:?}");
@@ -123,12 +157,6 @@ impl Proxy {
 							error!("Error parsing server packet: {e:?}");
 						}
 					}
-
-					// forward the packet
-					self.rc4.cipher_client(&mut raw_packet[5..]);
-
-					self.client.write_all(raw_packet).await?;
-					self.client.flush().await?;
 				},
 			}
 		}
