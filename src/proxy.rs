@@ -9,18 +9,15 @@ use crate::{
 use hex::FromHex;
 use rc4::{consts::U13, KeyInit, Rc4, StreamCipher};
 use std::{
-	collections::VecDeque,
 	io::ErrorKind,
-	sync::{atomic::AtomicBool, Arc},
-	time::Instant,
+	sync::Arc,
 };
 use tokio::{
 	io::{self, AsyncReadExt, AsyncWriteExt, BufReader},
 	net::TcpStream,
 	select,
-	sync::Mutex,
 };
-use tracing::{error, instrument, warn};
+use tracing::{error, instrument};
 
 const RC4_K_S_TO_C: &str = "c91d9eec420160730d825604e0";
 const RC4_K_C_TO_S: &str = "5a4d2016bc16dc64883194ffd9";

@@ -1,29 +1,15 @@
-use crate::util::Notification;
 use crate::{
-	asset_extract::{self, ProjectileInfo},
-	config,
 	extra_datatypes::{
-		ObjectId, PlayerConditions, PlayerConditions2, ProjectileId, Stat, StatData, StatType,
+		ObjectId, PlayerConditions, PlayerConditions2, StatType,
 		WorldPos,
 	},
-	logging::save_logs,
 	module::Module,
-	packets::{AoePacket, ClientPacket, NotificationPacket, ServerPacket, ShowEffect, TileData},
+	packets::{AoePacket, ClientPacket, ServerPacket},
 	proxy::Proxy,
 };
 use anyhow::Result;
-use derivative::Derivative;
-use lru::LruCache;
-use serde::Deserialize;
-use std::{
-	collections::{BTreeMap, HashMap},
-	hash::{DefaultHasher, Hash, Hasher},
-	mem::swap,
-	num::NonZero,
-	sync::Arc,
-	time::Instant,
-};
-use tracing::{debug, error, instrument, trace, warn};
+use std::sync::Arc;
+use tracing::instrument;
 
 #[derive(Debug, Clone)]
 pub struct RotmGuard {

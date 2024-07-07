@@ -23,7 +23,7 @@ pub use _10_new_tick::NewTick;
 pub use _11_show_effect::ShowEffect;
 pub use _18_goto::GotoPacket;
 pub use _35_enemy_shoot::EnemyShoot;
-pub use _42_update::{TileData, UpdatePacket};
+pub use _42_update::UpdatePacket;
 pub use _44_text::TextPacket;
 pub use _45_reconnect::Reconnect;
 pub use _62_move::Move;

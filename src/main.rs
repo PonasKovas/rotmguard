@@ -2,7 +2,7 @@
 
 use anyhow::{bail, Context, Result};
 use lru::LruCache;
-use module::{Module, ModuleType};
+use module::ModuleType;
 use nix::NixPath;
 use proxy::Proxy;
 use std::collections::{BTreeMap, HashMap};
