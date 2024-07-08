@@ -12,6 +12,7 @@ use crate::{
 use std::{
 	collections::{BTreeMap, HashMap},
 	io::Result,
+	num::NonZeroUsize,
 };
 
 #[derive(Derivative, Clone)]
@@ -44,6 +45,15 @@ pub struct Bullet {
 }
 
 impl Module for Autonexus {
+	fn new() -> Self {
+		Autonexus {
+			hp: 0.0,
+			tick_when_last_hit: 0,
+			bullets: LruCache::new(NonZeroUsize::new(10000).unwrap()),
+			objects: BTreeMap::new(),
+			hazardous_tiles: HashMap::new(),
+		}
+	}
 	async fn client_packet(
 		&mut self,
 		proxy: &mut Proxy,

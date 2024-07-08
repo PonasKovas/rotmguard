@@ -1,20 +1,22 @@
-use crate::config;
+use crate::config::{self, Config};
 use anyhow::Result;
 use std::{
 	collections::VecDeque,
 	fs::{create_dir_all, File},
 	io::Write,
 	path::Path,
-	sync::{Mutex, MutexGuard},
+	sync::{Mutex, MutexGuard, OnceLock},
 };
 use tracing::{error, info, level_filters::LevelFilter};
 use tracing_subscriber::{fmt::MakeWriter, layer::SubscriberExt, EnvFilter, Layer, Registry};
 
 static LOG_BUFFER: LogBuffer = LogBuffer {
+	max_lines: OnceLock::new(),
 	buffer: Mutex::new(VecDeque::new()),
 };
 
 struct LogBuffer {
+	max_lines: OnceLock<usize>,
 	buffer: Mutex<VecDeque<Vec<u8>>>,
 }
 
@@ -43,8 +45,7 @@ impl<'a> MakeWriter<'a> for &'static LogBuffer {
 		let mut buffer = self.buffer.lock().unwrap();
 
 		// remove oldest log lines if we're at limit
-		let max_log_lines = config().settings.lock().unwrap().log_lines;
-		while buffer.len() >= max_log_lines {
+		while buffer.len() >= *self.max_lines.get().expect("max log lines not set") {
 			buffer.pop_back();
 		}
 
@@ -54,7 +55,12 @@ impl<'a> MakeWriter<'a> for &'static LogBuffer {
 	}
 }
 
-pub fn init_logger() -> Result<()> {
+pub fn init_logger(config: &Config) -> Result<()> {
+	LOG_BUFFER
+		.max_lines
+		.set(config.settings.log_lines)
+		.expect("max log lines already set");
+
 	// this is for saving logs in a file
 	let logbuffer_layer = tracing_subscriber::fmt::layer()
 		.with_writer(&LOG_BUFFER)

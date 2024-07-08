@@ -1,5 +1,6 @@
 use anyhow::{bail, Context};
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
+use nix::NixPath;
 use std::{
 	collections::{BTreeMap, BTreeSet},
 	fs::File,
@@ -10,7 +11,7 @@ use std::{
 use tracing::{error, info};
 use xmltree::XMLNode;
 
-use crate::config;
+use crate::config::{self, Config};
 
 const NON_XML_FILES: &[&str] = &[
 	"manifest_xml",
@@ -32,13 +33,17 @@ const NON_XML_FILES: &[&str] = &[
 	"BillingMode",
 ];
 
-/// object type -> Map<projectile_type -> projectile_info>
-pub static PROJECTILES: Mutex<BTreeMap<u32, BTreeMap<u32, ProjectileInfo>>> =
-	Mutex::new(BTreeMap::new());
-/// ground type -> damage
-pub static HAZARDOUS_GROUNDS: Mutex<BTreeMap<u32, i64>> = Mutex::new(BTreeMap::new());
-/// grounds that push the player like conveyors
-pub static PUSH_GROUNDS: Mutex<BTreeSet<u32>> = Mutex::new(BTreeSet::new());
+pub struct Assets {
+	/// object type -> Map<projectile_type -> projectile_info>
+	projectiles: BTreeMap<u32, BTreeMap<u32, ProjectileInfo>>,
+	/// ground type -> damage
+	hazardous_grounds: BTreeMap<u32, i64>,
+	/// grounds that push the player like conveyors
+	pushing_grounds: BTreeSet<u32>,
+
+	/// Reverses the changes to assets file on drop
+	reverse_changes_guard: Option<ReverseChangesGuard>,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct ProjectileInfo {
@@ -51,33 +56,44 @@ pub struct ProjectileInfo {
 }
 
 /// This cleans up and reverses the changes to resources.assets file on drop
-pub struct EditedAssetsGuard {
+pub struct ReverseChangesGuard {
 	real_assets_path: PathBuf,
-	edited_assets_path: Option<PathBuf>,
+	edited_assets_path: PathBuf,
 }
 
-impl Drop for EditedAssetsGuard {
+impl Drop for ReverseChangesGuard {
 	fn drop(&mut self) {
-		if let Some(edited_assets_path) = self.edited_assets_path.take() {
-			// delete the edited assets and rename original back to its place
-			if let Err(e) = std::fs::remove_file(&edited_assets_path)
-				.and_then(|_| std::fs::rename(&self.real_assets_path, &edited_assets_path))
-			{
-				error!("Error reversing changes to game files: {e:?}");
-				error!("To do it manually: delete the `resources.assets` file, and rename `resources.assets.rotgmuard` to `resources.assets`.")
-			} else {
-				info!("Successfully reversed changes to game files.");
-			}
+		// delete the edited assets and rename original back to its place
+		if let Err(e) = std::fs::remove_file(&self.edited_assets_path)
+			.and_then(|_| std::fs::rename(&self.real_assets_path, &self.edited_assets_path))
+		{
+			error!("Error reversing changes to game files: {e:?}");
+			error!("To do it manually: delete the `resources.assets` file, and rename `resources.assets.rotgmuard` to `resources.assets`.")
+		} else {
+			info!("Successfully reversed changes to game files.");
 		}
 	}
 }
 
-pub fn extract_assets(path: &Path) -> io::Result<EditedAssetsGuard> {
-	let mut file = File::open(path)?;
+pub fn extract_assets(config: &Config) -> io::Result<Assets> {
+	if config.assets_res.is_empty() {
+		return Err(Error::other(
+			"assets_res not set. Please edit your rotmguard.toml!",
+		));
+	}
+
+	let mut assets = Assets {
+		projectiles: BTreeMap::new(),
+		hazardous_grounds: BTreeMap::new(),
+		pushing_grounds: BTreeSet::new(),
+		reverse_changes_guard: None,
+	};
+
+	let mut file = File::open(&config.assets_res)?;
 
 	// If forcing debuffs, read the whole file into memory so it can be edited and written to replace the original file
-	let mut force_debuffs = if config().settings.lock().unwrap().force_debuffs {
-		Some(std::fs::read(path)?)
+	let mut force_debuffs = if config.settings.force_debuffs {
+		Some(std::fs::read(&config.assets_res)?)
 	} else {
 		None
 	};
@@ -165,7 +181,6 @@ pub fn extract_assets(path: &Path) -> io::Result<EditedAssetsGuard> {
 
 		let byte_start = file.read_u64::<LittleEndian>()? + data_offset;
 
-		// let byte_size_offset = position + bytes_to_skip + 8 * 2;
 		file.read_u32::<LittleEndian>()?; // byte_size
 
 		let type_id = file.read_u32::<LittleEndian>()?;
@@ -202,7 +217,13 @@ pub fn extract_assets(path: &Path) -> io::Result<EditedAssetsGuard> {
 				Err(e) => return Err(Error::new(io::ErrorKind::InvalidData, e)),
 			};
 
-			if let Err(e) = process_xml(&xml, &mut force_debuffs, xml_position as usize) {
+			if let Err(e) = process_xml(
+				config,
+				&mut assets,
+				&xml,
+				&mut force_debuffs,
+				xml_position as usize,
+			) {
 				error!("Error processing {name} XML asset: {e}");
 			}
 		}
@@ -214,14 +235,14 @@ pub fn extract_assets(path: &Path) -> io::Result<EditedAssetsGuard> {
 
 	if let Some(contents) = force_debuffs {
 		// rename the original file and write the edited file in its place
-		let mut original_path = path.as_os_str().to_owned();
+		let mut original_path = config.assets_res.as_os_str().to_owned();
 		original_path.push(".rotmguard");
-		std::fs::rename(path, &original_path)?;
+		std::fs::rename(&config.assets_res, &original_path)?;
 
-		std::fs::write(path, &contents)?;
+		std::fs::write(&config.assets_res, &contents)?;
 
 		// Set the owner and group IDs to match with the parent directory instead of being root.
-		let parent_dir = path.parent().unwrap_or(&Path::new("."));
+		let parent_dir = config.assets_res.parent().unwrap_or(&Path::new("."));
 		let (o_id, g_id) = match file_owner::owner_group(parent_dir) {
 			Ok(r) => r,
 			Err(e) => {
@@ -230,27 +251,25 @@ pub fn extract_assets(path: &Path) -> io::Result<EditedAssetsGuard> {
 				)));
 			}
 		};
-		match file_owner::set_owner_group(path, o_id, g_id) {
+		match file_owner::set_owner_group(&config.assets_res, o_id, g_id) {
 			Ok(_) => {}
 			Err(e) => {
 				return Err(Error::other(format!(
-					"Couldn't set the owner of {path:?}: {e:?}"
+					"Couldn't set the owner of {path:?}: {e:?}",
+					path = config.assets_res,
 				)));
 			}
 		}
 
 		info!("Assets edited to force anti-debuffs.");
 
-		return Ok(EditedAssetsGuard {
+		assets.reverse_changes_guard = Some(ReverseChangesGuard {
 			real_assets_path: Path::new(&original_path).to_path_buf(),
-			edited_assets_path: Some(path.to_path_buf()),
+			edited_assets_path: config.assets_res.clone(),
 		});
 	}
 
-	Ok(EditedAssetsGuard {
-		real_assets_path: path.to_path_buf(),
-		edited_assets_path: None,
-	})
+	Ok(assets)
 }
 
 fn read_nul_terminated_string<R: Read>(reader: &mut R) -> io::Result<String> {
@@ -271,6 +290,7 @@ fn read_nul_terminated_string<R: Read>(reader: &mut R) -> io::Result<String> {
 	Ok(s)
 }
 
+// moves the stream forward to align to 4 bytes
 fn align_stream<S: Seek + Read>(stream: &mut S) -> io::Result<()> {
 	let position = stream.stream_position()?;
 	let bytes_to_skip = (4 - (position % 4)) % 4;
@@ -283,6 +303,8 @@ fn align_stream<S: Seek + Read>(stream: &mut S) -> io::Result<()> {
 
 // Parses XML asset and adds to the registry
 fn process_xml(
+	config: &Config,
+	assets: &mut Assets,
 	raw_xml: &str,
 	force_debuffs: &mut Option<Vec<u8>>,
 	xml_pos: usize,
@@ -290,8 +312,10 @@ fn process_xml(
 	let mut xml = xmltree::Element::parse(raw_xml.as_bytes()).unwrap();
 
 	match xml.name.as_str() {
-		"Objects" => process_xml_objects(&mut xml.children, force_debuffs.is_some())?,
-		"GroundTypes" => process_xml_grounds(&mut xml.children)?,
+		"Objects" => {
+			process_xml_objects(config, assets, &mut xml.children, force_debuffs.is_some())?
+		}
+		"GroundTypes" => process_xml_grounds(config, assets, &mut xml.children)?,
 		_ => return Ok(()), // Not Interested 👍
 	}
 
@@ -308,7 +332,7 @@ fn process_xml(
 		};
 
 		for _ in 0..to_add {
-			edited_xml.push(b' '); // hopefully spaces dont fuck up the format?
+			edited_xml.push(b' ');
 		}
 
 		file[xml_pos..(xml_pos + raw_xml.len())].copy_from_slice(&edited_xml);
@@ -317,7 +341,12 @@ fn process_xml(
 	Ok(())
 }
 
-fn process_xml_objects(objects: &mut Vec<XMLNode>, force_debuffs: bool) -> anyhow::Result<()> {
+fn process_xml_objects(
+	config: &Config,
+	assets: &mut Assets,
+	objects: &mut Vec<XMLNode>,
+	force_debuffs: bool,
+) -> anyhow::Result<()> {
 	for object in objects {
 		if let XMLNode::Element(object) = object {
 			if object.name != "Object" {
@@ -340,95 +369,99 @@ fn process_xml_objects(objects: &mut Vec<XMLNode>, force_debuffs: bool) -> anyho
 			let mut projectiles = BTreeMap::new();
 			let mut i = 0;
 			for parameter in &mut object.children {
-				if let XMLNode::Element(parameter) = parameter {
-					if parameter.name == "Projectile" {
-						let projectile_id = match parameter.attributes.get("id") {
-							Some(s) => s.parse::<u32>().context("Projectile id non-integer")?,
-							None => i,
-						};
+				let parameter = match parameter {
+					XMLNode::Element(p) => p,
+					_ => continue,
+				};
+				if parameter.name != "Projectile" {
+					continue;
+				}
+				let projectile_id = match parameter.attributes.get("id") {
+					Some(s) => s.parse::<u32>().context("Projectile id non-integer")?,
+					None => i,
+				};
 
-						let mut armor_piercing = false;
-						let mut inflicts_cursed = false;
-						let mut inflicts_exposed = false;
-						let mut inflicts_sick = false;
-						let mut inflicts_bleeding = false;
-						let mut inflicts_armor_broken = false;
-						for projectile_parameter_i in (0..parameter.children.len()).rev() {
-							if let XMLNode::Element(projectile_parameter) =
-								&parameter.children[projectile_parameter_i]
-							{
-								if projectile_parameter.name == "ArmorPiercing" {
-									armor_piercing = true;
-								} else if projectile_parameter.name == "ConditionEffect" {
-									if projectile_parameter.children.is_empty()
-										|| projectile_parameter.children.len() > 1
-									{
-										bail!("Invalid Object Projectile ConditionEffect. Must have only text inside");
-									}
+				let mut armor_piercing = false;
+				let mut inflicts_cursed = false;
+				let mut inflicts_exposed = false;
+				let mut inflicts_sick = false;
+				let mut inflicts_bleeding = false;
+				let mut inflicts_armor_broken = false;
+				for projectile_parameter_i in (0..parameter.children.len()).rev() {
+					let projectile_parameter = match &parameter.children[projectile_parameter_i] {
+						XMLNode::Element(p) => p,
+						_ => continue,
+					};
 
-									if let XMLNode::Text(condition) =
-										&projectile_parameter.children[0]
-									{
-										match condition.as_str() {
-											"Curse" => {
-												inflicts_cursed = true;
-											}
-											"Exposed" => {
-												inflicts_exposed = true;
-											}
-											"Sick" => {
-												inflicts_sick = true;
-											}
-											"Bleeding" => {
-												inflicts_bleeding = true;
-											}
-											"Armor Broken" => {
-												inflicts_armor_broken = true;
-											}
-											_ => {}
-										}
-										// Client-side debuffs for force antidebuff
-										if force_debuffs {
-											let debuffs =
-												&config().settings.lock().unwrap().debuffs;
-											let c = condition.as_str();
-											if (c == "Blind" && debuffs.blind)
-												|| (c == "Hallucinating" && debuffs.hallucinating)
-												|| (c == "Drunk" && debuffs.drunk) || (c
-												== "Confused"
-												&& debuffs.confused) || (c == "Unstable"
-												&& debuffs.unstable) || (c == "Darkness"
-												&& debuffs.darkness)
-											{
-												parameter.children.remove(projectile_parameter_i);
-											}
-										}
-									} else {
-										bail!("Invalid Object Projectile ConditionEffect. Value be text");
-									}
-								}
-							}
+					if projectile_parameter.name == "ArmorPiercing" {
+						armor_piercing = true;
+					}
+
+					if projectile_parameter.name == "ConditionEffect" {
+						if projectile_parameter.children.is_empty()
+							|| projectile_parameter.children.len() > 1
+						{
+							bail!("Invalid Object Projectile ConditionEffect. Must have only text inside");
 						}
 
-						projectiles.insert(
-							projectile_id,
-							ProjectileInfo {
-								armor_piercing,
-								inflicts_cursed,
-								inflicts_exposed,
-								inflicts_sick,
-								inflicts_bleeding,
-								inflicts_armor_broken,
-							},
-						);
-						i += 1;
+						let condition = match &projectile_parameter.children[0] {
+							XMLNode::Text(condition) => condition,
+							_ => bail!("Invalid Object Projectile ConditionEffect. Value be text"),
+						};
+
+						match condition.as_str() {
+							"Curse" => {
+								inflicts_cursed = true;
+							}
+							"Exposed" => {
+								inflicts_exposed = true;
+							}
+							"Sick" => {
+								inflicts_sick = true;
+							}
+							"Bleeding" => {
+								inflicts_bleeding = true;
+							}
+							"Armor Broken" => {
+								inflicts_armor_broken = true;
+							}
+							_ => {}
+						}
+
+						// Client-side debuffs for force antidebuff
+						if force_debuffs {
+							let debuffs = &config.settings.debuffs;
+							let c = condition.as_str();
+							if (c == "Blind" && debuffs.blind)
+								|| (c == "Hallucinating" && debuffs.hallucinating)
+								|| (c == "Drunk" && debuffs.drunk)
+								|| (c == "Confused" && debuffs.confused)
+								|| (c == "Unstable" && debuffs.unstable)
+								|| (c == "Darkness" && debuffs.darkness)
+							{
+								parameter.children.remove(projectile_parameter_i);
+							}
+						}
 					}
 				}
+
+				projectiles.insert(
+					projectile_id,
+					ProjectileInfo {
+						armor_piercing,
+						inflicts_cursed,
+						inflicts_exposed,
+						inflicts_sick,
+						inflicts_bleeding,
+						inflicts_armor_broken,
+					},
+				);
+				i += 1;
 			}
 
 			if !projectiles.is_empty() {
 				// save
-				PROJECTILES.lock().unwrap().insert(object_type, projectiles);
+				assets.projectiles.insert(object_type, projectiles);
 			}
 		}
 	}
@@ -436,7 +469,11 @@ fn process_xml_objects(objects: &mut Vec<XMLNode>, force_debuffs: bool) -> anyho
 	Ok(())
 }
 
-fn process_xml_grounds(grounds: &mut Vec<XMLNode>) -> anyhow::Result<()> {
+fn process_xml_grounds(
+	_config: &Config,
+	assets: &mut Assets,
+	grounds: &mut Vec<XMLNode>,
+) -> anyhow::Result<()> {
 	for object in grounds {
 		if let XMLNode::Element(object) = object {
 			if object.name != "Ground" {
@@ -474,17 +511,14 @@ fn process_xml_grounds(grounds: &mut Vec<XMLNode>) -> anyhow::Result<()> {
 						.parse::<i64>()
 						.context("Invalid Ground MaxDamage, must be integer")?;
 
-					HAZARDOUS_GROUNDS
-						.lock()
-						.unwrap()
-						.insert(ground_type, damage);
+					assets.hazardous_grounds.insert(ground_type, damage);
 				} else {
 					bail!("Invalid Ground MaxDamage. Value be text");
 				}
 			}
 
 			if let Some(_) = params.clone().find(|p| p.name == "Push") {
-				PUSH_GROUNDS.lock().unwrap().insert(ground_type);
+				assets.pushing_grounds.insert(ground_type);
 			}
 		}
 	}

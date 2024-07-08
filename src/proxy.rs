@@ -1,17 +1,13 @@
 use crate::{
-	module::Module,
+	asset_extract::Assets,
+	module::{Module, ModuleInstance, RootModule, RootModuleInstance},
 	packets::{ClientPacket, ServerPacket},
 	read::RPRead,
-	rotmguard::RotmGuard,
 	write::RPWrite,
-	Modules,
 };
 use hex::FromHex;
 use rc4::{consts::U13, KeyInit, Rc4, StreamCipher};
-use std::{
-	io::ErrorKind,
-	sync::Arc,
-};
+use std::{io::ErrorKind, sync::Arc};
 use tokio::{
 	io::{self, AsyncReadExt, AsyncWriteExt, BufReader},
 	net::TcpStream,
@@ -26,8 +22,8 @@ const RC4_K_C_TO_S: &str = "5a4d2016bc16dc64883194ffd9";
 const DEFAULT_BUFFER_SIZE: usize = 64 * 1024;
 
 pub struct Proxy {
-	pub rotmguard: RotmGuard,
-	pub modules: Modules,
+	pub assets: Arc<Assets>,
+	pub modules: RootModuleInstance,
 	pub client: BufReader<TcpStream>,
 	pub server: BufReader<TcpStream>,
 	rc4: Rc4State,
@@ -47,9 +43,14 @@ struct Rc4State {
 }
 
 impl Proxy {
-	pub fn new(client: TcpStream, server: TcpStream, modules: Modules) -> Self {
+	pub fn new(
+		assets: Arc<Assets>,
+		modules: RootModuleInstance,
+		client: TcpStream,
+		server: TcpStream,
+	) -> Self {
 		Self {
-			rotmguard: RotmGuard::new(),
+			assets,
 			modules,
 			client: BufReader::new(client),
 			server: BufReader::new(server),
@@ -86,9 +87,7 @@ impl Proxy {
 						Ok(p) => p,
 						Err(e) => {
 							if [ErrorKind::ConnectionReset, ErrorKind::UnexpectedEof].contains(&e.kind()) {
-								for module in &mut *Arc::clone(&self.modules).lock().await {
-									module.disconnect(self, false).await?;
-								}
+								RootModuleInstance::disconnect(self, false).await?;
 							}
 							return Err(e);
 						}
@@ -98,7 +97,7 @@ impl Proxy {
 
 					match ClientPacket::rp_read(&mut &raw_packet[4..]) {
 						Ok(mut p) => {
-							match RotmGuard::handle_client_packet(self, &mut p).await {
+							match RootModuleInstance::client_packet(self, &mut p).await {
 								Ok(true) => {
 									// 👍
 									// forward the packet
@@ -125,9 +124,7 @@ impl Proxy {
 						Ok(p) => p,
 						Err(e) => {
 							if [ErrorKind::ConnectionReset, ErrorKind::UnexpectedEof].contains(&e.kind()) {
-								for module in &mut *Arc::clone(&self.modules).lock().await {
-									module.disconnect(self, true).await?;
-								}
+								RootModuleInstance::disconnect(self, true).await?;
 							}
 							return Err(e);
 						}
@@ -137,7 +134,7 @@ impl Proxy {
 
 					match ServerPacket::rp_read(&mut &raw_packet[4..]) {
 						Ok(mut p) => {
-							match RotmGuard::handle_server_packet(self, &mut p).await {
+							match RootModuleInstance::server_packet(self, &mut p).await {
 								Ok(true) => {
 									// 👍
 									// forward the packet
