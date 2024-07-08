@@ -1,11 +1,9 @@
 use super::{Module, ModuleInstance};
 use crate::{
 	extra_datatypes::{PlayerConditions, PlayerConditions2, StatType, WorldPos},
-	packets::{AoePacket, ClientPacket, ServerPacket, ShowEffect},
+	packets::{ClientPacket, ServerPacket},
 	proxy::Proxy,
-	util::Notification,
 };
-use rand::{thread_rng, Rng};
 use std::io::Result;
 use tracing::instrument;
 

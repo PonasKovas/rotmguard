@@ -1,6 +1,6 @@
 use crate::{
 	asset_extract::Assets,
-	module::{Module, ModuleInstance, RootModule, RootModuleInstance},
+	module::{Module, ModuleInstance, RootModuleInstance},
 	packets::{ClientPacket, ServerPacket},
 	read::RPRead,
 	write::RPWrite,

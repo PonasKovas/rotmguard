@@ -6,12 +6,11 @@ use std::{
 	fs::File,
 	io::{self, Error, Read, Seek},
 	path::{Path, PathBuf},
-	sync::Mutex,
 };
 use tracing::{error, info};
 use xmltree::XMLNode;
 
-use crate::config::{self, Config};
+use crate::config::{Config};
 
 const NON_XML_FILES: &[&str] = &[
 	"manifest_xml",

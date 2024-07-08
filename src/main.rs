@@ -1,20 +1,15 @@
 #![feature(result_flattening)]
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use asset_extract::Assets;
 use config::Config;
-use lru::LruCache;
 use module::{Module, RootModule, RootModuleInstance};
-use nix::NixPath;
 use proxy::Proxy;
-use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::io::ErrorKind;
-use std::num::NonZeroUsize;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::select;
-use tokio::sync::Mutex;
 use tracing::{error, info};
 
 mod asset_extract;

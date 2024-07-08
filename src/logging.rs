@@ -1,4 +1,4 @@
-use crate::config::{self, Config};
+use crate::config::{Config};
 use anyhow::Result;
 use std::{
 	collections::VecDeque,
