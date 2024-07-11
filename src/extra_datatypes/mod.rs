@@ -7,7 +7,7 @@ mod worldpos;
 
 pub use conditions::{PlayerConditions, PlayerConditions2};
 pub use object_status_data::ObjectStatusData;
-pub use statdata::{StatData, StatType};
+pub use statdata::{Stat, StatData, StatType};
 pub use worldpos::WorldPos;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

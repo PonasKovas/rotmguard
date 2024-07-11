@@ -1,27 +1,30 @@
 use super::ServerPacket;
 use crate::{extra_datatypes::ObjectId, read::RPRead, write::RPWrite};
-use std::io::{Error, Read, Write};
+use std::{
+	borrow::Cow,
+	io::{Error, Read, Write},
+};
 
 #[non_exhaustive]
 #[derive(Debug)]
-pub enum NotificationPacket {
+pub enum NotificationPacket<'a> {
 	StatIncrease {
-		text: String,
+		text: Cow<'a, str>,
 	},
 	ServerMessage {
-		text: String,
+		text: Cow<'a, str>,
 	},
 	ErrorMessage {
-		text: String,
+		text: Cow<'a, str>,
 	},
 	StickyMessage {
-		text: String,
+		text: Cow<'a, str>,
 	},
 	TeleportationError {
-		text: String,
+		text: Cow<'a, str>,
 	},
 	Global {
-		text: String,
+		text: Cow<'a, str>,
 		ui_extra: u16,
 	},
 	Queue {
@@ -29,30 +32,30 @@ pub enum NotificationPacket {
 		queue_pos: u16,
 	},
 	ObjectText {
-		message: String,
+		message: Cow<'a, str>,
 		object_id: ObjectId,
 		color: u32,
 	},
 	PlayerDeath {
-		message: String,
+		message: Cow<'a, str>,
 		picture_type: u32,
 	},
 	PortalOpened {
-		message: String,
+		message: Cow<'a, str>,
 		picture_type: u32,
 	},
 	PlayerCallout {
-		message: String,
+		message: Cow<'a, str>,
 		object_id: ObjectId,
 		stars: u16,
 	},
 	ProgressBar {
-		message: Option<String>,
+		message: Option<Cow<'a, str>>,
 		max: u32,
 		value: u16,
 	},
 	Behavior {
-		message: String,
+		message: Cow<'a, str>,
 		picture_type: u32,
 		color: u32,
 	},
@@ -62,8 +65,8 @@ pub enum NotificationPacket {
 	},
 }
 
-impl RPRead for NotificationPacket {
-	fn rp_read<R: Read>(data: &mut R) -> std::io::Result<Self>
+impl<'a> RPRead<'a> for NotificationPacket<'a> {
+	fn rp_read(data: &mut &'a [u8]) -> std::io::Result<Self>
 	where
 		Self: Sized,
 	{
@@ -72,22 +75,22 @@ impl RPRead for NotificationPacket {
 
 		Ok(match notification_type {
 			0 => NotificationPacket::StatIncrease {
-				text: String::rp_read(data)?,
+				text: Cow::rp_read(data)?,
 			},
 			1 => NotificationPacket::ServerMessage {
-				text: String::rp_read(data)?,
+				text: Cow::rp_read(data)?,
 			},
 			2 => NotificationPacket::ErrorMessage {
-				text: String::rp_read(data)?,
+				text: Cow::rp_read(data)?,
 			},
 			3 => NotificationPacket::StickyMessage {
-				text: String::rp_read(data)?,
+				text: Cow::rp_read(data)?,
 			},
 			9 => NotificationPacket::TeleportationError {
-				text: String::rp_read(data)?,
+				text: Cow::rp_read(data)?,
 			},
 			4 => NotificationPacket::Global {
-				text: String::rp_read(data)?,
+				text: Cow::rp_read(data)?,
 				ui_extra: u16::rp_read(data)?,
 			},
 			5 => NotificationPacket::Queue {
@@ -95,26 +98,26 @@ impl RPRead for NotificationPacket {
 				queue_pos: u16::rp_read(data)?,
 			},
 			6 => NotificationPacket::ObjectText {
-				message: String::rp_read(data)?,
+				message: Cow::rp_read(data)?,
 				object_id: ObjectId(u32::rp_read(data)?),
 				color: u32::rp_read(data)?,
 			},
 			7 => NotificationPacket::PlayerDeath {
-				message: String::rp_read(data)?,
+				message: Cow::rp_read(data)?,
 				picture_type: u32::rp_read(data)?,
 			},
 			8 => NotificationPacket::PortalOpened {
-				message: String::rp_read(data)?,
+				message: Cow::rp_read(data)?,
 				picture_type: u32::rp_read(data)?,
 			},
 			10 => NotificationPacket::PlayerCallout {
-				message: String::rp_read(data)?,
+				message: Cow::rp_read(data)?,
 				object_id: ObjectId(u32::rp_read(data)?),
 				stars: u16::rp_read(data)?,
 			},
 			11 => {
 				let message = if (extra & 3) != 0 {
-					Some(String::rp_read(data)?)
+					Some(Cow::rp_read(data)?)
 				} else {
 					None
 				};
@@ -125,7 +128,7 @@ impl RPRead for NotificationPacket {
 				}
 			}
 			12 => NotificationPacket::Behavior {
-				message: String::rp_read(data)?,
+				message: Cow::rp_read(data)?,
 				picture_type: u32::rp_read(data)?,
 				color: u32::rp_read(data)?,
 			},
@@ -143,7 +146,7 @@ impl RPRead for NotificationPacket {
 	}
 }
 
-impl RPWrite for NotificationPacket {
+impl<'a> RPWrite for NotificationPacket<'a> {
 	fn rp_write<W: Write>(&self, buf: &mut W) -> std::io::Result<usize>
 	where
 		Self: Sized,
@@ -276,8 +279,8 @@ impl RPWrite for NotificationPacket {
 	}
 }
 
-impl From<NotificationPacket> for ServerPacket {
-	fn from(value: NotificationPacket) -> Self {
+impl<'a> From<NotificationPacket<'a>> for ServerPacket<'a> {
+	fn from(value: NotificationPacket<'a>) -> Self {
 		Self::Notification(value)
 	}
 }

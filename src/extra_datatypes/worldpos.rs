@@ -7,8 +7,8 @@ pub struct WorldPos {
 	pub y: f32,
 }
 
-impl RPRead for WorldPos {
-	fn rp_read<R: Read>(data: &mut R) -> io::Result<Self>
+impl<'a> RPRead<'a> for WorldPos {
+	fn rp_read(data: &mut &'a [u8]) -> io::Result<Self>
 	where
 		Self: Sized,
 	{

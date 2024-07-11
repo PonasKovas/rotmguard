@@ -1,4 +1,7 @@
-use std::io::{self, Write};
+use std::{
+	borrow::Cow,
+	io::{self, Write},
+};
 
 /// Write packet/datatype in the game protocol format
 pub trait RPWrite {
@@ -97,6 +100,21 @@ impl RPWrite for f32 {
 }
 
 impl RPWrite for String {
+	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	where
+		Self: Sized,
+	{
+		let string_bytes = self.as_bytes();
+		let len = string_bytes.len();
+
+		(len as u16).rp_write(buf)?;
+		buf.write_all(string_bytes)?;
+
+		Ok(2 + string_bytes.len())
+	}
+}
+
+impl<'a> RPWrite for Cow<'a, str> {
 	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
 	where
 		Self: Sized,

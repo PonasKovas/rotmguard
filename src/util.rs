@@ -1,6 +1,11 @@
 use crate::packets::NotificationPacket;
-use crate::proxy::Proxy;
+use crate::proxy::ProxyWriteHalf;
+use std::borrow::Cow;
 use std::io;
+
+const RED_COLOR: u32 = 0xFF6666;
+const GREEN_COLOR: u32 = 0x66FF66;
+const BLUE_COLOR: u32 = 0x6666FF;
 
 /// Convenience struct for sending cute little notifications to the client
 #[derive(Debug, Clone)]
@@ -22,14 +27,26 @@ impl Notification {
 		self.color = color;
 		self
 	}
+	/// Sets the default red color
+	pub fn red(self) -> Self {
+		self.color(RED_COLOR)
+	}
+	/// Sets the default green color
+	pub fn green(self) -> Self {
+		self.color(GREEN_COLOR)
+	}
+	/// Sets the default blue color
+	pub fn blue(self) -> Self {
+		self.color(BLUE_COLOR)
+	}
 	/// Sends the notification
-	pub async fn send(self, proxy: &mut Proxy) -> io::Result<()> {
+	pub async fn send(self, io: &mut ProxyWriteHalf<'_>) -> io::Result<()> {
 		let packet = NotificationPacket::Behavior {
-			message: self.text,
+			message: Cow::Owned(self.text),
 			picture_type: 0,
 			color: self.color,
 		};
-		proxy.send_client(&packet.into()).await?;
+		io.send_client(&packet.into()).await?;
 
 		Ok(())
 	}

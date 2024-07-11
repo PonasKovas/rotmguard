@@ -1,4 +1,4 @@
-#![feature(result_flattening)]
+#![feature(noop_waker)]
 
 use anyhow::{Context, Result};
 use asset_extract::Assets;
@@ -46,19 +46,27 @@ async fn main() -> Result<()> {
 	let modules = RootModule::new();
 
 	select! {
-		res = server(assets, modules) => res,
+		res = server(config, assets, modules) => res,
 		_ = tokio::signal::ctrl_c() => {
 			info!("Exiting...");
+
 			Ok(())
 		}
 	}
 }
 
-async fn server(assets: Arc<Assets>, modules: RootModule) -> Result<()> {
+async fn server(config: Arc<Config>, assets: Arc<Assets>, modules: RootModule) -> Result<()> {
 	let listener = TcpListener::bind("127.0.0.1:2051").await?;
 
 	loop {
-		if let Err(e) = accept_con(&listener, Arc::clone(&assets), modules.instance()).await {
+		if let Err(e) = accept_con(
+			&listener,
+			Arc::clone(&config),
+			Arc::clone(&assets),
+			modules.instance(),
+		)
+		.await
+		{
 			error!("{e:?}");
 		}
 	}
@@ -66,6 +74,7 @@ async fn server(assets: Arc<Assets>, modules: RootModule) -> Result<()> {
 
 async fn accept_con(
 	listener: &TcpListener,
+	config: Arc<Config>,
 	assets: Arc<Assets>,
 	modules: RootModuleInstance,
 ) -> Result<()> {
@@ -84,10 +93,8 @@ async fn accept_con(
 	info!("Connecting to {original_dst}");
 	let real_server = TcpStream::connect((original_dst, 2051)).await?; // iptables rule will redirect this to port 2050
 
-	let mut proxy = Proxy::new(assets, modules, socket, real_server);
-
 	tokio::spawn(async move {
-		if let Err(e) = proxy.run().await {
+		if let Err(e) = Proxy::run(config, assets, modules, socket, real_server).await {
 			if e.kind() != ErrorKind::UnexpectedEof {
 				error!("{e:?}");
 			}

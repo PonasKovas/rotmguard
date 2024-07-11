@@ -1,14 +1,17 @@
-use std::io::{self, Read};
+use std::{
+	borrow::Cow,
+	io::{self, Error, Read},
+};
 
 /// Read packet/datatype in the game protocol format
-pub trait RPRead {
-	fn rp_read<R: Read>(data: &mut R) -> io::Result<Self>
+pub trait RPRead<'a> {
+	fn rp_read(data: &mut &'a [u8]) -> io::Result<Self>
 	where
 		Self: Sized;
 }
 
-impl RPRead for bool {
-	fn rp_read<R: Read>(data: &mut R) -> io::Result<Self>
+impl<'a> RPRead<'a> for bool {
+	fn rp_read(data: &mut &'a [u8]) -> io::Result<Self>
 	where
 		Self: Sized,
 	{
@@ -19,8 +22,8 @@ impl RPRead for bool {
 	}
 }
 
-impl RPRead for u8 {
-	fn rp_read<R: Read>(data: &mut R) -> io::Result<Self>
+impl<'a> RPRead<'a> for u8 {
+	fn rp_read(data: &mut &'a [u8]) -> io::Result<Self>
 	where
 		Self: Sized,
 	{
@@ -31,8 +34,8 @@ impl RPRead for u8 {
 	}
 }
 
-impl RPRead for u16 {
-	fn rp_read<R: Read>(data: &mut R) -> io::Result<Self> {
+impl<'a> RPRead<'a> for u16 {
+	fn rp_read(data: &mut &'a [u8]) -> io::Result<Self> {
 		let mut bytes = [0; 2];
 		data.read_exact(&mut bytes)?;
 
@@ -40,8 +43,8 @@ impl RPRead for u16 {
 	}
 }
 
-impl RPRead for u32 {
-	fn rp_read<R: Read>(data: &mut R) -> io::Result<Self>
+impl<'a> RPRead<'a> for u32 {
+	fn rp_read(data: &mut &'a [u8]) -> io::Result<Self>
 	where
 		Self: Sized,
 	{
@@ -52,8 +55,8 @@ impl RPRead for u32 {
 	}
 }
 
-impl RPRead for i8 {
-	fn rp_read<R: Read>(data: &mut R) -> io::Result<Self>
+impl<'a> RPRead<'a> for i8 {
+	fn rp_read(data: &mut &'a [u8]) -> io::Result<Self>
 	where
 		Self: Sized,
 	{
@@ -64,8 +67,8 @@ impl RPRead for i8 {
 	}
 }
 
-impl RPRead for i16 {
-	fn rp_read<R: Read>(data: &mut R) -> io::Result<Self> {
+impl<'a> RPRead<'a> for i16 {
+	fn rp_read(data: &mut &'a [u8]) -> io::Result<Self> {
 		let mut bytes = [0; 2];
 		data.read_exact(&mut bytes)?;
 
@@ -73,8 +76,8 @@ impl RPRead for i16 {
 	}
 }
 
-impl RPRead for i32 {
-	fn rp_read<R: Read>(data: &mut R) -> io::Result<Self>
+impl<'a> RPRead<'a> for i32 {
+	fn rp_read(data: &mut &'a [u8]) -> io::Result<Self>
 	where
 		Self: Sized,
 	{
@@ -85,8 +88,8 @@ impl RPRead for i32 {
 	}
 }
 
-impl RPRead for f32 {
-	fn rp_read<R: Read>(data: &mut R) -> io::Result<Self>
+impl<'a> RPRead<'a> for f32 {
+	fn rp_read(data: &mut &'a [u8]) -> io::Result<Self>
 	where
 		Self: Sized,
 	{
@@ -97,21 +100,30 @@ impl RPRead for f32 {
 	}
 }
 
-impl RPRead for String {
-	fn rp_read<R: Read>(data: &mut R) -> io::Result<Self>
+impl<'a> RPRead<'a> for Cow<'a, str> {
+	fn rp_read(data: &mut &'a [u8]) -> io::Result<Self>
 	where
 		Self: Sized,
 	{
 		let strlen = u16::rp_read(data)? as usize;
 
-		let mut bytes = vec![0; strlen];
-		data.read_exact(&mut bytes)?;
+		let r = match std::str::from_utf8(&data[..strlen]) {
+			Ok(r) => r,
+			Err(e) => {
+				return Err(Error::new(
+					io::ErrorKind::InvalidData,
+					format!("error parsing string: {e:?}"),
+				));
+			}
+		};
 
-		Ok(String::from_utf8_lossy(&bytes).into_owned())
+		*data = &data[strlen..];
+
+		Ok(Cow::Borrowed(r))
 	}
 }
 
-pub fn read_compressed_int<R: Read>(data: &mut R) -> io::Result<i64> {
+pub fn read_compressed_int<'a>(data: &mut &'a [u8]) -> io::Result<i64> {
 	let mut byte = u8::rp_read(data)?;
 	let is_negative = (byte & 0b01000000) != 0;
 	let mut shift = 6;

@@ -1,4 +1,4 @@
-use crate::config::{Config};
+use crate::config::Config;
 use anyhow::Result;
 use std::{
 	collections::VecDeque,
@@ -12,29 +12,28 @@ use tracing_subscriber::{fmt::MakeWriter, layer::SubscriberExt, EnvFilter, Layer
 
 static LOG_BUFFER: LogBuffer = LogBuffer {
 	max_lines: OnceLock::new(),
-	buffer: Mutex::new(VecDeque::new()),
+	buffer: Mutex::new((0, VecDeque::new())),
 };
 
 struct LogBuffer {
 	max_lines: OnceLock<usize>,
-	buffer: Mutex<VecDeque<Vec<u8>>>,
+	// (number of lines currently, buffer)
+	buffer: Mutex<(usize, VecDeque<u8>)>,
 }
 
 struct LogWriter<'a> {
-	lock: MutexGuard<'a, VecDeque<Vec<u8>>>,
+	lock: MutexGuard<'a, (usize, VecDeque<u8>)>,
 }
 
 impl<'a> Write for LogWriter<'a> {
 	fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-		let log_line = self.lock.front_mut().unwrap();
+		self.lock.0 += buf.iter().filter(|b| **b == b'\n').count();
 
-		Write::write(log_line, buf)
+		Write::write(&mut self.lock.1, buf)
 	}
 
 	fn flush(&mut self) -> std::io::Result<()> {
-		let log_line = self.lock.front_mut().unwrap();
-
-		Write::flush(log_line)
+		Write::flush(&mut self.lock.1)
 	}
 }
 
@@ -45,11 +44,17 @@ impl<'a> MakeWriter<'a> for &'static LogBuffer {
 		let mut buffer = self.buffer.lock().unwrap();
 
 		// remove oldest log lines if we're at limit
-		while buffer.len() >= *self.max_lines.get().expect("max log lines not set") {
-			buffer.pop_back();
-		}
+		while buffer.0 >= *self.max_lines.get().expect("max log lines not set") {
+			// find the position of the first line break and remove everything up to it
+			let pos = buffer
+				.1
+				.iter()
+				.position(|b| *b == b'\n')
+				.expect("log lines at limit but no linebreak found");
 
-		buffer.push_front(Vec::new());
+			buffer.1.drain(..=pos);
+			buffer.0 -= 1;
+		}
 
 		LogWriter { lock: buffer }
 	}
@@ -81,41 +86,45 @@ pub fn init_logger(config: &Config) -> Result<()> {
 }
 
 pub fn save_logs() {
-	if !Path::new("logs/").exists() {
-		if let Err(e) = create_dir_all("logs/") {
-			error!("couldn't create directory logs/. {e:?}");
-		}
+	tokio::task::spawn_blocking(|| {
+		if !Path::new("logs/").exists() {
+			if let Err(e) = create_dir_all("logs/") {
+				error!("couldn't create directory logs/. {e:?}");
+			}
 
-		// Set the owner and group IDs to match with the parent directory instead of being root.
-		let (o_id, g_id) =
-			file_owner::owner_group(".").expect("Couldnt get owner of current directory");
-		file_owner::set_owner_group("logs/", o_id, g_id)
-			.expect("Couldnt set the owner of logs/ directory.");
-	}
-
-	let path = format!("logs/{}.log", chrono::Local::now());
-	let mut log_file = match File::create(&path) {
-		Ok(file) => {
 			// Set the owner and group IDs to match with the parent directory instead of being root.
 			let (o_id, g_id) =
-				file_owner::owner_group("logs/").expect("Couldnt get owner of logs/ directory");
-			file_owner::set_owner_group(&path, o_id, g_id)
+				file_owner::owner_group(".").expect("Couldnt get owner of current directory");
+			file_owner::set_owner_group("logs/", o_id, g_id)
 				.expect("Couldnt set the owner of logs/ directory.");
-
-			file
 		}
-		Err(e) => {
-			error!("couldn't create log file: {e:?}");
-			return;
-		}
-	};
 
-	for log_line in LOG_BUFFER.buffer.lock().unwrap().iter().rev() {
-		if let Err(e) = log_file.write_all(log_line) {
+		let path = format!("logs/{}.log", chrono::Local::now());
+		let mut log_file = match File::create(&path) {
+			Ok(file) => {
+				// Set the owner and group IDs to match with the parent directory instead of being root.
+				let (o_id, g_id) =
+					file_owner::owner_group("logs/").expect("Couldnt get owner of logs/ directory");
+				file_owner::set_owner_group(&path, o_id, g_id)
+					.expect("Couldnt set the owner of logs/ directory.");
+
+				file
+			}
+			Err(e) => {
+				error!("couldn't create log file: {e:?}");
+				return;
+			}
+		};
+
+		let buffer_lock = LOG_BUFFER.buffer.lock().unwrap();
+		let (s1, s2) = buffer_lock.1.as_slices();
+		if let Err(e) = log_file.write_all(s1).and(log_file.write_all(s2)) {
+			drop(buffer_lock);
 			error!("couldn't write to log file: {e:?}");
 			return;
 		}
-	}
+		drop(buffer_lock);
 
-	info!("Logs saved!");
+		info!("Logs saved!");
+	});
 }

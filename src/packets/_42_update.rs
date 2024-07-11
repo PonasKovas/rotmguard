@@ -9,13 +9,14 @@ use std::io::{self, Error, Read, Write};
 
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
-pub struct UpdatePacket {
+pub struct UpdatePacket<'a> {
 	pub player_position: WorldPos,
 	pub level_type: u8,
 	#[derivative(Debug = "ignore")]
 	pub tiles: Vec<TileData>, // x, y, type
 	#[derivative(Debug = "ignore")]
-	pub new_objects: Vec<(u16, ObjectStatusData)>, // object type, statuses
+	pub new_objects: Vec<(u16, ObjectStatusData<'a>)>, // object type, statuses
+	#[derivative(Debug = "ignore")]
 	pub to_remove: Vec<ObjectId>, // object that left the viewport
 }
 
@@ -26,8 +27,8 @@ pub struct TileData {
 	pub tile_type: u16,
 }
 
-impl RPRead for UpdatePacket {
-	fn rp_read<R: Read>(data: &mut R) -> std::io::Result<Self>
+impl<'a> RPRead<'a> for UpdatePacket<'a> {
+	fn rp_read(data: &mut &'a [u8]) -> std::io::Result<Self>
 	where
 		Self: Sized,
 	{
@@ -93,7 +94,7 @@ impl RPRead for UpdatePacket {
 	}
 }
 
-impl RPWrite for UpdatePacket {
+impl<'a> RPWrite for UpdatePacket<'a> {
 	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
 	where
 		Self: Sized,
@@ -122,8 +123,8 @@ impl RPWrite for UpdatePacket {
 	}
 }
 
-impl From<UpdatePacket> for ServerPacket {
-	fn from(value: UpdatePacket) -> Self {
+impl<'a> From<UpdatePacket<'a>> for ServerPacket<'a> {
+	fn from(value: UpdatePacket<'a>) -> Self {
 		Self::Update(value)
 	}
 }

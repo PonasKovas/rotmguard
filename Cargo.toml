@@ -9,7 +9,6 @@ byteorder = "1.5.0"
 chrono = "0.4.38"
 derivative = "2.2.0"
 file-owner = "0.1.2"
-hex = "0.4.3"
 iptables = "0.5.1"
 json5 = "0.4.1"
 lru = "0.12.3"
@@ -23,3 +22,6 @@ toml = "0.8.13"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }
 xmltree = "0.10.3"
+
+[profile.release]
+debug = true

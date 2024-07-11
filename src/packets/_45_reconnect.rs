@@ -1,24 +1,27 @@
 use super::ServerPacket;
 use crate::{read::RPRead, write::RPWrite};
-use std::io::{self, Read, Write};
+use std::{
+	borrow::Cow,
+	io::{self, Read, Write},
+};
 
 #[derive(Debug, Clone)]
-pub struct Reconnect {
-	pub hostname: String,
-	pub address: String,
+pub struct Reconnect<'a> {
+	pub hostname: Cow<'a, str>,
+	pub address: Cow<'a, str>,
 	pub port: u16,
 	pub game_id: u32,
 	pub key_time: u32,
 	pub key: Vec<u8>,
 }
 
-impl RPRead for Reconnect {
-	fn rp_read<R: Read>(data: &mut R) -> std::io::Result<Self>
+impl<'a> RPRead<'a> for Reconnect<'a> {
+	fn rp_read(data: &mut &'a [u8]) -> std::io::Result<Self>
 	where
 		Self: Sized,
 	{
-		let hostname = String::rp_read(data)?;
-		let address = String::rp_read(data)?;
+		let hostname = Cow::rp_read(data)?;
+		let address = Cow::rp_read(data)?;
 		let port = u16::rp_read(data)?;
 		let game_id = u32::rp_read(data)?;
 		let key_time = u32::rp_read(data)?;
@@ -37,7 +40,7 @@ impl RPRead for Reconnect {
 	}
 }
 
-impl RPWrite for Reconnect {
+impl<'a> RPWrite for Reconnect<'a> {
 	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
 	where
 		Self: Sized,
@@ -58,8 +61,8 @@ impl RPWrite for Reconnect {
 	}
 }
 
-impl From<Reconnect> for ServerPacket {
-	fn from(value: Reconnect) -> Self {
+impl<'a> From<Reconnect<'a>> for ServerPacket<'a> {
+	fn from(value: Reconnect<'a>) -> Self {
 		Self::Reconnect(value)
 	}
 }

@@ -15,7 +15,10 @@ mod _67_notification;
 mod _90_player_hit;
 mod _9_player_text;
 
-use std::io::{Read, Write};
+use std::{
+	borrow::Cow,
+	io::{Read, Write},
+};
 
 pub use _101_create_success::CreateSuccess;
 pub use _103_ground_damage::GroundDamage;
@@ -31,86 +34,94 @@ pub use _64_aoe::AoePacket;
 pub use _67_notification::NotificationPacket;
 pub use _90_player_hit::PlayerHit;
 pub use _9_player_text::PlayerText;
+use derivative::Derivative;
 
 use crate::{read::RPRead, write::RPWrite};
 
 /// From client to server
 #[non_exhaustive]
 #[repr(u8)]
-#[derive(Debug)]
-pub enum ClientPacket {
-	PlayerText(PlayerText) = 9,
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub enum ClientPacket<'a> {
+	PlayerText(PlayerText<'a>) = 9,
 	Move(Move) = 62,
 	PlayerHit(PlayerHit) = 90,
 	GroundDamage(GroundDamage) = 103,
 	Escape = 105,
-	Unknown { id: u8, bytes: Vec<u8> }, // not necessarilly unknown, just not defined in this program, probably because irrelevant
+	Unknown {
+		id: u8,
+		#[derivative(Debug = "ignore")]
+		bytes: Cow<'a, [u8]>,
+	}, // not necessarilly unknown, just not defined in this program, probably because irrelevant
 }
 
 /// From server to client
 #[non_exhaustive]
 #[repr(u8)]
-#[derive(Debug)]
-pub enum ServerPacket {
-	NewTick(NewTick) = 10,
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub enum ServerPacket<'a> {
+	NewTick(NewTick<'a>) = 10,
 	ShowEffect(ShowEffect) = 11,
 	Goto(GotoPacket) = 18,
 	EnemyShoot(EnemyShoot) = 35,
-	Update(UpdatePacket) = 42,
-	Text(TextPacket) = 44,
-	Reconnect(Reconnect) = 45,
+	Update(UpdatePacket<'a>) = 42,
+	Text(TextPacket<'a>) = 44,
+	Reconnect(Reconnect<'a>) = 45,
 	Aoe(AoePacket) = 64,
-	Notification(NotificationPacket) = 67,
-	CreateSuccess(CreateSuccess) = 101,
-	Unknown { id: u8, bytes: Vec<u8> }, // not necessarilly unknown, just not defined in this program, probably because irrelevant
+	Notification(NotificationPacket<'a>) = 67,
+	CreateSuccess(CreateSuccess<'a>) = 101,
+	Unknown {
+		id: u8,
+		#[derivative(Debug = "ignore")]
+		bytes: Cow<'a, [u8]>,
+	}, // not necessarilly unknown, just not defined in this program, probably because irrelevant
 }
 
-impl ClientPacket {
+impl<'a> ClientPacket<'a> {
 	pub fn discriminator(&self) -> u8 {
 		// This is safe because the enum is repr(u8)
 		unsafe { *(self as *const _ as *const u8) }
 	}
 }
-impl ServerPacket {
+impl<'a> ServerPacket<'a> {
 	pub fn discriminator(&self) -> u8 {
 		// This is safe because the enum is repr(u8)
 		unsafe { *(self as *const _ as *const u8) }
 	}
 }
 
-impl RPRead for ClientPacket {
-	fn rp_read<R: Read>(data: &mut R) -> std::io::Result<Self>
+impl<'a> RPRead<'a> for ClientPacket<'a> {
+	fn rp_read(data: &mut &'a [u8]) -> std::io::Result<Self>
 	where
 		Self: Sized,
 	{
 		let packet_id = u8::rp_read(data)?;
+
 		let packet = match packet_id {
 			9 => Self::PlayerText(PlayerText::rp_read(data)?),
 			62 => Self::Move(Move::rp_read(data)?),
 			90 => Self::PlayerHit(PlayerHit::rp_read(data)?),
 			103 => Self::GroundDamage(GroundDamage::rp_read(data)?),
 			105 => Self::Escape,
-			_ => {
-				let mut bytes = Vec::new();
-				data.read_to_end(&mut bytes)?;
-
-				Self::Unknown {
-					id: packet_id,
-					bytes,
-				}
-			}
+			_ => Self::Unknown {
+				id: packet_id,
+				bytes: Cow::Borrowed(data),
+			},
 		};
 
 		Ok(packet)
 	}
 }
 
-impl RPRead for ServerPacket {
-	fn rp_read<R: Read>(data: &mut R) -> std::io::Result<Self>
+impl<'a> RPRead<'a> for ServerPacket<'a> {
+	fn rp_read(data: &mut &'a [u8]) -> std::io::Result<Self>
 	where
 		Self: Sized,
 	{
 		let packet_id = u8::rp_read(data)?;
+
 		let packet = match packet_id {
 			10 => Self::NewTick(NewTick::rp_read(data)?),
 			11 => Self::ShowEffect(ShowEffect::rp_read(data)?),
@@ -122,22 +133,17 @@ impl RPRead for ServerPacket {
 			64 => Self::Aoe(AoePacket::rp_read(data)?),
 			67 => Self::Notification(NotificationPacket::rp_read(data)?),
 			101 => Self::CreateSuccess(CreateSuccess::rp_read(data)?),
-			_ => {
-				let mut bytes = Vec::new();
-				data.read_to_end(&mut bytes)?;
-
-				Self::Unknown {
-					id: packet_id,
-					bytes,
-				}
-			}
+			_ => Self::Unknown {
+				id: packet_id,
+				bytes: Cow::Borrowed(data),
+			},
 		};
 
 		Ok(packet)
 	}
 }
 
-impl RPWrite for ClientPacket {
+impl<'a> RPWrite for ClientPacket<'a> {
 	fn rp_write<W: Write>(&self, buf: &mut W) -> std::io::Result<usize>
 	where
 		Self: Sized,
@@ -175,7 +181,7 @@ impl RPWrite for ClientPacket {
 	}
 }
 
-impl RPWrite for ServerPacket {
+impl<'a> RPWrite for ServerPacket<'a> {
 	fn rp_write<W: Write>(&self, buf: &mut W) -> std::io::Result<usize>
 	where
 		Self: Sized,

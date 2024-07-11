@@ -1,12 +1,14 @@
-use super::{Module, ModuleInstance};
+use super::{Module, ModuleInstance, PacketFlow, ProxySide, FORWARD};
 use crate::{
+	config::Config,
 	extra_datatypes::{ObjectId, WorldPos},
+	module::BLOCK,
 	packets::{ClientPacket, ServerPacket, ShowEffect},
 	proxy::Proxy,
 	util::Notification,
 };
 use rand::{thread_rng, Rng};
-use std::io::Result;
+use std::{io::Result, sync::Arc};
 use tracing::{error, info, instrument};
 
 #[derive(Debug, Clone)]
@@ -36,7 +38,10 @@ impl Module for General {
 
 impl ModuleInstance for GeneralInst {
 	#[instrument(skip(proxy), fields(modules = ?proxy.modules))]
-	async fn client_packet(proxy: &mut Proxy, packet: &mut ClientPacket) -> Result<bool> {
+	async fn client_packet<'a>(
+		proxy: &mut Proxy<'_>,
+		packet: &mut ClientPacket<'a>,
+	) -> Result<PacketFlow> {
 		match packet {
 			ClientPacket::Move(move_packet) => {
 				// this is basically client acknowledging a tick.
@@ -62,7 +67,7 @@ impl ModuleInstance for GeneralInst {
 
 					Notification::new("hi :)".to_owned())
 						.color(color)
-						.send(proxy)
+						.send(&mut proxy.write)
 						.await?;
 
 					let packet = ShowEffect {
@@ -74,7 +79,7 @@ impl ModuleInstance for GeneralInst {
 						duration: Some(5.0),
 						unknown: None,
 					};
-					proxy.send_client(&packet.into()).await?;
+					proxy.write.send_client(&packet.into()).await?;
 
 					let packet = ShowEffect {
 						effect_type: 37,
@@ -85,20 +90,23 @@ impl ModuleInstance for GeneralInst {
 						duration: Some(0.5),
 						unknown: None,
 					};
-					proxy.send_client(&packet.into()).await?;
+					proxy.write.send_client(&packet.into()).await?;
 
 					info!("{:?}", proxy.modules);
 
-					return Ok(false); // dont forward this :)
+					return BLOCK;
 				}
 			}
 			_ => {}
 		}
 
-		Ok(true)
+		FORWARD
 	}
 	#[instrument(skip(proxy), fields(modules = ?proxy.modules))]
-	async fn server_packet(proxy: &mut Proxy, packet: &mut ServerPacket) -> Result<bool> {
+	async fn server_packet<'a>(
+		proxy: &mut Proxy<'_>,
+		packet: &mut ServerPacket<'a>,
+	) -> Result<PacketFlow> {
 		match packet {
 			ServerPacket::CreateSuccess(create_success) => {
 				proxy.modules.general.my_object_id = create_success.object_id;
@@ -110,10 +118,11 @@ impl ModuleInstance for GeneralInst {
 			}
 			_ => {}
 		}
-		Ok(true)
+
+		FORWARD
 	}
 	#[instrument(skip( proxy), fields(modules = ?proxy.modules))]
-	async fn disconnect(proxy: &mut Proxy, by_server: bool) -> Result<()> {
+	async fn disconnect(proxy: &mut Proxy<'_>, by: ProxySide) -> Result<()> {
 		Ok(())
 	}
 }

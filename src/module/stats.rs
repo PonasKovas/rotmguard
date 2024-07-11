@@ -1,10 +1,11 @@
-use super::{Module, ModuleInstance};
+use super::{Module, ModuleInstance, PacketFlow, ProxySide, FORWARD};
 use crate::{
+	config::Config,
 	extra_datatypes::{PlayerConditions, PlayerConditions2, StatType, WorldPos},
 	packets::{ClientPacket, ServerPacket},
 	proxy::Proxy,
 };
-use std::io::Result;
+use std::{io::Result, sync::Arc};
 use tracing::instrument;
 
 #[derive(Debug, Clone)]
@@ -13,8 +14,8 @@ pub struct Stats {}
 #[derive(Debug, Clone)]
 pub struct StatsInst {
 	// always read stats from here, the other one is not complete (its used to build this one)
-	last_tick: TickStats,
-	next_tick: TickStats,
+	pub last_tick: TickStats,
+	pub next_tick: TickStats,
 }
 
 #[derive(Debug, Clone)]
@@ -55,7 +56,10 @@ impl Module for Stats {
 
 impl ModuleInstance for StatsInst {
 	#[instrument(skip(proxy), fields(modules = ?proxy.modules))]
-	async fn client_packet(proxy: &mut Proxy, packet: &mut ClientPacket) -> Result<bool> {
+	async fn client_packet<'a>(
+		proxy: &mut Proxy<'_>,
+		packet: &mut ClientPacket<'a>,
+	) -> Result<PacketFlow> {
 		match packet {
 			ClientPacket::Move(move_packet) => {
 				// Update player position
@@ -63,14 +67,19 @@ impl ModuleInstance for StatsInst {
 					Some(record) => record.1,
 					None => proxy.modules.stats.last_tick.pos,
 				};
+
+				proxy.modules.stats.last_tick = proxy.modules.stats.next_tick.clone();
 			}
 			_ => {}
 		}
 
-		Ok(true)
+		FORWARD
 	}
 	#[instrument(skip(proxy), fields(modules = ?proxy.modules))]
-	async fn server_packet(proxy: &mut Proxy, packet: &mut ServerPacket) -> Result<bool> {
+	async fn server_packet<'a>(
+		proxy: &mut Proxy<'_>,
+		packet: &mut ServerPacket<'a>,
+	) -> Result<PacketFlow> {
 		match packet {
 			// This packet only adds/removes new objects, doesnt update existing ones
 			ServerPacket::Update(update) => {
@@ -81,7 +90,7 @@ impl ModuleInstance for StatsInst {
 					.find(|obj| obj.1.object_id == proxy.modules.general.my_object_id)
 				{
 					Some(me) => me,
-					None => return Ok(true),
+					None => return FORWARD,
 				};
 
 				for stat in &me.1.stats {
@@ -101,19 +110,17 @@ impl ModuleInstance for StatsInst {
 			}
 			// This packet updates existing objects
 			ServerPacket::NewTick(new_tick) => {
-				let my_status_i = match new_tick
+				let my_status = match new_tick
 					.statuses
-					.iter()
-					.position(|s| s.object_id == proxy.modules.general.my_object_id)
+					.iter_mut()
+					.find(|s| s.object_id == proxy.modules.general.my_object_id)
 				{
 					Some(i) => i,
 					None => {
 						// no updates for myself, so just forward the original packet
-						return Ok(true);
+						return FORWARD;
 					}
 				};
-
-				let my_status = &mut new_tick.statuses[my_status_i];
 
 				// Save the important stats and status effects
 				for stat in &mut my_status.stats {
@@ -146,16 +153,14 @@ impl ModuleInstance for StatsInst {
 						_ => {}
 					}
 				}
-
-				proxy.modules.stats.last_tick = proxy.modules.stats.next_tick.clone();
 			}
 			_ => {}
 		}
 
-		Ok(true)
+		FORWARD
 	}
 	#[instrument(skip(proxy), fields(modules = ?proxy.modules))]
-	async fn disconnect(proxy: &mut Proxy, _by_server: bool) -> Result<()> {
+	async fn disconnect(proxy: &mut Proxy<'_>, _by: ProxySide) -> Result<()> {
 		Ok(())
 	}
 }
@@ -165,7 +170,7 @@ impl TickStats {
 		Self {
 			stats: PlayerStats {
 				hp: 0,
-				max_hp: 0,
+				max_hp: 10000,
 				def: 0,
 				vit: 0,
 				spd: 0,

@@ -10,7 +10,7 @@ use std::{
 use tracing::{error, info};
 use xmltree::XMLNode;
 
-use crate::config::{Config};
+use crate::config::Config;
 
 const NON_XML_FILES: &[&str] = &[
 	"manifest_xml",
@@ -34,11 +34,11 @@ const NON_XML_FILES: &[&str] = &[
 
 pub struct Assets {
 	/// object type -> Map<projectile_type -> projectile_info>
-	projectiles: BTreeMap<u32, BTreeMap<u32, ProjectileInfo>>,
+	pub projectiles: BTreeMap<u32, BTreeMap<u32, ProjectileInfo>>,
 	/// ground type -> damage
-	hazardous_grounds: BTreeMap<u32, i64>,
+	pub hazardous_grounds: BTreeMap<u32, i64>,
 	/// grounds that push the player like conveyors
-	pushing_grounds: BTreeSet<u32>,
+	pub pushing_grounds: BTreeSet<u32>,
 
 	/// Reverses the changes to assets file on drop
 	reverse_changes_guard: Option<ReverseChangesGuard>,

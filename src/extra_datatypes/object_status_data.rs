@@ -6,14 +6,14 @@ use crate::{
 use std::io::{self, Error, Read, Write};
 
 #[derive(Debug, Clone)]
-pub struct ObjectStatusData {
+pub struct ObjectStatusData<'a> {
 	pub object_id: ObjectId,
 	pub position: WorldPos,
-	pub stats: Vec<StatData>,
+	pub stats: Vec<StatData<'a>>,
 }
 
-impl RPRead for ObjectStatusData {
-	fn rp_read<R: Read>(data: &mut R) -> io::Result<Self>
+impl<'a> RPRead<'a> for ObjectStatusData<'a> {
+	fn rp_read(data: &mut &'a [u8]) -> io::Result<Self>
 	where
 		Self: Sized,
 	{
@@ -41,7 +41,7 @@ impl RPRead for ObjectStatusData {
 	}
 }
 
-impl RPWrite for ObjectStatusData {
+impl<'a> RPWrite for ObjectStatusData<'a> {
 	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
 	where
 		Self: Sized,

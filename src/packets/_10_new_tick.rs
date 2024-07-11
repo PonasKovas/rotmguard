@@ -5,17 +5,17 @@ use std::io::{self, Error, Read, Write};
 
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
-pub struct NewTick {
+pub struct NewTick<'a> {
 	pub tick_id: u32,
 	pub tick_time: u32,
 	pub real_time_ms: u32,
 	pub last_real_time_ms: u16,
 	#[derivative(Debug = "ignore")]
-	pub statuses: Vec<ObjectStatusData>,
+	pub statuses: Vec<ObjectStatusData<'a>>,
 }
 
-impl RPRead for NewTick {
-	fn rp_read<R: Read>(data: &mut R) -> io::Result<Self>
+impl<'a> RPRead<'a> for NewTick<'a> {
+	fn rp_read(data: &mut &'a [u8]) -> io::Result<Self>
 	where
 		Self: Sized,
 	{
@@ -47,7 +47,7 @@ impl RPRead for NewTick {
 	}
 }
 
-impl RPWrite for NewTick {
+impl<'a> RPWrite for NewTick<'a> {
 	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
 	where
 		Self: Sized,
@@ -68,8 +68,8 @@ impl RPWrite for NewTick {
 	}
 }
 
-impl From<NewTick> for ServerPacket {
-	fn from(value: NewTick) -> Self {
+impl<'a> From<NewTick<'a>> for ServerPacket<'a> {
+	fn from(value: NewTick<'a>) -> Self {
 		Self::NewTick(value)
 	}
 }

@@ -1,25 +1,27 @@
-use std::io::{self, Read, Write};
-
 use super::ClientPacket;
 use crate::{read::RPRead, write::RPWrite};
+use std::{
+	borrow::Cow,
+	io::{self, Read, Write},
+};
 
 #[derive(Debug, Clone)]
-pub struct PlayerText {
-	pub text: String,
+pub struct PlayerText<'a> {
+	pub text: Cow<'a, str>,
 }
 
-impl RPRead for PlayerText {
-	fn rp_read<R: Read>(data: &mut R) -> io::Result<Self>
+impl<'a> RPRead<'a> for PlayerText<'a> {
+	fn rp_read(data: &mut &'a [u8]) -> io::Result<Self>
 	where
 		Self: Sized,
 	{
 		Ok(Self {
-			text: String::rp_read(data)?,
+			text: Cow::rp_read(data)?,
 		})
 	}
 }
 
-impl RPWrite for PlayerText {
+impl<'a> RPWrite for PlayerText<'a> {
 	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
 	where
 		Self: Sized,
@@ -32,8 +34,8 @@ impl RPWrite for PlayerText {
 	}
 }
 
-impl From<PlayerText> for ClientPacket {
-	fn from(value: PlayerText) -> Self {
+impl<'a> From<PlayerText<'a>> for ClientPacket<'a> {
+	fn from(value: PlayerText<'a>) -> Self {
 		Self::PlayerText(value)
 	}
 }

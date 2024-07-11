@@ -1,15 +1,34 @@
 use crate::{
+	config::Config,
 	packets::{ClientPacket, ServerPacket},
 	proxy::Proxy,
 };
-// use autonexus::Autonexus;
+use antidebuffs::Antidebuffs;
+use autonexus::Autonexus;
 use general::General;
 use stats::Stats;
-use std::io::Result;
+use std::{io::Result, sync::Arc};
+use tracing::instrument;
 
-// mod autonexus;
+mod antidebuffs;
+mod autonexus;
 mod general;
 mod stats;
+
+pub const FORWARD: Result<PacketFlow> = Ok(PacketFlow::Forward);
+pub const BLOCK: Result<PacketFlow> = Ok(PacketFlow::Block);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PacketFlow {
+	Forward,
+	Block,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProxySide {
+	Server,
+	Client,
+}
 
 // Types that implement this trait are basically persistent between connections (maps)
 // while their instances are local to a single connection
@@ -22,11 +41,15 @@ pub trait Module {
 
 // An instance of a module for a separate connection (or proxy if you will)
 pub trait ModuleInstance {
-	/// Return TRUE to forward the packet, FALSE to block
-	async fn client_packet(proxy: &mut Proxy, packet: &mut ClientPacket) -> Result<bool>;
-	/// Return TRUE to forward the packet, FALSE to block
-	async fn server_packet(proxy: &mut Proxy, packet: &mut ServerPacket) -> Result<bool>;
-	async fn disconnect(proxy: &mut Proxy, by_server: bool) -> Result<()>;
+	async fn client_packet<'a>(
+		proxy: &mut Proxy,
+		packet: &mut ClientPacket<'a>,
+	) -> Result<PacketFlow>;
+	async fn server_packet<'a>(
+		proxy: &mut Proxy,
+		packet: &mut ServerPacket<'a>,
+	) -> Result<PacketFlow>;
+	async fn disconnect(proxy: &mut Proxy, by: ProxySide) -> Result<()>;
 }
 
 macro_rules! gen_root_module {
@@ -57,33 +80,33 @@ macro_rules! gen_root_module {
 		}
 
 		impl ModuleInstance for RootModuleInstance {
-			async fn client_packet(
-				proxy: &mut Proxy,
-				packet: &mut ClientPacket,
-			) -> Result<bool> {
+			async fn client_packet<'a>(
+				proxy: &mut Proxy<'_>,
+				packet: &mut ClientPacket<'a>,
+			) -> Result<PacketFlow> {
 				$(
-					if !<$path as Module>::Instance::client_packet(proxy, packet).await? {
-						return Ok(false);
+					if <$path as Module>::Instance::client_packet(proxy, packet).await? == PacketFlow::Block {
+						return BLOCK;
 					}
 				)*
 
-				Ok(true)
+				Ok(PacketFlow::Forward)
 			}
-			async fn server_packet(
-				proxy: &mut Proxy,
-				packet: &mut ServerPacket,
-			) -> Result<bool> {
+			async fn server_packet<'a>(
+				proxy: &mut Proxy<'_>,
+				packet: &mut ServerPacket<'a>,
+			) -> Result<PacketFlow> {
 				$(
-					if !<$path as Module>::Instance::server_packet(proxy, packet).await? {
-						return Ok(false);
+					if <$path as Module>::Instance::server_packet(proxy, packet).await? == PacketFlow::Block {
+						return BLOCK;
 					}
 				)*
 
-				Ok(true)
+				Ok(PacketFlow::Forward)
 			}
-			async fn disconnect(proxy: &mut Proxy, by_server: bool) -> Result<()> {
+			async fn disconnect(proxy: &mut Proxy<'_>, by: ProxySide) -> Result<()> {
 				$(
-					<$path as Module>::Instance::disconnect(proxy, by_server).await?;
+					<$path as Module>::Instance::disconnect(proxy, by).await?;
 				)*
 
 				Ok(())
@@ -95,5 +118,6 @@ macro_rules! gen_root_module {
 gen_root_module! {
 	general: General,
 	stats: Stats,
-	// autonexus: Autonexus,
+	autonexus: Autonexus,
+	antidebuffs: Antidebuffs,
 }

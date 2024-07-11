@@ -30,7 +30,7 @@ pub struct Settings {
 	pub debuffs: Debuffs,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct Debuffs {
 	/// If true will be disabled
 	#[serde(default)]

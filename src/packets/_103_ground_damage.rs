@@ -8,8 +8,8 @@ pub struct GroundDamage {
 	pub position: WorldPos,
 }
 
-impl RPRead for GroundDamage {
-	fn rp_read<R: Read>(data: &mut R) -> io::Result<Self>
+impl<'a> RPRead<'a> for GroundDamage {
+	fn rp_read(data: &mut &'a [u8]) -> io::Result<Self>
 	where
 		Self: Sized,
 	{
@@ -34,7 +34,7 @@ impl RPWrite for GroundDamage {
 	}
 }
 
-impl From<GroundDamage> for ClientPacket {
+impl<'a> From<GroundDamage> for ClientPacket<'a> {
 	fn from(value: GroundDamage) -> Self {
 		Self::GroundDamage(value)
 	}

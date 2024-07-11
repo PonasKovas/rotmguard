@@ -2,18 +2,21 @@ use crate::{
 	read::{read_compressed_int, RPRead},
 	write::{write_compressed_int, RPWrite},
 };
-use std::io::{self, Read, Write};
+use std::{
+	borrow::Cow,
+	io::{self, Read, Write},
+};
 
 #[derive(Debug, Clone)]
-pub struct StatData {
+pub struct StatData<'a> {
 	pub stat_type: StatType,
-	pub stat: Stat,
+	pub stat: Stat<'a>,
 	pub secondary_stat: i64,
 }
 
 #[derive(Debug, Clone)]
-pub enum Stat {
-	String(String),
+pub enum Stat<'a> {
+	String(Cow<'a, str>),
 	Int(i64),
 }
 
@@ -37,23 +40,26 @@ pub enum StatType {
 	Other(u8),
 }
 
-impl Stat {
+impl<'a> Stat<'a> {
 	pub fn as_int(&self) -> i64 {
 		match self {
 			Stat::String(s) => s.parse::<i64>().expect("StatType not valid int"),
 			Stat::Int(i) => *i,
 		}
 	}
-	pub fn as_str(&self) -> String {
+	pub fn as_str<'b>(&'b self) -> &'a str
+	where
+		'b: 'a,
+	{
 		match self {
-			Stat::String(s) => s.clone(),
-			Stat::Int(i) => format!("{i}"),
+			Stat::String(s) => s.as_ref(),
+			Stat::Int(_) => panic!("stat is integer, not string."),
 		}
 	}
 }
 
-impl RPRead for StatData {
-	fn rp_read<R: Read>(data: &mut R) -> io::Result<Self>
+impl<'a> RPRead<'a> for StatData<'a> {
+	fn rp_read(data: &mut &'a [u8]) -> io::Result<Self>
 	where
 		Self: Sized,
 	{
@@ -62,7 +68,7 @@ impl RPRead for StatData {
 		let stat =
 			if [6, 31, 38, 54, 62, 71, 72, 80, 82, 115, 121, 127, 128, 147].contains(&stat_type) {
 				// these are string type stats
-				Stat::String(String::rp_read(data)?)
+				Stat::String(Cow::rp_read(data)?)
 			} else {
 				// these are normal (int) type stats
 				Stat::Int(read_compressed_int(data)?)
@@ -93,7 +99,7 @@ impl RPRead for StatData {
 	}
 }
 
-impl RPWrite for StatData {
+impl<'a> RPWrite for StatData<'a> {
 	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
 	where
 		Self: Sized,
