@@ -61,6 +61,7 @@ impl ModuleInstance for GeneralInst {
 			}
 			ClientPacket::PlayerText(text) => {
 				let text = &text.text;
+
 				// `/hi`, `/rotmguard` are simple commands that send a notification
 				// useful for checking if you are connected through the proxy.
 				if text.starts_with("/hi") || text.starts_with("/rotmguard") {
@@ -95,6 +96,23 @@ impl ModuleInstance for GeneralInst {
 					proxy.write.send_client(&packet.into()).await?;
 
 					info!("{:?}", proxy.modules);
+
+					return BLOCK;
+				}
+				// `/devmode` toggles developer mode
+				if text.starts_with("/devmode") {
+					let message = {
+						let mut dev_mode = proxy.config.settings.dev_mode.lock().unwrap();
+
+						*dev_mode = !*dev_mode;
+
+						format!("DEVELOPER MODE {}", if *dev_mode { "ON" } else { "OFF" })
+					};
+
+					Notification::new(message)
+						.green()
+						.send(&mut proxy.write)
+						.await?;
 
 					return BLOCK;
 				}
