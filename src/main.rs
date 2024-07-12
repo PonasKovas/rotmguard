@@ -12,7 +12,6 @@ use tracing::{error, info};
 
 mod asset_extract;
 mod config;
-mod constants;
 mod extra_datatypes;
 mod gen_this_macro;
 mod iptables;
