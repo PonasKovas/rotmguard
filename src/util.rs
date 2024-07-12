@@ -1,4 +1,4 @@
-use crate::packets::NotificationPacket;
+use crate::packets::{NotificationPacket, NotificationType};
 use crate::proxy::ProxyWriteHalf;
 use std::borrow::Cow;
 use std::io;
@@ -41,10 +41,13 @@ impl Notification {
 	}
 	/// Sends the notification
 	pub async fn send(self, io: &mut ProxyWriteHalf<'_>) -> io::Result<()> {
-		let packet = NotificationPacket::Behavior {
-			message: Cow::Owned(self.text),
-			picture_type: 0,
-			color: self.color,
+		let packet = NotificationPacket {
+			extra: 0,
+			notification: NotificationType::Behavior {
+				message: Cow::Owned(self.text),
+				picture_type: 0,
+				color: self.color,
+			},
 		};
 		io.send_client(&packet.into()).await?;
 

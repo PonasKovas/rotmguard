@@ -8,6 +8,7 @@ use crate::{
 };
 use rc4::{consts::U13, KeyInit, Rc4, StreamCipher};
 use std::{
+	fs::File,
 	io::{ErrorKind, Write},
 	sync::Arc,
 	time::Instant,
@@ -57,6 +58,21 @@ struct PacketReader<'a> {
 	cursor: usize,
 }
 
+fn check_available_bytes(stream: &mut ReadHalf<'_>) -> io::Result<usize> {
+	use std::os::fd::AsRawFd;
+
+	let fd = stream.as_ref().as_raw_fd();
+	let mut bytes: std::ffi::c_int = 0;
+	unsafe {
+		let res = nix::libc::ioctl(fd, nix::libc::FIONREAD, &mut bytes);
+		if res < 0 {
+			return Err(io::Error::last_os_error());
+		}
+	}
+
+	Ok(bytes as usize)
+}
+
 impl<'a> Proxy<'a> {
 	#[instrument(skip_all, fields(ip = ?server.peer_addr()?))]
 	pub async fn run(
@@ -85,10 +101,35 @@ impl<'a> Proxy<'a> {
 		let mut client_reader = PacketReader::new(client_read, RC4_K_C_TO_S);
 		let mut server_reader = PacketReader::new(server_read, RC4_K_S_TO_C);
 
+		let mut i = 0;
+		let mut loop_times = [0u128; 100];
+		let mut read_times = [0u128; 100];
+		let mut handle_times = [0u128; 100];
+		let mut log_file = File::options().create(true).append(true).open("log.txt")?;
 		loop {
+			if i % 100 == 0 {
+				let avg_loop = loop_times.iter().sum::<u128>() / 100;
+				let avg_read = read_times.iter().sum::<u128>() / 100;
+				let avg_handle = handle_times.iter().sum::<u128>() / 100;
+				writeln!(log_file,
+					"===============================\nCLIENT: {:08}buf:{:08}tcp\nSERVER: {:08}buf:{:08}tcp\nAVG_READ: {:08}:{:.4}\nAVG_HNDL: {:08}:{:.4}",
+					client_reader.cursor,
+					check_available_bytes(&mut client_reader.stream)?,
+					server_reader.cursor,
+					check_available_bytes(&mut server_reader.stream)?,
+					avg_read,
+					avg_read as f64 / avg_loop as f64,
+					avg_handle,
+					avg_handle as f64 / avg_loop as f64,
+				)?;
+			}
+			let loop_start = Instant::now();
+			let read_done;
+
 			select! {
 				biased;
 				r = server_reader.wait_for_whole_packet() => {
+					read_done = Instant::now();
 					if let Err(e) = r {
 						RootModuleInstance::disconnect(&mut proxy, ProxySide::Server).await?;
 
@@ -119,6 +160,7 @@ impl<'a> Proxy<'a> {
 					server_reader.pop_packet();
 				},
 				r = client_reader.wait_for_whole_packet() => {
+					read_done = Instant::now();
 					if let Err(e) = r {
 						RootModuleInstance::disconnect(&mut proxy, ProxySide::Client).await?;
 
@@ -149,6 +191,12 @@ impl<'a> Proxy<'a> {
 					client_reader.pop_packet();
 				},
 			};
+
+			let handle_done = Instant::now();
+			loop_times[i % 100] = loop_start.elapsed().as_micros();
+			read_times[i % 100] = (read_done - loop_start).as_micros();
+			handle_times[i % 100] = (handle_done - read_done).as_micros();
+			i += 1;
 		}
 	}
 }
@@ -215,7 +263,7 @@ impl<'a> PacketReader<'a> {
 		}
 
 		if packet_length > self.buf.len() {
-			self.buf.reserve(packet_length - self.buf.len());
+			self.buf.resize(packet_length, 0);
 		}
 
 		// now we gotta wait for the whole length to arrive

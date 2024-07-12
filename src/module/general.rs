@@ -40,7 +40,6 @@ impl Module for General {
 }
 
 impl ModuleInstance for GeneralInst {
-	#[instrument(skip(proxy), fields(modules = ?proxy.modules))]
 	async fn client_packet<'a>(
 		proxy: &mut Proxy<'_>,
 		packet: &mut ClientPacket<'a>,
@@ -122,7 +121,6 @@ impl ModuleInstance for GeneralInst {
 
 		FORWARD
 	}
-	#[instrument(skip(proxy), fields(modules = ?proxy.modules))]
 	async fn server_packet<'a>(
 		proxy: &mut Proxy<'_>,
 		packet: &mut ServerPacket<'a>,

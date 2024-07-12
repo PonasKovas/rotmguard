@@ -64,7 +64,6 @@ impl Module for Stats {
 }
 
 impl ModuleInstance for StatsInst {
-	#[instrument(skip(proxy), fields(modules = ?proxy.modules))]
 	async fn client_packet<'a>(
 		proxy: &mut Proxy<'_>,
 		packet: &mut ClientPacket<'a>,
@@ -91,7 +90,6 @@ impl ModuleInstance for StatsInst {
 
 		FORWARD
 	}
-	#[instrument(skip(proxy), fields(modules = ?proxy.modules))]
 	async fn server_packet<'a>(
 		proxy: &mut Proxy<'_>,
 		packet: &mut ServerPacket<'a>,

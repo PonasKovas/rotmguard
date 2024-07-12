@@ -55,7 +55,6 @@ impl Module for Con {
 }
 
 impl ModuleInstance for ConInst {
-	#[instrument(skip(proxy), fields(modules = ?proxy.modules))]
 	async fn client_packet<'a>(
 		proxy: &mut Proxy<'_>,
 		packet: &mut ClientPacket<'a>,

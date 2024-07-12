@@ -31,7 +31,6 @@ impl Module for Antidebuffs {
 }
 
 impl ModuleInstance for AntidebuffsInst {
-	#[instrument(skip(proxy), fields(modules = ?proxy.modules))]
 	async fn server_packet<'a>(
 		proxy: &mut Proxy<'_>,
 		packet: &mut ServerPacket<'a>,

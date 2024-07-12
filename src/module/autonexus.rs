@@ -9,7 +9,9 @@ use crate::{
 	gen_this_macro,
 	logging::save_logs,
 	module::FORWARD,
-	packets::{AoePacket, ClientPacket, NotificationPacket, ServerPacket, ShowEffect},
+	packets::{
+		AoePacket, ClientPacket, NotificationPacket, NotificationType, ServerPacket, ShowEffect,
+	},
 	proxy::Proxy,
 	util::Notification,
 };
@@ -86,7 +88,6 @@ impl Module for Autonexus {
 }
 
 impl ModuleInstance for AutonexusInst {
-	#[instrument(skip(proxy), fields(modules = ?proxy.modules))]
 	async fn client_packet<'a>(
 		proxy: &mut Proxy<'_>,
 		packet: &mut ClientPacket<'a>,
@@ -143,7 +144,6 @@ impl ModuleInstance for AutonexusInst {
 			_ => FORWARD,
 		}
 	}
-	#[instrument(skip(proxy), fields(modules = ?proxy.modules))]
 	async fn server_packet<'a>(
 		proxy: &mut Proxy<'_>,
 		packet: &mut ServerPacket<'a>,
@@ -175,10 +175,14 @@ impl ModuleInstance for AutonexusInst {
 			ServerPacket::Aoe(aoe) => {
 				AOEs::add_aoe(proxy, aoe);
 			}
-			ServerPacket::Notification(NotificationPacket::ObjectText {
-				message,
-				object_id,
-				color: 0x00ff00, // green means heal
+			ServerPacket::Notification(NotificationPacket {
+				extra: _,
+				notification:
+					NotificationType::ObjectText {
+						message,
+						object_id,
+						color: 0x00ff00, // green means heal
+					},
 			}) => {
 				// only interested in ourselves
 				if *object_id == proxy.modules.general.my_object_id {
@@ -286,10 +290,6 @@ impl ModuleInstance for AutonexusInst {
 		}
 
 		FORWARD
-	}
-	#[instrument(skip( proxy), fields(modules = ?proxy.modules))]
-	async fn disconnect(proxy: &mut Proxy<'_>, _by: ProxySide) -> Result<()> {
-		Ok(())
 	}
 }
 

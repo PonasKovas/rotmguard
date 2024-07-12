@@ -31,7 +31,7 @@ pub use _44_text::TextPacket;
 pub use _45_reconnect::Reconnect;
 pub use _62_move::Move;
 pub use _64_aoe::AoePacket;
-pub use _67_notification::NotificationPacket;
+pub use _67_notification::{NotificationPacket, NotificationType};
 pub use _90_player_hit::PlayerHit;
 pub use _9_player_text::PlayerText;
 use derivative::Derivative;

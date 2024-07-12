@@ -39,7 +39,6 @@ impl Module for FakeSlow {
 }
 
 impl ModuleInstance for FakeSlowInst {
-	#[instrument(skip(proxy), fields(modules = ?proxy.modules))]
 	async fn client_packet<'a>(
 		proxy: &mut Proxy<'_>,
 		packet: &mut ClientPacket<'a>,
@@ -70,7 +69,6 @@ impl ModuleInstance for FakeSlowInst {
 			_ => FORWARD,
 		}
 	}
-	#[instrument(skip(proxy), fields(modules = ?proxy.modules))]
 	async fn server_packet<'a>(
 		proxy: &mut Proxy<'_>,
 		packet: &mut ServerPacket<'a>,
@@ -78,6 +76,10 @@ impl ModuleInstance for FakeSlowInst {
 		match packet {
 			ServerPacket::NewTick(new_tick) => {
 				let mut conditions = proxy.modules.stats.get_newest().conditions;
+				if conditions.slow() {
+					// slow already originally, so just forward, cant do anything
+					return FORWARD;
+				}
 				conditions.set_slow(fake_slow!(proxy).enabled);
 
 				let conditions_stat = StatData {
