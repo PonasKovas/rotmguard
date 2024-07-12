@@ -1,5 +1,3 @@
-#![feature(noop_waker)]
-
 use anyhow::{Context, Result};
 use asset_extract::Assets;
 use config::Config;
@@ -16,6 +14,7 @@ mod asset_extract;
 mod config;
 mod constants;
 mod extra_datatypes;
+mod gen_this_macro;
 mod iptables;
 mod logging;
 mod module;

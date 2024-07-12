@@ -2,20 +2,31 @@ use super::{Module, ModuleInstance, PacketFlow, ProxySide, FORWARD};
 use crate::{
 	config::Config,
 	extra_datatypes::{PlayerConditions, PlayerConditions2, StatType, WorldPos},
+	gen_this_macro,
 	packets::{ClientPacket, ServerPacket},
 	proxy::Proxy,
 };
-use std::{io::Result, sync::Arc};
+use std::{
+	collections::VecDeque,
+	io::{Error, Result},
+	sync::Arc,
+};
 use tracing::instrument;
+
+gen_this_macro! {stats}
 
 #[derive(Debug, Clone)]
 pub struct Stats {}
 
 #[derive(Debug, Clone)]
 pub struct StatsInst {
-	// always read stats from here, the other one is not complete (its used to build this one)
-	pub last_tick: TickStats,
-	pub next_tick: TickStats,
+	// the first one is the current tick (the last one that the client acknowledged)
+	// second (if exists) is the next tick that the client hasnt acknowledged yet,
+	// and so on..
+	// There is always guaranteed to be at least one tick
+	pub ticks: VecDeque<TickStats>,
+	// player position as last reported by a Move packet
+	pub pos: WorldPos,
 }
 
 #[derive(Debug, Clone)]
@@ -25,8 +36,6 @@ pub struct TickStats {
 	// all current important condition effects of the player, such as exposed, cursed, bleeding etc
 	pub conditions: PlayerConditions,
 	pub conditions2: PlayerConditions2,
-	// position of the player
-	pub pos: WorldPos,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -48,8 +57,8 @@ impl Module for Stats {
 
 	fn instance(&self) -> Self::Instance {
 		StatsInst {
-			last_tick: TickStats::empty(),
-			next_tick: TickStats::empty(),
+			ticks: VecDeque::from([TickStats::empty()]),
+			pos: WorldPos { x: 0.0, y: 0.0 },
 		}
 	}
 }
@@ -63,12 +72,19 @@ impl ModuleInstance for StatsInst {
 		match packet {
 			ClientPacket::Move(move_packet) => {
 				// Update player position
-				proxy.modules.stats.next_tick.pos = match move_packet.move_records.last() {
-					Some(record) => record.1,
-					None => proxy.modules.stats.last_tick.pos,
-				};
+				if let Some(pos) = move_packet.move_records.last() {
+					stats!(proxy).pos = pos.1;
+				}
 
-				proxy.modules.stats.last_tick = proxy.modules.stats.next_tick.clone();
+				stats!(proxy).ticks.pop_front();
+
+				if stats!(proxy).ticks.is_empty() {
+					// the only way there are no ticks in the VecDeque is if there have been more Move packets than NewTick
+					// which should never happen
+					return Err(Error::other(
+						"client acknowledged tick that wasnt yet received",
+					));
+				}
 			}
 			_ => {}
 		}
@@ -81,35 +97,12 @@ impl ModuleInstance for StatsInst {
 		packet: &mut ServerPacket<'a>,
 	) -> Result<PacketFlow> {
 		match packet {
-			// This packet only adds/removes new objects, doesnt update existing ones
-			ServerPacket::Update(update) => {
-				// only interested in my own stats
-				let me = match update
-					.new_objects
-					.iter()
-					.find(|obj| obj.1.object_id == proxy.modules.general.my_object_id)
-				{
-					Some(me) => me,
-					None => return FORWARD,
-				};
-
-				for stat in &me.1.stats {
-					let s = {
-						let stats = &mut proxy.modules.stats.next_tick.stats;
-						match stat.stat_type {
-							StatType::HP => &mut stats.hp,
-							StatType::MaxHP => &mut stats.max_hp,
-							StatType::Defense => &mut stats.def,
-							StatType::Vitality => &mut stats.vit,
-							StatType::Speed => &mut stats.spd,
-							_ => continue,
-						}
-					};
-					*s = stat.stat.as_int();
-				}
-			}
-			// This packet updates existing objects
 			ServerPacket::NewTick(new_tick) => {
+				stats!(proxy)
+					.ticks
+					.push_back(stats!(proxy).ticks.back().unwrap().clone());
+				let new_tick_data = stats!(proxy).ticks.back_mut().unwrap();
+
 				let my_status = match new_tick
 					.statuses
 					.iter_mut()
@@ -126,27 +119,27 @@ impl ModuleInstance for StatsInst {
 				for stat in &mut my_status.stats {
 					match stat.stat_type {
 						StatType::MaxHP => {
-							proxy.modules.stats.next_tick.stats.max_hp = stat.stat.as_int();
+							new_tick_data.stats.max_hp = stat.stat.as_int();
 						}
 						StatType::Defense => {
-							proxy.modules.stats.next_tick.stats.def = stat.stat.as_int();
+							new_tick_data.stats.def = stat.stat.as_int();
 						}
 						StatType::Vitality => {
-							proxy.modules.stats.next_tick.stats.vit = stat.stat.as_int();
+							new_tick_data.stats.vit = stat.stat.as_int();
 						}
 						StatType::HP => {
-							proxy.modules.stats.next_tick.stats.hp = stat.stat.as_int();
+							new_tick_data.stats.hp = stat.stat.as_int();
 						}
 						StatType::Speed => {
-							proxy.modules.stats.next_tick.stats.spd = stat.stat.as_int();
+							new_tick_data.stats.spd = stat.stat.as_int();
 						}
 						StatType::Condition => {
-							proxy.modules.stats.next_tick.conditions = PlayerConditions {
+							new_tick_data.conditions = PlayerConditions {
 								bitmask: stat.stat.as_int() as u64,
 							};
 						}
 						StatType::Condition2 => {
-							proxy.modules.stats.next_tick.conditions2 = PlayerConditions2 {
+							new_tick_data.conditions2 = PlayerConditions2 {
 								bitmask: stat.stat.as_int() as u64,
 							};
 						}
@@ -159,9 +152,16 @@ impl ModuleInstance for StatsInst {
 
 		FORWARD
 	}
-	#[instrument(skip(proxy), fields(modules = ?proxy.modules))]
-	async fn disconnect(proxy: &mut Proxy<'_>, _by: ProxySide) -> Result<()> {
-		Ok(())
+}
+
+impl StatsInst {
+	// gets the current stats
+	pub fn get(&self) -> &TickStats {
+		self.ticks.front().unwrap()
+	}
+	// gets the most recent stats
+	pub fn get_newest(&self) -> &TickStats {
+		self.ticks.back().unwrap()
 	}
 }
 
@@ -177,7 +177,6 @@ impl TickStats {
 			},
 			conditions: PlayerConditions { bitmask: 0 },
 			conditions2: PlayerConditions2 { bitmask: 0 },
-			pos: WorldPos { x: 0.0, y: 0.0 },
 		}
 	}
 }

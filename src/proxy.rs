@@ -36,9 +36,6 @@ pub struct Proxy<'a> {
 	pub assets: Arc<Assets>,
 	pub modules: RootModuleInstance,
 	pub write: ProxyWriteHalf<'a>,
-	// if true will not read incoming data from the server
-	// because client is behind and we need to wait for it to catch up
-	pub pause_server_read: bool,
 }
 
 // The write half of the proxy, both for server and client
@@ -83,7 +80,6 @@ impl<'a> Proxy<'a> {
 				server_rc4: Rc4::new(RC4_K_C_TO_S.into()),
 				write_buf: vec![0u8; DEFAULT_BUFFER_SIZE],
 			},
-			pause_server_read: false,
 		};
 
 		let mut client_reader = PacketReader::new(client_read, RC4_K_C_TO_S);
@@ -92,7 +88,7 @@ impl<'a> Proxy<'a> {
 		loop {
 			select! {
 				biased;
-				r = server_reader.wait_for_whole_packet(), if !proxy.pause_server_read => {
+				r = server_reader.wait_for_whole_packet() => {
 					if let Err(e) = r {
 						RootModuleInstance::disconnect(&mut proxy, ProxySide::Server).await?;
 

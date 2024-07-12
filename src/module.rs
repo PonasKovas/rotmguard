@@ -1,5 +1,4 @@
 use crate::{
-	config::Config,
 	packets::{ClientPacket, ServerPacket},
 	proxy::Proxy,
 };
@@ -7,8 +6,7 @@ use antidebuffs::Antidebuffs;
 use autonexus::Autonexus;
 use general::General;
 use stats::Stats;
-use std::{io::Result, sync::Arc};
-use tracing::instrument;
+use std::io::Result;
 
 mod antidebuffs;
 mod autonexus;
@@ -40,16 +38,49 @@ pub trait Module {
 }
 
 // An instance of a module for a separate connection (or proxy if you will)
+#[allow(unused_variables)]
 pub trait ModuleInstance {
-	async fn client_packet<'a>(
-		proxy: &mut Proxy,
+	async fn pre_client_packet<'a>(
+		proxy: &mut Proxy<'_>,
 		packet: &mut ClientPacket<'a>,
-	) -> Result<PacketFlow>;
-	async fn server_packet<'a>(
-		proxy: &mut Proxy,
+	) -> Result<PacketFlow> {
+		FORWARD
+	}
+	async fn client_packet<'a>(
+		proxy: &mut Proxy<'_>,
+		packet: &mut ClientPacket<'a>,
+	) -> Result<PacketFlow> {
+		FORWARD
+	}
+	async fn post_client_packet<'a>(
+		proxy: &mut Proxy<'_>,
+		packet: &mut ClientPacket<'a>,
+	) -> Result<PacketFlow> {
+		FORWARD
+	}
+
+	async fn pre_server_packet<'a>(
+		proxy: &mut Proxy<'_>,
 		packet: &mut ServerPacket<'a>,
-	) -> Result<PacketFlow>;
-	async fn disconnect(proxy: &mut Proxy, by: ProxySide) -> Result<()>;
+	) -> Result<PacketFlow> {
+		FORWARD
+	}
+	async fn server_packet<'a>(
+		proxy: &mut Proxy<'_>,
+		packet: &mut ServerPacket<'a>,
+	) -> Result<PacketFlow> {
+		FORWARD
+	}
+	async fn post_server_packet<'a>(
+		proxy: &mut Proxy<'_>,
+		packet: &mut ServerPacket<'a>,
+	) -> Result<PacketFlow> {
+		FORWARD
+	}
+
+	async fn disconnect(proxy: &mut Proxy<'_>, by: ProxySide) -> Result<()> {
+		Ok(())
+	}
 }
 
 macro_rules! gen_root_module {
@@ -85,24 +116,44 @@ macro_rules! gen_root_module {
 				packet: &mut ClientPacket<'a>,
 			) -> Result<PacketFlow> {
 				$(
+					if <$path as Module>::Instance::pre_client_packet(proxy, packet).await? == PacketFlow::Block {
+						return BLOCK;
+					}
+				)*
+				$(
 					if <$path as Module>::Instance::client_packet(proxy, packet).await? == PacketFlow::Block {
 						return BLOCK;
 					}
 				)*
+				$(
+					if <$path as Module>::Instance::post_client_packet(proxy, packet).await? == PacketFlow::Block {
+						return BLOCK;
+					}
+				)*
 
-				Ok(PacketFlow::Forward)
+				FORWARD
 			}
 			async fn server_packet<'a>(
 				proxy: &mut Proxy<'_>,
 				packet: &mut ServerPacket<'a>,
 			) -> Result<PacketFlow> {
 				$(
+					if <$path as Module>::Instance::pre_server_packet(proxy, packet).await? == PacketFlow::Block {
+						return BLOCK;
+					}
+				)*
+				$(
 					if <$path as Module>::Instance::server_packet(proxy, packet).await? == PacketFlow::Block {
 						return BLOCK;
 					}
 				)*
+				$(
+					if <$path as Module>::Instance::post_server_packet(proxy, packet).await? == PacketFlow::Block {
+						return BLOCK;
+					}
+				)*
 
-				Ok(PacketFlow::Forward)
+				FORWARD
 			}
 			async fn disconnect(proxy: &mut Proxy<'_>, by: ProxySide) -> Result<()> {
 				$(
@@ -110,6 +161,32 @@ macro_rules! gen_root_module {
 				)*
 
 				Ok(())
+			}
+
+			// The root modules doesnt implement these, it calls these for others instead
+			async fn pre_server_packet<'a>(
+				_proxy: &mut Proxy<'_>,
+				_packet: &mut ServerPacket<'a>,
+			) -> Result<PacketFlow> {
+				unimplemented!();
+			}
+			async fn post_server_packet<'a>(
+				_proxy: &mut Proxy<'_>,
+				_packet: &mut ServerPacket<'a>,
+			) -> Result<PacketFlow> {
+				unimplemented!();
+			}
+			async fn pre_client_packet<'a>(
+				_proxy: &mut Proxy<'_>,
+				_packet: &mut ClientPacket<'a>,
+			) -> Result<PacketFlow> {
+				unimplemented!();
+			}
+			async fn post_client_packet<'a>(
+				_proxy: &mut Proxy<'_>,
+				_packet: &mut ClientPacket<'a>,
+			) -> Result<PacketFlow> {
+				unimplemented!();
 			}
 		}
 	};

@@ -2,6 +2,7 @@ use super::{Module, ModuleInstance, PacketFlow, ProxySide, FORWARD};
 use crate::{
 	config::{Config, Debuffs},
 	extra_datatypes::{ObjectId, PlayerConditions, Stat, StatType, WorldPos},
+	gen_this_macro,
 	packets::{ClientPacket, ServerPacket, ShowEffect},
 	proxy::Proxy,
 	util::Notification,
@@ -9,6 +10,8 @@ use crate::{
 use rand::{thread_rng, Rng};
 use std::{io::Result, sync::Arc};
 use tracing::{error, info, instrument};
+
+gen_this_macro! {antidebuffs}
 
 #[derive(Debug, Clone)]
 pub struct Antidebuffs {}
@@ -28,17 +31,6 @@ impl Module for Antidebuffs {
 }
 
 impl ModuleInstance for AntidebuffsInst {
-	#[instrument(skip(proxy), fields(modules = ?proxy.modules))]
-	async fn client_packet<'a>(
-		proxy: &mut Proxy<'_>,
-		packet: &mut ClientPacket<'a>,
-	) -> Result<PacketFlow> {
-		match packet {
-			_ => {}
-		}
-
-		FORWARD
-	}
 	#[instrument(skip(proxy), fields(modules = ?proxy.modules))]
 	async fn server_packet<'a>(
 		proxy: &mut Proxy<'_>,
@@ -97,10 +89,6 @@ impl ModuleInstance for AntidebuffsInst {
 		}
 
 		FORWARD
-	}
-	#[instrument(skip( proxy), fields(modules = ?proxy.modules))]
-	async fn disconnect(proxy: &mut Proxy<'_>, _by: ProxySide) -> Result<()> {
-		Ok(())
 	}
 }
 
