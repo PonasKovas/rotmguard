@@ -11,8 +11,10 @@
 ### Features
 
  - **Autonexus.** Keep in mind that even the best autonexus won't save your wizard if you're gonna goof around and walk over enemies that EP.
- - **Fake name.** Changes your name on the top left corner of the screen and when you type something in chat.
  - **Anti-Debuffs** Removes client-side debuffs such as confused, blind, etc.
+ - **Fake-slow** Gives you a fake slow effect to help micro-dodge.
+ - **Anti-Push** Disables ground pushing (such as conveyers in kogbolds or sprites).
+ - **/con** Fast and convenient connecting to servers by using a command (`/con usw4`).
  - Might add more later, also feel free to open PRs!
 
 ### Dependencies
