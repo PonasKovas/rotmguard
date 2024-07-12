@@ -50,14 +50,19 @@ pub struct AutonexusInst {
 	// the tick id when player last took damage
 	pub tick_last_hit: u32,
 	// for handling ground damage such as lava
+	#[derivative(Debug = "ignore")]
 	pub ground: Ground,
 	// for handling projectiles and their damage
+	#[derivative(Debug = "ignore")]
 	pub projectiles: Projectiles,
 	// for handling AOEs - explosions
+	#[derivative(Debug = "ignore")]
 	pub aoes: AOEs,
 	// for handling passive effects such as VIT regeneration, bleeding/healing effects
+	#[derivative(Debug = "ignore")]
 	pub passive: Passive,
 	// for heals, from pet, priest, etc
+	#[derivative(Debug = "ignore")]
 	pub heals: Heals,
 }
 

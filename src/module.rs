@@ -4,12 +4,14 @@ use crate::{
 };
 use antidebuffs::Antidebuffs;
 use autonexus::Autonexus;
+use fake_slow::FakeSlow;
 use general::General;
 use stats::Stats;
 use std::io::Result;
 
 mod antidebuffs;
 mod autonexus;
+mod fake_slow;
 mod general;
 mod stats;
 
@@ -197,4 +199,5 @@ gen_root_module! {
 	stats: Stats,
 	autonexus: Autonexus,
 	antidebuffs: Antidebuffs,
+	fake_slow: FakeSlow,
 }
