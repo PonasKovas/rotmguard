@@ -100,8 +100,8 @@ impl ModuleInstance for FakeSlowInst {
 							.find(|s| s.stat_type == StatType::Condition)
 						{
 							*cond = conditions_stat;
-						} else {
-							// if not present, add it
+						} else if !fake_slow!(proxy).synced {
+							// if not present, add it (but only if need to sync)
 							me.stats.push(conditions_stat);
 						}
 					}
