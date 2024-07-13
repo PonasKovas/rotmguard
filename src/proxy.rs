@@ -58,21 +58,6 @@ struct PacketReader<'a> {
 	cursor: usize,
 }
 
-fn check_available_bytes(stream: &mut ReadHalf<'_>) -> io::Result<usize> {
-	use std::os::fd::AsRawFd;
-
-	let fd = stream.as_ref().as_raw_fd();
-	let mut bytes: std::ffi::c_int = 0;
-	unsafe {
-		let res = nix::libc::ioctl(fd, nix::libc::FIONREAD, &mut bytes);
-		if res < 0 {
-			return Err(io::Error::last_os_error());
-		}
-	}
-
-	Ok(bytes as usize)
-}
-
 impl<'a> Proxy<'a> {
 	#[instrument(skip_all, fields(ip = ?server.peer_addr()?))]
 	pub async fn run(
