@@ -246,7 +246,7 @@ pub fn extract_assets(config: &Config) -> io::Result<Assets> {
 		std::fs::write(&config.assets_res, &contents)?;
 
 		// Set the owner and group IDs to match with the parent directory instead of being root.
-		let parent_dir = config.assets_res.parent().unwrap_or(&Path::new("."));
+		let parent_dir = config.assets_res.parent().unwrap_or(Path::new("."));
 		let (o_id, g_id) = match file_owner::owner_group(parent_dir) {
 			Ok(r) => r,
 			Err(e) => {
@@ -327,14 +327,10 @@ fn process_xml(
 
 		// add spaces to the end to make sure old and edited XMLs have the same
 		// length to not fuck up the rest of the file
-		let to_add = match raw_xml.len().checked_sub(edited_xml.len()) {
-			Some(n) => n,
-			None => bail!("Tried to force remove condition effect but XML length increased??"),
-		};
-
-		for _ in 0..to_add {
-			edited_xml.push(b' ');
+		if edited_xml.len() > raw_xml.len() {
+			bail!("Tried to force remove condition effect but XML length increased??")
 		}
+		edited_xml.resize(raw_xml.len(), b' ');
 
 		file[xml_pos..(xml_pos + raw_xml.len())].copy_from_slice(&edited_xml);
 	}
@@ -518,7 +514,7 @@ fn process_xml_grounds(
 				}
 			}
 
-			if let Some(_) = params.clone().find(|p| p.name == "Push") {
+			if params.clone().any(|p| p.name == "Push") {
 				assets.pushing_grounds.insert(ground_type);
 			}
 		}

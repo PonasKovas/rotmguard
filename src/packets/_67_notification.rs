@@ -206,7 +206,7 @@ impl<'a> RPWrite for NotificationPacket<'a> {
 				bytes_written += id.rp_write(buf)?; // notification type
 				bytes_written += self.extra.rp_write(buf)?;
 				bytes_written += data.len();
-				buf.write_all(&*data)?;
+				buf.write_all(data)?;
 			}
 		}
 

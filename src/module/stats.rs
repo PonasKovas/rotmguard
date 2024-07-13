@@ -65,24 +65,21 @@ impl ModuleInstance for StatsInst {
 		proxy: &mut Proxy<'_>,
 		packet: &mut ClientPacket<'a>,
 	) -> Result<PacketFlow> {
-		match packet {
-			ClientPacket::Move(move_packet) => {
-				// Update player position
-				if let Some(pos) = move_packet.move_records.last() {
-					stats!(proxy).pos = pos.1;
-				}
-
-				stats!(proxy).ticks.pop_front();
-
-				if stats!(proxy).ticks.is_empty() {
-					// the only way there are no ticks in the VecDeque is if there have been more Move packets than NewTick
-					// which should never happen
-					return Err(Error::other(
-						"client acknowledged tick that wasnt yet received",
-					));
-				}
+		if let ClientPacket::Move(move_packet) = packet {
+			// Update player position
+			if let Some(pos) = move_packet.move_records.last() {
+				stats!(proxy).pos = pos.1;
 			}
-			_ => {}
+
+			stats!(proxy).ticks.pop_front();
+
+			if stats!(proxy).ticks.is_empty() {
+				// the only way there are no ticks in the VecDeque is if there have been more Move packets than NewTick
+				// which should never happen
+				return Err(Error::other(
+					"client acknowledged tick that wasnt yet received",
+				));
+			}
 		}
 
 		FORWARD
@@ -91,58 +88,55 @@ impl ModuleInstance for StatsInst {
 		proxy: &mut Proxy<'_>,
 		packet: &mut ServerPacket<'a>,
 	) -> Result<PacketFlow> {
-		match packet {
-			ServerPacket::NewTick(new_tick) => {
-				stats!(proxy)
-					.ticks
-					.push_back(stats!(proxy).ticks.back().unwrap().clone());
-				let new_tick_data = stats!(proxy).ticks.back_mut().unwrap();
+		if let ServerPacket::NewTick(new_tick) = packet {
+			stats!(proxy)
+				.ticks
+				.push_back(stats!(proxy).ticks.back().unwrap().clone());
+			let new_tick_data = stats!(proxy).ticks.back_mut().unwrap();
 
-				let my_status = match new_tick
-					.statuses
-					.iter_mut()
-					.find(|s| s.object_id == proxy.modules.general.my_object_id)
-				{
-					Some(i) => i,
-					None => {
-						// no updates for myself, so just forward the original packet
-						return FORWARD;
-					}
-				};
+			let my_status = match new_tick
+				.statuses
+				.iter_mut()
+				.find(|s| s.object_id == proxy.modules.general.my_object_id)
+			{
+				Some(i) => i,
+				None => {
+					// no updates for myself, so just forward the original packet
+					return FORWARD;
+				}
+			};
 
-				// Save the important stats and status effects
-				for stat in &mut my_status.stats {
-					match stat.stat_type {
-						StatType::MaxHP => {
-							new_tick_data.stats.max_hp = stat.stat.as_int();
-						}
-						StatType::Defense => {
-							new_tick_data.stats.def = stat.stat.as_int();
-						}
-						StatType::Vitality => {
-							new_tick_data.stats.vit = stat.stat.as_int();
-						}
-						StatType::HP => {
-							new_tick_data.stats.hp = stat.stat.as_int();
-						}
-						StatType::Speed => {
-							new_tick_data.stats.spd = stat.stat.as_int();
-						}
-						StatType::Condition => {
-							new_tick_data.conditions = PlayerConditions {
-								bitmask: stat.stat.as_int() as u64,
-							};
-						}
-						StatType::Condition2 => {
-							new_tick_data.conditions2 = PlayerConditions2 {
-								bitmask: stat.stat.as_int() as u64,
-							};
-						}
-						_ => {}
+			// Save the important stats and status effects
+			for stat in &mut my_status.stats {
+				match stat.stat_type {
+					StatType::MaxHP => {
+						new_tick_data.stats.max_hp = stat.stat.as_int();
 					}
+					StatType::Defense => {
+						new_tick_data.stats.def = stat.stat.as_int();
+					}
+					StatType::Vitality => {
+						new_tick_data.stats.vit = stat.stat.as_int();
+					}
+					StatType::HP => {
+						new_tick_data.stats.hp = stat.stat.as_int();
+					}
+					StatType::Speed => {
+						new_tick_data.stats.spd = stat.stat.as_int();
+					}
+					StatType::Condition => {
+						new_tick_data.conditions = PlayerConditions {
+							bitmask: stat.stat.as_int() as u64,
+						};
+					}
+					StatType::Condition2 => {
+						new_tick_data.conditions2 = PlayerConditions2 {
+							bitmask: stat.stat.as_int() as u64,
+						};
+					}
+					_ => {}
 				}
 			}
-			_ => {}
 		}
 
 		FORWARD

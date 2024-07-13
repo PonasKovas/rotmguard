@@ -53,51 +53,48 @@ impl ModuleInstance for ConInst {
 		proxy: &mut Proxy<'_>,
 		packet: &mut ClientPacket<'a>,
 	) -> Result<PacketFlow> {
-		match packet {
-			ClientPacket::PlayerText(text) => {
-				let text = &text.text;
+		if let ClientPacket::PlayerText(text) = packet {
+			let text = &text.text;
 
-				// `/con <server>` quickly and conveniently connects you to the specified server
-				// Use a short name for the server: for example if you wanted to connect to EUEast, type eue
-				if text.starts_with("/con") {
-					let srv = match text.split(" ").nth(1) {
-						Some(s) => s,
-						None => {
-							Notification::new("Specify a server. Example: eue".to_owned())
-								.blue()
-								.send(&mut proxy.write)
-								.await?;
+			// `/con <server>` quickly and conveniently connects you to the specified server
+			// Use a short name for the server: for example if you wanted to connect to EUEast, type eue
+			if text.starts_with("/con") {
+				let srv = match text.split(" ").nth(1) {
+					Some(s) => s,
+					None => {
+						Notification::new("Specify a server. Example: eue".to_owned())
+							.blue()
+							.send(&mut proxy.write)
+							.await?;
 
-							return BLOCK;
-						}
-					};
-
-					match SERVERS.get(&srv.to_lowercase()) {
-						Some(ip) => {
-							let packet = Reconnect {
-								hostname: "have fun :)".into(),
-								address: (*ip).into(),
-								port: 2050,
-								game_id: 0xfffffffe,
-								key_time: 0xffffffff,
-								key: Vec::new(),
-							};
-							proxy.write.send_client(&packet.into()).await?;
-						}
-						None => {
-							Notification::new(format!("Server {srv:?} is invalid."))
-								.red()
-								.send(&mut proxy.write)
-								.await?;
-						}
+						return BLOCK;
 					}
+				};
 
-					return BLOCK;
+				match SERVERS.get(&srv.to_lowercase()) {
+					Some(ip) => {
+						let packet = Reconnect {
+							hostname: "have fun :)".into(),
+							address: (*ip).into(),
+							port: 2050,
+							game_id: 0xfffffffe,
+							key_time: 0xffffffff,
+							key: Vec::new(),
+						};
+						proxy.write.send_client(&packet.into()).await?;
+					}
+					None => {
+						Notification::new(format!("Server {srv:?} is invalid."))
+							.red()
+							.send(&mut proxy.write)
+							.await?;
+					}
 				}
 
-				FORWARD
+				return BLOCK;
 			}
-			_ => FORWARD,
 		}
+
+		FORWARD
 	}
 }

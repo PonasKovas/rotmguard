@@ -123,7 +123,7 @@ impl<'a> RPRead<'a> for Cow<'a, str> {
 	}
 }
 
-pub fn read_compressed_int<'a>(data: &mut &'a [u8]) -> io::Result<i64> {
+pub fn read_compressed_int(data: &mut &[u8]) -> io::Result<i64> {
 	let mut byte = u8::rp_read(data)?;
 	let is_negative = (byte & 0b01000000) != 0;
 	let mut shift = 6;
