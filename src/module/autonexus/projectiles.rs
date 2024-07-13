@@ -1,20 +1,14 @@
-use super::{take_damage, Module, PacketFlow, FORWARD};
+use super::{take_damage, PacketFlow, FORWARD};
 use crate::{
 	asset_extract::ProjectileInfo,
 	extra_datatypes::{ObjectId, ProjectileId},
 	gen_this_macro,
 	module::BLOCK,
-	packets::{
-		EnemyShoot, PlayerHit, UpdatePacket,
-	},
+	packets::{EnemyShoot, PlayerHit, UpdatePacket},
 	proxy::Proxy,
 };
 use lru::LruCache;
-use std::{
-	collections::BTreeMap,
-	io::Result,
-	num::NonZero,
-};
+use std::{collections::BTreeMap, io::Result, num::NonZero};
 use tracing::{error, trace};
 
 gen_this_macro! {autonexus.projectiles}

@@ -1,14 +1,6 @@
-use super::{take_damage, Module, PacketFlow, FORWARD};
-use crate::{
-	gen_this_macro,
-	module::BLOCK,
-	packets::AoePacket,
-	proxy::Proxy,
-};
-use std::{
-	collections::VecDeque,
-	io::Result,
-};
+use super::{take_damage, PacketFlow, FORWARD};
+use crate::{gen_this_macro, module::BLOCK, packets::AoePacket, proxy::Proxy};
+use std::{collections::VecDeque, io::Result};
 use tracing::trace;
 
 gen_this_macro! {autonexus.aoes}

@@ -15,10 +15,7 @@ mod _67_notification;
 mod _90_player_hit;
 mod _9_player_text;
 
-use std::{
-	borrow::Cow,
-	io::Write,
-};
+use std::{borrow::Cow, io::Write};
 
 pub use _101_create_success::CreateSuccess;
 pub use _103_ground_damage::GroundDamage;

@@ -238,6 +238,11 @@ pub fn extract_assets(config: &Config) -> io::Result<Assets> {
 		original_path.push(".rotmguard");
 		std::fs::rename(&config.assets_res, &original_path)?;
 
+		let guard = ReverseChangesGuard {
+			real_assets_path: Path::new(&original_path).to_path_buf(),
+			edited_assets_path: config.assets_res.clone(),
+		};
+
 		std::fs::write(&config.assets_res, &contents)?;
 
 		// Set the owner and group IDs to match with the parent directory instead of being root.
@@ -262,10 +267,7 @@ pub fn extract_assets(config: &Config) -> io::Result<Assets> {
 
 		info!("Assets edited to force anti-debuffs.");
 
-		assets.reverse_changes_guard = Some(ReverseChangesGuard {
-			real_assets_path: Path::new(&original_path).to_path_buf(),
-			edited_assets_path: config.assets_res.clone(),
-		});
+		assets.reverse_changes_guard = Some(guard);
 	}
 
 	Ok(assets)

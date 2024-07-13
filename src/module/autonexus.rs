@@ -1,23 +1,16 @@
 use super::{Module, ModuleInstance, PacketFlow, BLOCK};
 use crate::{
-	extra_datatypes::{
-		ObjectStatusData, Stat, StatData, StatType,
-		WorldPos,
-	},
+	extra_datatypes::{ObjectStatusData, Stat, StatData, StatType, WorldPos},
 	gen_this_macro,
 	logging::save_logs,
 	module::FORWARD,
-	packets::{
-		ClientPacket, NotificationPacket, NotificationType, ServerPacket, ShowEffect,
-	},
+	packets::{ClientPacket, NotificationPacket, NotificationType, ServerPacket, ShowEffect},
 	proxy::Proxy,
 	util::Notification,
 };
 use aoes::AOEs;
 use derivative::Derivative;
 use ground::Ground;
-use heals::Heals;
-use passive::Passive;
 use projectiles::Projectiles;
 use std::io::Result;
 use tracing::{debug, error, trace, warn};
@@ -49,12 +42,6 @@ pub struct AutonexusInst {
 	// for handling AOEs - explosions
 	#[derivative(Debug = "ignore")]
 	pub aoes: AOEs,
-	// for handling passive effects such as VIT regeneration, bleeding/healing effects
-	#[derivative(Debug = "ignore")]
-	pub passive: Passive,
-	// for heals, from pet, priest, etc
-	#[derivative(Debug = "ignore")]
-	pub heals: Heals,
 }
 
 impl Module for Autonexus {
@@ -70,8 +57,6 @@ impl Module for Autonexus {
 			ground: Ground::new(),
 			projectiles: Projectiles::new(),
 			aoes: AOEs::new(),
-			passive: Passive::new(),
-			heals: Heals::new(),
 		}
 	}
 }
@@ -175,14 +160,14 @@ impl ModuleInstance for AutonexusInst {
 			}) => {
 				// only interested in ourselves
 				if *object_id == proxy.modules.general.my_object_id {
-					Heals::heal(proxy, message)
+					heals::heal(proxy, message)
 				}
 			}
 			ServerPacket::NewTick(new_tick) => {
 				AOEs::flush(proxy);
 
 				let tick_time = new_tick.tick_time as f64 / 1000.0; // in seconds
-				Passive::apply_passive(proxy, tick_time);
+				passive::apply_passive(proxy, tick_time);
 
 				let server_hp = proxy.modules.stats.get_newest().stats.hp;
 

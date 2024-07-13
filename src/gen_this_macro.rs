@@ -2,6 +2,7 @@
 #[macro_export]
 macro_rules! gen_this_macro {
 	($name:ident) => {
+		#[allow(unused_macros)]
 		macro_rules! $name {
 			($proxy:expr) => {
 				$proxy.modules.$name
@@ -9,6 +10,7 @@ macro_rules! gen_this_macro {
 		}
 	};
 	($first:ident . $name:ident) => {
+		#[allow(unused_macros)]
 		macro_rules! $name {
 			($proxy:expr) => {
 				$proxy.modules.$first.$name
@@ -16,6 +18,7 @@ macro_rules! gen_this_macro {
 		}
 	};
 	($first:ident . $second:ident . $name:ident) => {
+		#[allow(unused_macros)]
 		macro_rules! $name {
 			($proxy:expr) => {
 				$proxy.modules.$first.$second.$name

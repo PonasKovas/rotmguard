@@ -1,4 +1,4 @@
-use super::{take_damage, Module, PacketFlow};
+use super::{take_damage, PacketFlow};
 use crate::{
 	gen_this_macro,
 	module::{autonexus::nexus, BLOCK},

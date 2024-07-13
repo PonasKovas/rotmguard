@@ -1,9 +1,6 @@
 use super::ServerPacket;
 use crate::{extra_datatypes::ObjectId, read::RPRead, write::RPWrite};
-use std::{
-	borrow::Cow,
-	io::Write,
-};
+use std::{borrow::Cow, io::Write};
 
 #[derive(Debug)]
 pub struct NotificationPacket<'a> {

@@ -1,8 +1,6 @@
 use super::{Module, ModuleInstance, PacketFlow, BLOCK, FORWARD};
 use crate::{
-	extra_datatypes::{
-		ObjectStatusData, Stat, StatData, StatType,
-	},
+	extra_datatypes::{ObjectStatusData, Stat, StatData, StatType},
 	gen_this_macro,
 	packets::{ClientPacket, ServerPacket},
 	proxy::Proxy,

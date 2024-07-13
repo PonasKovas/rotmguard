@@ -91,12 +91,15 @@ macro_rules! gen_root_module {
 	( $($name:ident : $path:path),* $(,)? ) => {
 		#[derive(Debug, Clone)]
 		pub struct RootModule {
-			$($name : $path,)*
+			$( $name : $path, )*
 		}
 
 		#[derive(Debug, Clone)]
 		pub struct RootModuleInstance {
-			$($name : <$path as Module>::Instance,)*
+			$(
+				#[allow(dead_code)]
+				$name : <$path as Module>::Instance,
+			)*
 		}
 
 		impl Module for RootModule {
