@@ -1,6 +1,5 @@
-use super::{Module, ModuleInstance, PacketFlow, ProxySide, FORWARD};
+use super::{Module, ModuleInstance, PacketFlow, FORWARD};
 use crate::{
-	config::Config,
 	extra_datatypes::{ObjectId, WorldPos},
 	gen_this_macro,
 	module::BLOCK,
@@ -9,8 +8,8 @@ use crate::{
 	util::Notification,
 };
 use rand::{thread_rng, Rng};
-use std::{io::Result, sync::Arc};
-use tracing::{error, info, instrument};
+use std::io::Result;
+use tracing::{error, info};
 
 gen_this_macro! {general}
 

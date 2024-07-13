@@ -1,16 +1,14 @@
-use super::{Module, ModuleInstance, PacketFlow, ProxySide, BLOCK};
+use super::{Module, ModuleInstance, PacketFlow, BLOCK};
 use crate::{
-	asset_extract::ProjectileInfo,
-	config::{Config, Debuffs},
 	extra_datatypes::{
-		ObjectId, ObjectStatusData, PlayerConditions, ProjectileId, Stat, StatData, StatType,
+		ObjectStatusData, Stat, StatData, StatType,
 		WorldPos,
 	},
 	gen_this_macro,
 	logging::save_logs,
 	module::FORWARD,
 	packets::{
-		AoePacket, ClientPacket, NotificationPacket, NotificationType, ServerPacket, ShowEffect,
+		ClientPacket, NotificationPacket, NotificationType, ServerPacket, ShowEffect,
 	},
 	proxy::Proxy,
 	util::Notification,
@@ -19,19 +17,10 @@ use aoes::AOEs;
 use derivative::Derivative;
 use ground::Ground;
 use heals::Heals;
-use lru::LruCache;
 use passive::Passive;
 use projectiles::Projectiles;
-use rand::{thread_rng, Rng};
-use serde::Deserialize;
-use std::{
-	collections::{BTreeMap, HashMap, VecDeque},
-	io::Result,
-	mem::swap,
-	num::NonZero,
-	sync::Arc,
-};
-use tracing::{debug, error, info, instrument, trace, warn};
+use std::io::Result;
+use tracing::{debug, error, trace, warn};
 
 gen_this_macro! {autonexus}
 

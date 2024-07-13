@@ -1,20 +1,15 @@
-use super::{take_damage, Module, ModuleInstance, PacketFlow, ProxySide, FORWARD};
+use super::{take_damage, Module, PacketFlow, FORWARD};
 use crate::{
-	config::Config,
-	extra_datatypes::{ObjectId, WorldPos},
 	gen_this_macro,
-	module::{autonexus::nexus, BLOCK},
-	packets::{AoePacket, ClientPacket, GroundDamage, ServerPacket, ShowEffect, UpdatePacket},
+	module::BLOCK,
+	packets::AoePacket,
 	proxy::Proxy,
-	util::Notification,
 };
-use rand::{thread_rng, Rng};
 use std::{
-	collections::{HashMap, VecDeque},
+	collections::VecDeque,
 	io::Result,
-	sync::Arc,
 };
-use tracing::{error, info, instrument, trace};
+use tracing::trace;
 
 gen_this_macro! {autonexus.aoes}
 

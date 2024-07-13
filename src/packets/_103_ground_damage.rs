@@ -1,6 +1,6 @@
 use super::ClientPacket;
 use crate::{extra_datatypes::WorldPos, read::RPRead, write::RPWrite};
-use std::io::{self, Read, Write};
+use std::io::{self, Write};
 
 #[derive(Debug, Clone, Copy)]
 pub struct GroundDamage {

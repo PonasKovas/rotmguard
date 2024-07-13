@@ -4,7 +4,7 @@ use crate::{
 };
 use std::{
 	borrow::Cow,
-	io::{self, Read, Write},
+	io::{self, Write},
 };
 
 #[derive(Debug, Clone)]

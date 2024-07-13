@@ -3,7 +3,7 @@ use crate::{
 	read::{read_compressed_int, RPRead},
 	write::{write_compressed_int, RPWrite},
 };
-use std::io::{self, Error, Read, Write};
+use std::io::{self, Error, Write};
 
 #[derive(Debug, Clone)]
 pub struct ObjectStatusData<'a> {

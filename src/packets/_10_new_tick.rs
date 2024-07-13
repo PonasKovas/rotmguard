@@ -1,7 +1,7 @@
 use super::ServerPacket;
 use crate::{extra_datatypes::ObjectStatusData, read::RPRead, write::RPWrite};
 use derivative::Derivative;
-use std::io::{self, Error, Read, Write};
+use std::io::{self, Error, Write};
 
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]

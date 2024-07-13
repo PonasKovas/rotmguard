@@ -5,7 +5,7 @@ use crate::{
 	write::{write_compressed_int, RPWrite},
 };
 use derivative::Derivative;
-use std::io::{self, Error, Read, Write};
+use std::io::{self, Error, Write};
 
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]

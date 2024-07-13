@@ -2,7 +2,7 @@ use super::ServerPacket;
 use crate::{extra_datatypes::ObjectId, read::RPRead, write::RPWrite};
 use std::{
 	borrow::Cow,
-	io::{Error, Read, Write},
+	io::Write,
 };
 
 #[derive(Debug)]

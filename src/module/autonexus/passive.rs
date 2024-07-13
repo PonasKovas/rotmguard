@@ -1,16 +1,9 @@
-use super::{take_damage, Module, ModuleInstance, PacketFlow, ProxySide, FORWARD};
+use super::Module;
 use crate::{
-	config::Config,
-	extra_datatypes::{ObjectId, WorldPos},
 	gen_this_macro,
-	module::{autonexus::nexus, BLOCK},
-	packets::{ClientPacket, GroundDamage, ServerPacket, ShowEffect, UpdatePacket},
 	proxy::Proxy,
-	util::Notification,
 };
-use rand::{thread_rng, Rng};
-use std::{collections::HashMap, io::Result, sync::Arc};
-use tracing::{error, info, instrument, trace};
+use tracing::trace;
 
 gen_this_macro! {autonexus.passive}
 

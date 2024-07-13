@@ -1,17 +1,14 @@
-use super::{Module, ModuleInstance, PacketFlow, ProxySide, BLOCK, FORWARD};
+use super::{Module, ModuleInstance, PacketFlow, BLOCK, FORWARD};
 use crate::{
-	config::{Config, Debuffs},
 	extra_datatypes::{
-		ObjectId, ObjectStatusData, PlayerConditions, Stat, StatData, StatType, WorldPos,
+		ObjectStatusData, Stat, StatData, StatType,
 	},
 	gen_this_macro,
-	packets::{ClientPacket, ServerPacket, ShowEffect},
+	packets::{ClientPacket, ServerPacket},
 	proxy::Proxy,
 	util::Notification,
 };
-use rand::{thread_rng, Rng};
-use std::{io::Result, sync::Arc};
-use tracing::{error, info, instrument};
+use std::io::Result;
 
 gen_this_macro! {fake_slow}
 

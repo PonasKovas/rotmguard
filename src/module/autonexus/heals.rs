@@ -1,17 +1,11 @@
-use super::{take_damage, Module, ModuleInstance, PacketFlow, ProxySide, FORWARD};
+use super::Module;
 use crate::{
-	config::Config,
-	extra_datatypes::{ObjectId, WorldPos},
 	gen_this_macro,
-	module::{autonexus::nexus, BLOCK},
-	packets::{ClientPacket, GroundDamage, ServerPacket, ShowEffect, UpdatePacket},
 	proxy::Proxy,
-	util::Notification,
 };
-use rand::{thread_rng, Rng};
 use serde::Deserialize;
-use std::{borrow::Cow, collections::HashMap, io::Result, sync::Arc};
-use tracing::{debug, error, info, instrument};
+use std::borrow::Cow;
+use tracing::{debug, error};
 
 gen_this_macro! {autonexus.heals}
 

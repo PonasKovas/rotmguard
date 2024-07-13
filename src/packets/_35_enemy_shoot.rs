@@ -4,7 +4,7 @@ use crate::{
 	read::RPRead,
 	write::RPWrite,
 };
-use std::io::{self, ErrorKind, Read, Write};
+use std::io::{self, ErrorKind, Write};
 
 #[derive(Debug, Clone, Copy)]
 pub struct EnemyShoot {

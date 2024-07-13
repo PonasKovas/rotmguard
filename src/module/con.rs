@@ -1,18 +1,12 @@
-use super::{Module, ModuleInstance, PacketFlow, ProxySide, BLOCK, FORWARD};
+use super::{Module, ModuleInstance, PacketFlow, BLOCK, FORWARD};
 use crate::{
-	config::{Config, Debuffs},
-	extra_datatypes::{
-		ObjectId, ObjectStatusData, PlayerConditions, Stat, StatData, StatType, WorldPos,
-	},
 	gen_this_macro,
-	packets::{ClientPacket, Reconnect, ServerPacket, ShowEffect},
+	packets::{ClientPacket, Reconnect},
 	proxy::Proxy,
 	util::Notification,
 };
 use phf::phf_map;
-use rand::{thread_rng, Rng};
-use std::{io::Result, sync::Arc};
-use tracing::{error, info, instrument};
+use std::io::Result;
 
 pub static SERVERS: phf::Map<&str, &str> = phf_map! {
 	"eue"	=> "18.184.218.174",

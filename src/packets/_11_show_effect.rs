@@ -4,7 +4,7 @@ use crate::{
 	read::{read_compressed_int, RPRead},
 	write::{write_compressed_int, RPWrite},
 };
-use std::io::{self, Read, Write};
+use std::io::{self, Write};
 
 #[derive(Debug, Clone)]
 pub struct ShowEffect {

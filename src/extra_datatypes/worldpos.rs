@@ -1,5 +1,5 @@
 use crate::{read::RPRead, write::RPWrite};
-use std::io::{self, Read, Write};
+use std::io::{self, Write};
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct WorldPos {

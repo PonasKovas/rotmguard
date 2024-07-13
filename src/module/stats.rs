@@ -1,6 +1,5 @@
-use super::{Module, ModuleInstance, PacketFlow, ProxySide, FORWARD};
+use super::{Module, ModuleInstance, PacketFlow, FORWARD};
 use crate::{
-	config::Config,
 	extra_datatypes::{PlayerConditions, PlayerConditions2, StatType, WorldPos},
 	gen_this_macro,
 	packets::{ClientPacket, ServerPacket},
@@ -9,9 +8,7 @@ use crate::{
 use std::{
 	collections::VecDeque,
 	io::{Error, Result},
-	sync::Arc,
 };
-use tracing::instrument;
 
 gen_this_macro! {stats}
 
