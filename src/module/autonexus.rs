@@ -1,6 +1,6 @@
 use super::{Module, ModuleInstance, PacketFlow, BLOCK};
 use crate::{
-	extra_datatypes::{ObjectStatusData, Stat, StatData, StatType, WorldPos},
+	extra_datatypes::{Stat, StatData, StatType, WorldPos},
 	gen_this_macro,
 	logging::save_logs,
 	module::FORWARD,
@@ -215,24 +215,10 @@ impl ModuleInstance for AutonexusInst {
 
 				// Replace fame bar with client hp if developer mode
 				if *proxy.config.settings.dev_mode.lock().unwrap() {
-					let my_status = match new_tick
-						.statuses
-						.iter_mut()
-						.find(|s| s.object_id == proxy.modules.general.my_object_id)
-					{
-						Some(i) => i,
-						None => {
-							// no updates for myself, so add manually
-							new_tick.statuses.push(ObjectStatusData {
-								object_id: proxy.modules.general.my_object_id,
-								position: proxy.modules.stats.pos,
-								stats: Vec::new(),
-							});
-							let i = new_tick.statuses.len() - 1;
-
-							&mut new_tick.statuses[i]
-						}
-					};
+					let my_status = new_tick.force_get_status_of(
+						proxy.modules.general.my_object_id,
+						proxy.modules.stats.pos,
+					);
 
 					// remove fame update if there is one
 					my_status.stats.retain(|s| {

@@ -2,6 +2,7 @@ use crate::{
 	packets::{ClientPacket, ServerPacket},
 	proxy::Proxy,
 };
+use anti_push::AntiPush;
 use antidebuffs::Antidebuffs;
 use autonexus::Autonexus;
 use con::Con;
@@ -10,6 +11,7 @@ use general::General;
 use stats::Stats;
 use std::io::Result;
 
+mod anti_push;
 mod antidebuffs;
 mod autonexus;
 mod con;
@@ -203,7 +205,8 @@ gen_root_module! {
 	general: General,
 	stats: Stats,
 	autonexus: Autonexus,
-	antidebuffs: Antidebuffs,
 	fake_slow: FakeSlow,
+	anti_push: AntiPush,
 	con: Con,
+	antidebuffs: Antidebuffs,
 }

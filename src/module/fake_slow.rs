@@ -51,7 +51,7 @@ impl ModuleInstance for FakeSlowInst {
 				fake_slow!(proxy).synced = false;
 
 				Notification::new(msg.to_owned())
-					.color(0xff33ff)
+					.green()
 					.send(&mut proxy.write)
 					.await?;
 
@@ -80,11 +80,7 @@ impl ModuleInstance for FakeSlowInst {
 			};
 
 			// check if theres a new status for me
-			match new_tick
-				.statuses
-				.iter_mut()
-				.find(|s| s.object_id == proxy.modules.general.my_object_id)
-			{
+			match new_tick.get_status_of(proxy.modules.general.my_object_id) {
 				Some(me) => {
 					// If condition already present, replace it
 					if let Some(cond) = me

@@ -1,6 +1,6 @@
 use super::{Module, ModuleInstance, PacketFlow, FORWARD};
 use crate::{
-	extra_datatypes::{PlayerConditions, PlayerConditions2, StatType, WorldPos},
+	extra_datatypes::{PlayerConditions, PlayerConditions2, StatData, StatType, WorldPos},
 	gen_this_macro,
 	packets::{ClientPacket, ServerPacket},
 	proxy::Proxy,
@@ -88,55 +88,69 @@ impl ModuleInstance for StatsInst {
 		proxy: &mut Proxy<'_>,
 		packet: &mut ServerPacket<'a>,
 	) -> Result<PacketFlow> {
-		if let ServerPacket::NewTick(new_tick) = packet {
-			stats!(proxy)
-				.ticks
-				.push_back(stats!(proxy).ticks.back().unwrap().clone());
-			let new_tick_data = stats!(proxy).ticks.back_mut().unwrap();
+		match packet {
+			ServerPacket::NewTick(new_tick) => {
+				stats!(proxy)
+					.ticks
+					.push_back(stats!(proxy).ticks.back().unwrap().clone());
+				let new_tick_data = stats!(proxy).ticks.back_mut().unwrap();
 
-			let my_status = match new_tick
-				.statuses
-				.iter_mut()
-				.find(|s| s.object_id == proxy.modules.general.my_object_id)
-			{
-				Some(i) => i,
-				None => {
-					// no updates for myself, so just forward the original packet
-					return FORWARD;
-				}
-			};
+				let my_status = match new_tick.get_status_of(proxy.modules.general.my_object_id) {
+					Some(s) => s,
+					None => {
+						// no updates for myself, so just forward the original packet
+						return FORWARD;
+					}
+				};
 
-			// Save the important stats and status effects
-			for stat in &mut my_status.stats {
-				match stat.stat_type {
-					StatType::MaxHP => {
-						new_tick_data.stats.max_hp = stat.stat.as_int();
+				// Save the important stats and status effects
+				for stat in &mut my_status.stats {
+					match stat.stat_type {
+						StatType::MaxHP => {
+							new_tick_data.stats.max_hp = stat.stat.as_int();
+						}
+						StatType::Defense => {
+							new_tick_data.stats.def = stat.stat.as_int();
+						}
+						StatType::Vitality => {
+							new_tick_data.stats.vit = stat.stat.as_int();
+						}
+						StatType::HP => {
+							new_tick_data.stats.hp = stat.stat.as_int();
+						}
+						StatType::Speed => {
+							new_tick_data.stats.spd = stat.stat.as_int();
+						}
+						StatType::Condition => {
+							new_tick_data.conditions = PlayerConditions {
+								bitmask: stat.stat.as_int() as u64,
+							};
+						}
+						StatType::Condition2 => {
+							new_tick_data.conditions2 = PlayerConditions2 {
+								bitmask: stat.stat.as_int() as u64,
+							};
+						}
+						_ => {}
 					}
-					StatType::Defense => {
-						new_tick_data.stats.def = stat.stat.as_int();
-					}
-					StatType::Vitality => {
-						new_tick_data.stats.vit = stat.stat.as_int();
-					}
-					StatType::HP => {
-						new_tick_data.stats.hp = stat.stat.as_int();
-					}
-					StatType::Speed => {
-						new_tick_data.stats.spd = stat.stat.as_int();
-					}
-					StatType::Condition => {
-						new_tick_data.conditions = PlayerConditions {
-							bitmask: stat.stat.as_int() as u64,
-						};
-					}
-					StatType::Condition2 => {
-						new_tick_data.conditions2 = PlayerConditions2 {
-							bitmask: stat.stat.as_int() as u64,
-						};
-					}
-					_ => {}
 				}
 			}
+			ServerPacket::Update(update) => {
+				// if there is our object in this packet that means we can get our initial stats
+				let my_status = match update
+					.new_objects
+					.iter_mut()
+					.find(|obj| obj.1.object_id == proxy.modules.general.my_object_id)
+				{
+					Some(obj) => &mut obj.1,
+					None => {
+						return FORWARD;
+					}
+				};
+
+				update_stats(&mut stats!(proxy).ticks[0], &my_status.stats[..]);
+			}
+			_ => {}
 		}
 
 		FORWARD
@@ -166,6 +180,39 @@ impl TickStats {
 			},
 			conditions: PlayerConditions { bitmask: 0 },
 			conditions2: PlayerConditions2 { bitmask: 0 },
+		}
+	}
+}
+
+fn update_stats(tick: &mut TickStats, stats: &[StatData]) {
+	for stat in stats {
+		match stat.stat_type {
+			StatType::MaxHP => {
+				tick.stats.max_hp = stat.stat.as_int();
+			}
+			StatType::Defense => {
+				tick.stats.def = stat.stat.as_int();
+			}
+			StatType::Vitality => {
+				tick.stats.vit = stat.stat.as_int();
+			}
+			StatType::HP => {
+				tick.stats.hp = stat.stat.as_int();
+			}
+			StatType::Speed => {
+				tick.stats.spd = stat.stat.as_int();
+			}
+			StatType::Condition => {
+				tick.conditions = PlayerConditions {
+					bitmask: stat.stat.as_int() as u64,
+				};
+			}
+			StatType::Condition2 => {
+				tick.conditions2 = PlayerConditions2 {
+					bitmask: stat.stat.as_int() as u64,
+				};
+			}
+			_ => {}
 		}
 	}
 }

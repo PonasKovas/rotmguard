@@ -57,11 +57,7 @@ impl ModuleInstance for AntidebuffsInst {
 			}
 			// This packet updates existing objects
 			ServerPacket::NewTick(new_tick) => {
-				let my_status = match new_tick
-					.statuses
-					.iter_mut()
-					.find(|s| s.object_id == proxy.modules.general.my_object_id)
-				{
+				let my_status = match new_tick.get_status_of(proxy.modules.general.my_object_id) {
 					Some(i) => i,
 					None => {
 						return FORWARD;

@@ -1,5 +1,9 @@
 use super::ServerPacket;
-use crate::{extra_datatypes::ObjectStatusData, read::RPRead, write::RPWrite};
+use crate::{
+	extra_datatypes::{ObjectId, ObjectStatusData, WorldPos},
+	read::RPRead,
+	write::RPWrite,
+};
 use derivative::Derivative;
 use std::io::{self, Error, Write};
 
@@ -71,5 +75,39 @@ impl<'a> RPWrite for NewTick<'a> {
 impl<'a> From<NewTick<'a>> for ServerPacket<'a> {
 	fn from(value: NewTick<'a>) -> Self {
 		Self::NewTick(value)
+	}
+}
+
+impl<'a> NewTick<'a> {
+	// Returns a reference to the ObjectStatusData of the requested object in this packet
+	pub fn get_status_of(&mut self, object_id: ObjectId) -> Option<&mut ObjectStatusData<'a>> {
+		self.statuses
+			.iter_mut()
+			.find(|obj| obj.object_id == object_id)
+	}
+	// Returns a reference to the ObjectStatusData of the requested object in this packet
+	// adding a new entry with the given position if it doesnt exist
+	pub fn force_get_status_of(
+		&mut self,
+		object_id: ObjectId,
+		default_pos: WorldPos,
+	) -> &mut ObjectStatusData<'a> {
+		let i = match self
+			.statuses
+			.iter_mut()
+			.position(|obj| obj.object_id == object_id)
+		{
+			Some(i) => i,
+			None => {
+				self.statuses.push(ObjectStatusData {
+					object_id,
+					position: default_pos,
+					stats: Vec::new(),
+				});
+				self.statuses.len() - 1
+			}
+		};
+
+		&mut self.statuses[i]
 	}
 }
