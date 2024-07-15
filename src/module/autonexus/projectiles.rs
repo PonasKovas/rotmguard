@@ -1,6 +1,6 @@
 use super::{take_damage, PacketFlow, FORWARD};
 use crate::{
-	asset_extract::ProjectileInfo,
+	assets::ProjectileInfo,
 	extra_datatypes::{ObjectId, ProjectileId},
 	gen_this_macro,
 	module::BLOCK,

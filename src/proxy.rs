@@ -1,5 +1,5 @@
 use crate::{
-	asset_extract::Assets,
+	assets::Assets,
 	config::Config,
 	module::{ModuleInstance, PacketFlow, ProxySide, RootModuleInstance},
 	packets::{ClientPacket, ServerPacket},

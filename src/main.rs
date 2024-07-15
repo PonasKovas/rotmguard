@@ -1,7 +1,7 @@
 #![feature(noop_waker)]
 
 use anyhow::{Context, Result};
-use asset_extract::Assets;
+use assets::Assets;
 use config::Config;
 use module::{Module, RootModule, RootModuleInstance};
 use proxy::Proxy;
@@ -12,7 +12,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::select;
 use tracing::{error, info};
 
-mod asset_extract;
+mod assets;
 mod config;
 mod extra_datatypes;
 mod gen_this_macro;
@@ -38,7 +38,7 @@ async fn main() -> Result<()> {
 	info!("Reading assets.");
 
 	// Read the resource assets
-	let assets = Arc::new(asset_extract::extract_assets(&config)?);
+	let assets = Arc::new(assets::handle_assets(&config)?);
 
 	// create an iptables rule to redirect all game traffic to our proxy
 	let _iptables_rule = iptables::IpTablesRule::create()?;

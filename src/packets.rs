@@ -5,6 +5,7 @@ mod _103_ground_damage;
 mod _10_new_tick;
 mod _11_show_effect;
 mod _18_goto;
+mod _30_player_shoot;
 mod _35_enemy_shoot;
 mod _42_update;
 mod _44_text;
@@ -22,6 +23,7 @@ pub use _103_ground_damage::GroundDamage;
 pub use _10_new_tick::NewTick;
 pub use _11_show_effect::ShowEffect;
 pub use _18_goto::GotoPacket;
+pub use _30_player_shoot::PlayerShoot;
 pub use _35_enemy_shoot::EnemyShoot;
 pub use _42_update::{TileData, UpdatePacket};
 pub use _44_text::TextPacket;
@@ -42,6 +44,7 @@ use crate::{read::RPRead, write::RPWrite};
 #[derivative(Debug)]
 pub enum ClientPacket<'a> {
 	PlayerText(PlayerText<'a>) = 9,
+	PlayerShoot(PlayerShoot) = 30,
 	Move(Move) = 62,
 	PlayerHit(PlayerHit) = 90,
 	GroundDamage(GroundDamage) = 103,
@@ -98,6 +101,7 @@ impl<'a> RPRead<'a> for ClientPacket<'a> {
 
 		let packet = match packet_id {
 			9 => Self::PlayerText(PlayerText::rp_read(data)?),
+			30 => Self::PlayerShoot(PlayerShoot::rp_read(data)?),
 			62 => Self::Move(Move::rp_read(data)?),
 			90 => Self::PlayerHit(PlayerHit::rp_read(data)?),
 			103 => Self::GroundDamage(GroundDamage::rp_read(data)?),
@@ -156,6 +160,9 @@ impl<'a> RPWrite for ClientPacket<'a> {
 
 		match self {
 			Self::PlayerText(p) => {
+				bytes_written += p.rp_write(buf)?;
+			}
+			Self::PlayerShoot(p) => {
 				bytes_written += p.rp_write(buf)?;
 			}
 			Self::Move(p) => {

@@ -17,17 +17,13 @@ pub struct Config {
 pub struct Settings {
 	/// HP at which to autonexus. Recommended value 20
 	pub autonexus_hp: Mutex<i64>,
-	/// Will show a fake name for the client if set.
-	#[serde(default)]
-	pub fakename: Mutex<Option<String>>,
 	/// If true, will activate developer mode.
 	pub dev_mode: Mutex<bool>,
 	/// How many log lines to save up to the event that triggered a log save
 	pub log_lines: usize,
-	/// If true, will edit game files to remove the client-side debuffs completely
-	pub force_debuffs: bool,
 	/// Which client-side debuffs to disable
 	pub debuffs: Debuffs,
+	pub edit_assets: EditAssets,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
@@ -50,4 +46,14 @@ pub struct Debuffs {
 	/// If true will be disabled
 	#[serde(default)]
 	pub darkness: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub struct EditAssets {
+	/// If true will be disabled
+	pub enabled: bool,
+	/// If true, will remove the client-side debuffs completely
+	pub force_debuffs: bool,
+	/// Makes the staff of unholy sacrifice shoot forward instead of backward
+	pub cult_staff: bool,
 }

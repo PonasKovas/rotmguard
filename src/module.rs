@@ -6,6 +6,7 @@ use anti_push::AntiPush;
 use antidebuffs::Antidebuffs;
 use autonexus::Autonexus;
 use con::Con;
+use cult_staff::CultStaff;
 use fake_slow::FakeSlow;
 use general::General;
 use stats::Stats;
@@ -15,6 +16,7 @@ mod anti_push;
 mod antidebuffs;
 mod autonexus;
 mod con;
+mod cult_staff;
 mod fake_slow;
 mod general;
 mod stats;
@@ -204,6 +206,7 @@ macro_rules! gen_root_module {
 gen_root_module! {
 	general: General,
 	stats: Stats,
+	cult_staff: CultStaff,
 	autonexus: Autonexus,
 	fake_slow: FakeSlow,
 	anti_push: AntiPush,

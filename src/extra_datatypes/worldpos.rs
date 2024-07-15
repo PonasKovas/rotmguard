@@ -1,5 +1,8 @@
 use crate::{read::RPRead, write::RPWrite};
-use std::io::{self, Write};
+use std::{
+	io::{self, Write},
+	ops::{Add, Mul, Sub},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct WorldPos {
@@ -30,5 +33,38 @@ impl RPWrite for WorldPos {
 		written += self.y.rp_write(buf)?;
 
 		Ok(written)
+	}
+}
+
+impl Add for WorldPos {
+	type Output = WorldPos;
+
+	fn add(self, rhs: Self) -> Self::Output {
+		WorldPos {
+			x: self.x + rhs.x,
+			y: self.y + rhs.y,
+		}
+	}
+}
+
+impl Sub for WorldPos {
+	type Output = WorldPos;
+
+	fn sub(self, rhs: Self) -> Self::Output {
+		WorldPos {
+			x: self.x - rhs.x,
+			y: self.y - rhs.y,
+		}
+	}
+}
+
+impl Mul<f32> for WorldPos {
+	type Output = WorldPos;
+
+	fn mul(self, rhs: f32) -> Self::Output {
+		WorldPos {
+			x: self.x * rhs,
+			y: self.y * rhs,
+		}
 	}
 }
