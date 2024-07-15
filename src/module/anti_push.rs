@@ -89,7 +89,7 @@ impl ModuleInstance for AntiPushInst {
 				anti_push!(proxy).synced = true;
 			}
 
-			// Add pushing tiles if any are visible
+			// Add/remove pushing tiles if any are visible
 			for tile in &mut update.tiles {
 				let tile_type = tile.tile_type as u32;
 
@@ -102,6 +102,9 @@ impl ModuleInstance for AntiPushInst {
 					if anti_push!(proxy).enabled {
 						tile.tile_type = ANTI_PUSH_TILE;
 					}
+				} else {
+					// remove it
+					anti_push!(proxy).tiles.remove(&(tile.x, tile.y));
 				}
 			}
 		}
