@@ -171,15 +171,6 @@ impl ModuleInstance for AutonexusInst {
 
 				let server_hp = proxy.modules.stats.get_newest().stats.hp;
 
-				// Sync HP with the server if no shots have been taken for 10 ticks straight (2 seconds)
-				// to make sure they're actually in sync.
-				// OR if server hp is lower than client HP
-				let no_shots_taken =
-					proxy.modules.general.client_tick_id - autonexus!(proxy).tick_last_hit >= 10;
-				if no_shots_taken || autonexus!(proxy).hp > server_hp as f64 {
-					autonexus!(proxy).hp = server_hp as f64;
-				}
-
 				// if server hp is lower than client hp it's very bad, it means potential death
 				// but not if server hp is full, which happens when your max hp reduces
 				let hp_delta = autonexus!(proxy).hp - server_hp as f64;
@@ -236,6 +227,15 @@ impl ModuleInstance for AutonexusInst {
 						stat: Stat::Int(proxy.modules.stats.get_newest().stats.max_hp),
 						secondary_stat: -1,
 					});
+				}
+
+				// Sync HP with the server if no shots have been taken for 10 ticks straight (2 seconds)
+				// to make sure they're actually in sync.
+				// OR if server hp is lower than client HP
+				let no_shots_taken =
+					proxy.modules.general.client_tick_id - autonexus!(proxy).tick_last_hit >= 10;
+				if no_shots_taken || autonexus!(proxy).hp > server_hp as f64 {
+					autonexus!(proxy).hp = server_hp as f64;
 				}
 			}
 			ServerPacket::Unknown {
