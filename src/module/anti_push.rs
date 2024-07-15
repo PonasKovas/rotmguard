@@ -3,7 +3,7 @@ use crate::{
 	gen_this_macro,
 	packets::{ClientPacket, ServerPacket, TileData},
 	proxy::Proxy,
-	util::Notification,
+	util::notification::Notification,
 };
 use std::{collections::BTreeMap, io::Result};
 

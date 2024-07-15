@@ -6,7 +6,7 @@ use crate::{
 	module::FORWARD,
 	packets::{ClientPacket, NotificationPacket, NotificationType, ServerPacket, ShowEffect},
 	proxy::Proxy,
-	util::Notification,
+	util::notification::Notification,
 };
 use aoes::AOEs;
 use derivative::Derivative;

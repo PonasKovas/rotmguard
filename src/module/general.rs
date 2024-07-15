@@ -5,7 +5,7 @@ use crate::{
 	module::BLOCK,
 	packets::{ClientPacket, ServerPacket, ShowEffect},
 	proxy::Proxy,
-	util::Notification,
+	util::notification::Notification,
 };
 use rand::{thread_rng, Rng};
 use std::io::Result;

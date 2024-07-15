@@ -3,7 +3,7 @@ use crate::{
 	gen_this_macro,
 	packets::{ClientPacket, Reconnect},
 	proxy::Proxy,
-	util::Notification,
+	util::notification::Notification,
 };
 use phf::phf_map;
 use std::io::Result;

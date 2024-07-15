@@ -4,7 +4,7 @@ use crate::{
 	gen_this_macro,
 	packets::{ClientPacket, ServerPacket},
 	proxy::Proxy,
-	util::Notification,
+	util::notification::Notification,
 };
 use std::io::Result;
 
