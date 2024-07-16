@@ -6,7 +6,6 @@ use config::Config;
 use module::{Module, RootModule, RootModuleInstance};
 use proxy::Proxy;
 use std::fs;
-use std::io::ErrorKind;
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::select;

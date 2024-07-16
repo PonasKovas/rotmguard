@@ -38,7 +38,7 @@ pub fn process_xml(
 	Ok(())
 }
 
-fn objects(config: &Config, assets: &mut Assets, objects: &mut Vec<XMLNode>) -> Result<()> {
+fn objects(config: &Config, assets: &mut Assets, objects: &mut [XMLNode]) -> Result<()> {
 	for (i, object) in objects.iter_mut().enumerate() {
 		let object = match object {
 			XMLNode::Element(object) => object,
@@ -81,7 +81,7 @@ fn objects(config: &Config, assets: &mut Assets, objects: &mut Vec<XMLNode>) -> 
 	Ok(())
 }
 
-fn grounds(_config: &Config, assets: &mut Assets, grounds: &mut Vec<XMLNode>) -> Result<()> {
+fn grounds(_config: &Config, assets: &mut Assets, grounds: &mut [XMLNode]) -> Result<()> {
 	for (i, ground) in grounds.iter_mut().enumerate() {
 		let ground = match ground {
 			XMLNode::Element(ground) => ground,

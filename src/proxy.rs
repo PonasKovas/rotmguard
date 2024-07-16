@@ -21,7 +21,7 @@ use tokio::{
 	},
 	select,
 };
-use tracing::{error, instrument};
+use tracing::instrument;
 
 // RC4 keys (server to client and client to server)
 #[rustfmt::skip]

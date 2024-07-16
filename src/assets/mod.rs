@@ -6,13 +6,10 @@ use rand::prelude::*;
 use reverse_changes::ReverseChangesGuard;
 use std::{
 	collections::{BTreeMap, BTreeSet},
-	fs::File,
-	io::{self, Cursor, Error, Read, Seek},
-	path::{Path, PathBuf},
+	io::{self, Cursor, Error, Read},
 };
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 use xml::process_xml;
-use xmltree::XMLNode;
 
 mod reverse_changes;
 mod xml;
@@ -138,13 +135,11 @@ fn in_endian<ORDER: ByteOrder>(
 	// the progress bar is very jumpy.
 	let mut indices = (0..object_count).collect::<Vec<u64>>();
 	indices.shuffle(&mut rand::thread_rng());
-	let mut processed = 0;
 
-	for i in indices {
-		if processed != 0 && processed % (object_count / 5) == 0 {
+	for (processed, i) in indices.into_iter().enumerate() {
+		if processed != 0 && processed as u64 % (object_count / 5) == 0 {
 			info!("{processed} / {object_count} objects read...");
 		}
-		processed += 1;
 
 		file.set_position(position + i * 24); // each entry is 24 bytes
 

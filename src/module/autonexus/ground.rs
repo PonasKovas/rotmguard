@@ -1,13 +1,11 @@
 use super::{take_damage, PacketFlow};
 use crate::{
 	gen_this_macro,
-	module::{autonexus::nexus, BLOCK},
 	packets::{GroundDamage, UpdatePacket},
 	proxy::Proxy,
 };
 use anyhow::{bail, Result};
 use std::collections::HashMap;
-use tracing::error;
 
 gen_this_macro! {autonexus.ground}
 

@@ -47,7 +47,7 @@ impl ModuleInstance for CultStaffInst {
 				return FORWARD;
 			}
 
-			cult_staff!(proxy).packets.push(player_shoot.clone());
+			cult_staff!(proxy).packets.push(*player_shoot);
 
 			if cult_staff!(proxy).packets.len() == 4 {
 				for (i, packet) in cult_staff!(proxy).packets.iter_mut().rev().enumerate() {
