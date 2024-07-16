@@ -7,14 +7,9 @@
 assets_res = ""
 
 [settings]
-autonexus_hp = 20
-# fakename = "GHZD"
+autonexus_hp = 0
 dev_mode = false
-log_lines = 5000
-
-# If true, will edit game files to remove the client-side debuffs completely
-# For this to work, you have to launch the game AFTER rotmguard is already running
-force_debuffs = true
+log_lines = 1000
 
 # True = debuff disabled
 [settings.debuffs]
@@ -24,3 +19,12 @@ drunk = true
 confused = true
 unstable = true
 darkness = false # you still dont see very far so disabling this doesnt help, all it does it make you not know when the effect is actually over
+
+# The following will edit game resource files, you will need to launch the game AFTER rotmguard is already running
+# for these to work.
+[settings.edit_assets]
+enabled = true
+# If true, will remove the client-side debuffs completely
+force_debuffs = true
+# Makes the staff of unholy sacrifice shoot forward instead of backward
+cult_staff = true

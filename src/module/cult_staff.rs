@@ -55,8 +55,6 @@ impl ModuleInstance for CultStaffInst {
 					// Make it seem like the angles between the shots are 345 degrees instead of 15
 					packet.angle += 2.0 * PI * (i as f32);
 
-					println!("{packet:?}");
-
 					proxy.write.send_server(&(*packet).into()).await?;
 				}
 
