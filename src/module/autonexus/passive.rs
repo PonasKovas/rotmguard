@@ -12,6 +12,13 @@ pub fn apply_passive(proxy: &mut Proxy<'_>, time: f64) {
 		trace!(?proxy.modules, bleed_amount, "Applied bleeding");
 	} else if !stats.conditions.sick() {
 		// if not bleeding, nor sickened
+		// also do not regenerate if last tick server hp was full
+
+		let prev_tick_stats = proxy.modules.stats.ticks[proxy.modules.stats.ticks.len() - 2].stats;
+		if prev_tick_stats.hp == prev_tick_stats.max_hp {
+			trace!(?proxy.modules, "Not healing because previous tick server hp was full");
+			return;
+		}
 
 		if stats.conditions.healing() {
 			let heal_amount = 20.0 * time;
