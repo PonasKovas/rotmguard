@@ -15,6 +15,7 @@
  - **Fake-slow** Gives you a fake slow effect to help micro-dodge.
  - **Anti-Push** Disables ground pushing (such as conveyers in kogbolds or sprites).
  - **/con** Fast and convenient connecting to servers by using a command (`/con usw4`).
+ - **Reverse cult staff** to make it easier to aim.
  - Might add more later, also feel free to open PRs!
 
 ### Dependencies
