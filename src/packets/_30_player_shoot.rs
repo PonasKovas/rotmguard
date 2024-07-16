@@ -1,5 +1,6 @@
 use super::ClientPacket;
 use crate::{extra_datatypes::WorldPos, read::RPRead, write::RPWrite};
+use anyhow::Result;
 use std::io::{self, Write};
 
 #[derive(Debug, Clone, Copy)]
@@ -17,7 +18,7 @@ pub struct PlayerShoot {
 }
 
 impl<'a> RPRead<'a> for PlayerShoot {
-	fn rp_read(data: &mut &'a [u8]) -> io::Result<Self>
+	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -37,7 +38,7 @@ impl<'a> RPRead<'a> for PlayerShoot {
 }
 
 impl RPWrite for PlayerShoot {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{

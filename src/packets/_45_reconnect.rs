@@ -1,5 +1,6 @@
 use super::ServerPacket;
 use crate::{read::RPRead, write::RPWrite};
+use anyhow::Result;
 use std::{
 	borrow::Cow,
 	io::{self, Read, Write},
@@ -16,7 +17,7 @@ pub struct Reconnect<'a> {
 }
 
 impl<'a> RPRead<'a> for Reconnect<'a> {
-	fn rp_read(data: &mut &'a [u8]) -> std::io::Result<Self>
+	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -41,7 +42,7 @@ impl<'a> RPRead<'a> for Reconnect<'a> {
 }
 
 impl<'a> RPWrite for Reconnect<'a> {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{

@@ -4,6 +4,7 @@ use crate::{
 	read::RPRead,
 	write::RPWrite,
 };
+use anyhow::{bail, Result};
 use derivative::Derivative;
 use std::io::{self, Error, Write};
 
@@ -19,7 +20,7 @@ pub struct NewTick<'a> {
 }
 
 impl<'a> RPRead<'a> for NewTick<'a> {
-	fn rp_read(data: &mut &'a [u8]) -> io::Result<Self>
+	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -30,10 +31,7 @@ impl<'a> RPRead<'a> for NewTick<'a> {
 
 		let statuses_n = u16::rp_read(data)?;
 		if statuses_n > 10000 {
-			return Err(Error::new(
-				io::ErrorKind::InvalidData,
-				format!("Too many statuses ({statuses_n}) in NewTick."),
-			));
+			bail!("Too many statuses ({statuses_n}) in NewTick.");
 		}
 
 		let mut statuses = Vec::with_capacity(statuses_n as usize);
@@ -52,7 +50,7 @@ impl<'a> RPRead<'a> for NewTick<'a> {
 }
 
 impl<'a> RPWrite for NewTick<'a> {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{

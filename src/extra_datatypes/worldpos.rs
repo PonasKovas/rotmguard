@@ -1,4 +1,5 @@
 use crate::{read::RPRead, write::RPWrite};
+use anyhow::Result;
 use std::{
 	io::{self, Write},
 	ops::{Add, Mul, Sub},
@@ -11,7 +12,7 @@ pub struct WorldPos {
 }
 
 impl<'a> RPRead<'a> for WorldPos {
-	fn rp_read(data: &mut &'a [u8]) -> io::Result<Self>
+	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -23,7 +24,7 @@ impl<'a> RPRead<'a> for WorldPos {
 }
 
 impl RPWrite for WorldPos {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{

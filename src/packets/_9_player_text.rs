@@ -1,5 +1,6 @@
 use super::ClientPacket;
 use crate::{read::RPRead, write::RPWrite};
+use anyhow::Result;
 use std::{
 	borrow::Cow,
 	io::{self, Write},
@@ -11,7 +12,7 @@ pub struct PlayerText<'a> {
 }
 
 impl<'a> RPRead<'a> for PlayerText<'a> {
-	fn rp_read(data: &mut &'a [u8]) -> io::Result<Self>
+	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -22,7 +23,7 @@ impl<'a> RPRead<'a> for PlayerText<'a> {
 }
 
 impl<'a> RPWrite for PlayerText<'a> {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{

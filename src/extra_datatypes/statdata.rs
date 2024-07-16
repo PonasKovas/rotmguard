@@ -2,6 +2,7 @@ use crate::{
 	read::{read_compressed_int, RPRead},
 	write::{write_compressed_int, RPWrite},
 };
+use anyhow::Result;
 use std::{
 	borrow::Cow,
 	io::{self, Write},
@@ -43,7 +44,7 @@ pub enum StatType {
 impl<'a> Stat<'a> {
 	pub fn as_int(&self) -> i64 {
 		match self {
-			Stat::String(s) => s.parse::<i64>().expect("StatType not valid int"),
+			Stat::String(s) => s.parse::<i64>().expect("StatType not valid int"), // TODO error handling here
 			Stat::Int(i) => *i,
 		}
 	}
@@ -59,7 +60,7 @@ impl<'a> Stat<'a> {
 }
 
 impl<'a> RPRead<'a> for StatData<'a> {
-	fn rp_read(data: &mut &'a [u8]) -> io::Result<Self>
+	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -100,7 +101,7 @@ impl<'a> RPRead<'a> for StatData<'a> {
 }
 
 impl<'a> RPWrite for StatData<'a> {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{

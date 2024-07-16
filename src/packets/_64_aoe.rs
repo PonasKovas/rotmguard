@@ -1,5 +1,6 @@
 use super::ServerPacket;
 use crate::{extra_datatypes::WorldPos, read::RPRead, write::RPWrite};
+use anyhow::Result;
 use std::io::{self, Write};
 
 #[derive(Debug, Clone)]
@@ -15,7 +16,7 @@ pub struct AoePacket {
 }
 
 impl<'a> RPRead<'a> for AoePacket {
-	fn rp_read(data: &mut &'a [u8]) -> std::io::Result<Self>
+	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -33,7 +34,7 @@ impl<'a> RPRead<'a> for AoePacket {
 }
 
 impl RPWrite for AoePacket {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{

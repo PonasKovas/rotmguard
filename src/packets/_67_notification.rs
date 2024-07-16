@@ -1,5 +1,6 @@
 use super::ServerPacket;
 use crate::{extra_datatypes::ObjectId, read::RPRead, write::RPWrite};
+use anyhow::Result;
 use std::{borrow::Cow, io::Write};
 
 #[derive(Debug)]
@@ -28,21 +29,6 @@ pub enum NotificationType<'a> {
 		object_id: ObjectId,
 		color: u32,
 	},
-	PortalOpened {
-		message: Cow<'a, str>,
-		picture_type: u32,
-	},
-	PlayerCallout {
-		message: Cow<'a, str>,
-		object_id: ObjectId,
-		stars: u16,
-	},
-	ProgressBar {
-		// if Some, extra must be equal to have first or second bit set to 1
-		message: Option<Cow<'a, str>>,
-		max: u32,
-		value: u16,
-	},
 	Behavior {
 		message: Cow<'a, str>,
 		picture_type: u32,
@@ -55,7 +41,7 @@ pub enum NotificationType<'a> {
 }
 
 impl<'a> RPRead<'a> for NotificationPacket<'a> {
-	fn rp_read(data: &mut &'a [u8]) -> std::io::Result<Self>
+	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -80,27 +66,6 @@ impl<'a> RPRead<'a> for NotificationPacket<'a> {
 				object_id: ObjectId(u32::rp_read(data)?),
 				color: u32::rp_read(data)?,
 			},
-			8 => NotificationType::PortalOpened {
-				message: Cow::rp_read(data)?,
-				picture_type: u32::rp_read(data)?,
-			},
-			10 => NotificationType::PlayerCallout {
-				message: Cow::rp_read(data)?,
-				object_id: ObjectId(u32::rp_read(data)?),
-				stars: u16::rp_read(data)?,
-			},
-			11 => {
-				let message = if (extra & 3) != 0 {
-					Some(Cow::rp_read(data)?)
-				} else {
-					None
-				};
-				NotificationType::ProgressBar {
-					message,
-					max: u32::rp_read(data)?,
-					value: u16::rp_read(data)?,
-				}
-			}
 			12 => NotificationType::Behavior {
 				message: Cow::rp_read(data)?,
 				picture_type: u32::rp_read(data)?,
@@ -120,7 +85,7 @@ impl<'a> RPRead<'a> for NotificationPacket<'a> {
 }
 
 impl<'a> RPWrite for NotificationPacket<'a> {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> std::io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{
@@ -157,39 +122,6 @@ impl<'a> RPWrite for NotificationPacket<'a> {
 				bytes_written += message.rp_write(buf)?;
 				bytes_written += object_id.0.rp_write(buf)?;
 				bytes_written += color.rp_write(buf)?;
-			}
-			NotificationType::PortalOpened {
-				message,
-				picture_type,
-			} => {
-				bytes_written += 8u8.rp_write(buf)?; // notification type
-				bytes_written += self.extra.rp_write(buf)?;
-				bytes_written += message.rp_write(buf)?;
-				bytes_written += picture_type.rp_write(buf)?;
-			}
-			NotificationType::PlayerCallout {
-				message,
-				object_id,
-				stars,
-			} => {
-				bytes_written += 10u8.rp_write(buf)?; // notification type
-				bytes_written += self.extra.rp_write(buf)?;
-				bytes_written += message.rp_write(buf)?;
-				bytes_written += object_id.0.rp_write(buf)?;
-				bytes_written += stars.rp_write(buf)?;
-			}
-			NotificationType::ProgressBar {
-				message,
-				max,
-				value,
-			} => {
-				bytes_written += 11u8.rp_write(buf)?; // notification type
-				bytes_written += self.extra.rp_write(buf)?;
-				if let Some(message) = message {
-					bytes_written += message.rp_write(buf)?;
-				}
-				bytes_written += max.rp_write(buf)?;
-				bytes_written += value.rp_write(buf)?;
 			}
 			NotificationType::Behavior {
 				message,

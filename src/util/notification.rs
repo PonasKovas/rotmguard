@@ -1,5 +1,6 @@
 use crate::packets::{NotificationPacket, NotificationType};
 use crate::proxy::ProxyWriteHalf;
+use anyhow::Result;
 use std::borrow::Cow;
 use std::io;
 
@@ -40,7 +41,7 @@ impl Notification {
 		self.color(BLUE_COLOR)
 	}
 	/// Sends the notification
-	pub async fn send(self, io: &mut ProxyWriteHalf<'_>) -> io::Result<()> {
+	pub async fn send(self, io: &mut ProxyWriteHalf<'_>) -> Result<()> {
 		let packet = NotificationPacket {
 			extra: 0,
 			notification: NotificationType::Behavior {

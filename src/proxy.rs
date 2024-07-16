@@ -166,7 +166,7 @@ impl<'a> Proxy<'a> {
 
 impl<'a> ProxyWriteHalf<'a> {
 	/// Sends a packet TO the server
-	pub async fn send_server(&mut self, packet: &ClientPacket<'_>) -> io::Result<()> {
+	pub async fn send_server(&mut self, packet: &ClientPacket<'_>) -> Result<()> {
 		self.write_buf.clear();
 		0u32.rp_write(&mut self.write_buf)?; // placeholder for length
 
@@ -181,7 +181,7 @@ impl<'a> ProxyWriteHalf<'a> {
 		Ok(())
 	}
 	/// Sends a packet TO the client
-	pub async fn send_client(&mut self, packet: &ServerPacket<'_>) -> io::Result<()> {
+	pub async fn send_client(&mut self, packet: &ServerPacket<'_>) -> Result<()> {
 		self.write_buf.clear();
 		0u32.rp_write(&mut self.write_buf)?; // placeholder for length
 

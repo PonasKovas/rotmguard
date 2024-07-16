@@ -4,6 +4,7 @@ use crate::{
 	read::RPRead,
 	write::RPWrite,
 };
+use anyhow::Result;
 use std::io::{self, ErrorKind, Write};
 
 #[derive(Debug, Clone, Copy)]
@@ -18,7 +19,7 @@ pub struct EnemyShoot {
 }
 
 impl<'a> RPRead<'a> for EnemyShoot {
-	fn rp_read(data: &mut &'a [u8]) -> io::Result<Self>
+	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -31,41 +32,26 @@ impl<'a> RPRead<'a> for EnemyShoot {
 		let angle = f32::rp_read(data)?;
 		let damage = i16::rp_read(data)?;
 
-		match u8::rp_read(data) {
-			Ok(numshots) => {
-				let packet = Self {
-					bullet_id,
-					bullet_type,
-					position,
-					angle,
-					damage,
-					numshots,
-					angle_between_shots: f32::rp_read(data)?,
-				};
-				Ok(packet)
-			}
-			Err(e) => {
-				if e.kind() == ErrorKind::UnexpectedEof {
-					let packet = Self {
-						bullet_id,
-						bullet_type,
-						position,
-						angle,
-						damage,
-						numshots: 1,
-						angle_between_shots: 0.0,
-					};
-					Ok(packet)
-				} else {
-					Err(e)
-				}
-			}
-		}
+		let (numshots, angle_between_shots) = if data.len() > 0 {
+			(u8::rp_read(data)?, f32::rp_read(data)?)
+		} else {
+			(1, 0.0)
+		};
+
+		Ok(Self {
+			bullet_id,
+			bullet_type,
+			position,
+			angle,
+			damage,
+			numshots,
+			angle_between_shots,
+		})
 	}
 }
 
 impl RPWrite for EnemyShoot {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{

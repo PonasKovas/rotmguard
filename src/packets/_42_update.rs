@@ -4,6 +4,7 @@ use crate::{
 	read::{read_compressed_int, RPRead},
 	write::{write_compressed_int, RPWrite},
 };
+use anyhow::{bail, Result};
 use derivative::Derivative;
 use std::io::{self, Error, Write};
 
@@ -28,7 +29,7 @@ pub struct TileData {
 }
 
 impl<'a> RPRead<'a> for UpdatePacket<'a> {
-	fn rp_read(data: &mut &'a [u8]) -> std::io::Result<Self>
+	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -38,10 +39,7 @@ impl<'a> RPRead<'a> for UpdatePacket<'a> {
 		// Tiles
 		let tiles_n = read_compressed_int(data)?;
 		if !(0..=10000).contains(&tiles_n) {
-			return Err(Error::new(
-				io::ErrorKind::InvalidData,
-				format!("Invalid number of tiles ({tiles_n}) in UpdatePacket. (max 10000)"),
-			));
+			bail!("Invalid number of tiles ({tiles_n}) in UpdatePacket. (max 10000)");
 		}
 		let mut tiles = Vec::with_capacity(tiles_n as usize);
 		for _ in 0..tiles_n {
@@ -55,12 +53,7 @@ impl<'a> RPRead<'a> for UpdatePacket<'a> {
 		// New Objects
 		let new_objects_n = read_compressed_int(data)?;
 		if !(0..=10000).contains(&new_objects_n) {
-			return Err(Error::new(
-				io::ErrorKind::InvalidData,
-				format!(
-					"Invalid number of new objects ({new_objects_n}) in UpdatePacket. (max 10000)"
-				),
-			));
+			bail!("Invalid number of new objects ({new_objects_n}) in UpdatePacket. (max 10000)");
 		}
 
 		let mut new_objects = Vec::with_capacity(new_objects_n as usize);
@@ -71,12 +64,9 @@ impl<'a> RPRead<'a> for UpdatePacket<'a> {
 		// Objects to remove
 		let to_remove_n = read_compressed_int(data)?;
 		if !(0..=10000).contains(&to_remove_n) {
-			return Err(Error::new(
-				io::ErrorKind::InvalidData,
-				format!(
-					"Invalid number of objects to remove ({to_remove_n}) in UpdatePacket. (max 10000)"
-				),
-			));
+			bail!(
+				"Invalid number of objects to remove ({to_remove_n}) in UpdatePacket. (max 10000)"
+			);
 		}
 
 		let mut to_remove = Vec::with_capacity(to_remove_n as usize);
@@ -95,7 +85,7 @@ impl<'a> RPRead<'a> for UpdatePacket<'a> {
 }
 
 impl<'a> RPWrite for UpdatePacket<'a> {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{

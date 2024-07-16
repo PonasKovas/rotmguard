@@ -3,6 +3,7 @@ use crate::{
 	read::{read_compressed_int, RPRead},
 	write::{write_compressed_int, RPWrite},
 };
+use anyhow::{bail, Result};
 use std::io::{self, Error, Write};
 
 #[derive(Debug, Clone)]
@@ -13,7 +14,7 @@ pub struct ObjectStatusData<'a> {
 }
 
 impl<'a> RPRead<'a> for ObjectStatusData<'a> {
-	fn rp_read(data: &mut &'a [u8]) -> io::Result<Self>
+	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -22,10 +23,7 @@ impl<'a> RPRead<'a> for ObjectStatusData<'a> {
 
 		let n_stats = read_compressed_int(data)?;
 		if !(0..=10000).contains(&n_stats) {
-			return Err(Error::new(
-				io::ErrorKind::InvalidData,
-				format!("Invalid number of stats ({n_stats}) in ObjectStatusData. (max 10000)"),
-			));
+			bail!("Invalid number of stats ({n_stats}) in ObjectStatusData. (max 10000)");
 		}
 
 		let mut stats = Vec::with_capacity(n_stats as usize);
@@ -42,7 +40,7 @@ impl<'a> RPRead<'a> for ObjectStatusData<'a> {
 }
 
 impl<'a> RPWrite for ObjectStatusData<'a> {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{

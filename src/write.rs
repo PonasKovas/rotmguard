@@ -1,3 +1,4 @@
+use anyhow::Result;
 use std::{
 	borrow::Cow,
 	io::{self, Write},
@@ -6,13 +7,13 @@ use std::{
 /// Write packet/datatype in the game protocol format
 pub trait RPWrite {
 	// Returns how many bytes were written
-	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized;
 }
 
 impl RPWrite for bool {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{
@@ -23,7 +24,7 @@ impl RPWrite for bool {
 }
 
 impl RPWrite for u8 {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{
@@ -34,7 +35,7 @@ impl RPWrite for u8 {
 }
 
 impl RPWrite for u16 {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{
@@ -45,7 +46,7 @@ impl RPWrite for u16 {
 }
 
 impl RPWrite for u32 {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{
@@ -56,7 +57,7 @@ impl RPWrite for u32 {
 }
 
 impl RPWrite for i8 {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{
@@ -67,7 +68,7 @@ impl RPWrite for i8 {
 }
 
 impl RPWrite for i16 {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{
@@ -78,7 +79,7 @@ impl RPWrite for i16 {
 }
 
 impl RPWrite for i32 {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{
@@ -89,7 +90,7 @@ impl RPWrite for i32 {
 }
 
 impl RPWrite for f32 {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{
@@ -100,7 +101,7 @@ impl RPWrite for f32 {
 }
 
 impl RPWrite for String {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{
@@ -115,7 +116,7 @@ impl RPWrite for String {
 }
 
 impl<'a> RPWrite for Cow<'a, str> {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{
@@ -129,7 +130,7 @@ impl<'a> RPWrite for Cow<'a, str> {
 	}
 }
 
-pub fn write_compressed_int<W: Write>(value: &i64, buf: &mut W) -> io::Result<usize> {
+pub fn write_compressed_int<W: Write>(value: &i64, buf: &mut W) -> Result<usize> {
 	let is_negative = *value < 0;
 	let mut value = value.abs();
 

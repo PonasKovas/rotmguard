@@ -4,6 +4,7 @@ use crate::{
 	read::{read_compressed_int, RPRead},
 	write::{write_compressed_int, RPWrite},
 };
+use anyhow::Result;
 use std::io::{self, Write};
 
 #[derive(Debug, Clone)]
@@ -18,7 +19,7 @@ pub struct ShowEffect {
 }
 
 impl<'a> RPRead<'a> for ShowEffect {
-	fn rp_read(data: &mut &'a [u8]) -> std::io::Result<Self>
+	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -85,7 +86,7 @@ impl<'a> RPRead<'a> for ShowEffect {
 }
 
 impl RPWrite for ShowEffect {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{

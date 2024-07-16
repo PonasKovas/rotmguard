@@ -36,6 +36,7 @@ pub use _9_player_text::PlayerText;
 use derivative::Derivative;
 
 use crate::{read::RPRead, write::RPWrite};
+use anyhow::{Context, Result};
 
 /// From client to server
 #[non_exhaustive]
@@ -93,18 +94,18 @@ impl<'a> ServerPacket<'a> {
 }
 
 impl<'a> RPRead<'a> for ClientPacket<'a> {
-	fn rp_read(data: &mut &'a [u8]) -> std::io::Result<Self>
+	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
 		let packet_id = u8::rp_read(data)?;
 
 		let packet = match packet_id {
-			9 => Self::PlayerText(PlayerText::rp_read(data)?),
-			30 => Self::PlayerShoot(PlayerShoot::rp_read(data)?),
-			62 => Self::Move(Move::rp_read(data)?),
-			90 => Self::PlayerHit(PlayerHit::rp_read(data)?),
-			103 => Self::GroundDamage(GroundDamage::rp_read(data)?),
+			9 => Self::PlayerText(PlayerText::rp_read(data).context("player_text packet")?),
+			30 => Self::PlayerShoot(PlayerShoot::rp_read(data).context("player_shoot packet")?),
+			62 => Self::Move(Move::rp_read(data).context("move packet")?),
+			90 => Self::PlayerHit(PlayerHit::rp_read(data).context("player_hit packet")?),
+			103 => Self::GroundDamage(GroundDamage::rp_read(data).context("ground_damage packet")?),
 			105 => Self::Escape,
 			_ => Self::Unknown {
 				id: packet_id,
@@ -117,23 +118,27 @@ impl<'a> RPRead<'a> for ClientPacket<'a> {
 }
 
 impl<'a> RPRead<'a> for ServerPacket<'a> {
-	fn rp_read(data: &mut &'a [u8]) -> std::io::Result<Self>
+	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
 		let packet_id = u8::rp_read(data)?;
 
 		let packet = match packet_id {
-			10 => Self::NewTick(NewTick::rp_read(data)?),
-			11 => Self::ShowEffect(ShowEffect::rp_read(data)?),
-			18 => Self::Goto(GotoPacket::rp_read(data)?),
-			35 => Self::EnemyShoot(EnemyShoot::rp_read(data)?),
-			42 => Self::Update(UpdatePacket::rp_read(data)?),
-			44 => Self::Text(TextPacket::rp_read(data)?),
-			45 => Self::Reconnect(Reconnect::rp_read(data)?),
-			64 => Self::Aoe(AoePacket::rp_read(data)?),
-			67 => Self::Notification(NotificationPacket::rp_read(data)?),
-			101 => Self::CreateSuccess(CreateSuccess::rp_read(data)?),
+			10 => Self::NewTick(NewTick::rp_read(data).context("new_tick packet")?),
+			11 => Self::ShowEffect(ShowEffect::rp_read(data).context("show_effect packet")?),
+			18 => Self::Goto(GotoPacket::rp_read(data).context("goto packet")?),
+			35 => Self::EnemyShoot(EnemyShoot::rp_read(data).context("enemy_shoot packet")?),
+			42 => Self::Update(UpdatePacket::rp_read(data).context("update packet")?),
+			44 => Self::Text(TextPacket::rp_read(data).context("text packet")?),
+			45 => Self::Reconnect(Reconnect::rp_read(data).context("reconnect packet")?),
+			64 => Self::Aoe(AoePacket::rp_read(data).context("aoe packet")?),
+			67 => Self::Notification(
+				NotificationPacket::rp_read(data).context("notification packet")?,
+			),
+			101 => {
+				Self::CreateSuccess(CreateSuccess::rp_read(data).context("create_success packet")?)
+			}
 			_ => Self::Unknown {
 				id: packet_id,
 				bytes: Cow::Borrowed(data),
@@ -145,7 +150,7 @@ impl<'a> RPRead<'a> for ServerPacket<'a> {
 }
 
 impl<'a> RPWrite for ClientPacket<'a> {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> std::io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{
@@ -186,7 +191,7 @@ impl<'a> RPWrite for ClientPacket<'a> {
 }
 
 impl<'a> RPWrite for ServerPacket<'a> {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> std::io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{

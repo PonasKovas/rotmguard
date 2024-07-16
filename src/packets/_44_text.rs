@@ -1,5 +1,6 @@
 use super::ServerPacket;
 use crate::{extra_datatypes::ObjectId, read::RPRead, write::RPWrite};
+use anyhow::Result;
 use std::{
 	borrow::Cow,
 	io::{self, Write},
@@ -19,7 +20,7 @@ pub struct TextPacket<'a> {
 }
 
 impl<'a> RPRead<'a> for TextPacket<'a> {
-	fn rp_read(data: &mut &'a [u8]) -> std::io::Result<Self>
+	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -38,7 +39,7 @@ impl<'a> RPRead<'a> for TextPacket<'a> {
 }
 
 impl<'a> RPWrite for TextPacket<'a> {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> io::Result<usize>
+	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
 	where
 		Self: Sized,
 	{
