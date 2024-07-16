@@ -9,14 +9,14 @@ pub fn apply_passive(proxy: &mut Proxy<'_>, time: f64) {
 		let bleed_amount = 20.0 * time;
 
 		autonexus!(proxy).hp = (autonexus!(proxy).hp - bleed_amount).max(1.0); // bleeding stops at 1
-		trace!(bleed_amount, "Applied bleeding");
+		trace!(?proxy.modules, bleed_amount, "Applied bleeding");
 	} else if !stats.conditions.sick() {
 		// if not bleeding, nor sickened
 
 		if stats.conditions.healing() {
 			let heal_amount = 20.0 * time;
 			autonexus!(proxy).hp += heal_amount;
-			trace!(heal_amount, "Applying healing effect");
+			trace!(?proxy.modules, heal_amount, "Applying healing effect");
 		}
 
 		// vit regeneration
@@ -26,6 +26,6 @@ pub fn apply_passive(proxy: &mut Proxy<'_>, time: f64) {
 			regen_amount /= 2.0;
 		};
 		autonexus!(proxy).hp = (autonexus!(proxy).hp + regen_amount).min(stats.stats.max_hp as f64); // make sure our client hp is not more than max hp
-		trace!(regen_amount, "VIT regeneration");
+		trace!(?proxy.modules, regen_amount, "VIT regeneration");
 	}
 }

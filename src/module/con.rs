@@ -5,8 +5,8 @@ use crate::{
 	proxy::Proxy,
 	util::notification::Notification,
 };
+use anyhow::Result;
 use phf::phf_map;
-use std::io::Result;
 
 pub static SERVERS: phf::Map<&str, &str> = phf_map! {
 	"eue"	=> "18.184.218.174",

@@ -6,7 +6,7 @@ use crate::{
 	proxy::Proxy,
 	util::notification::Notification,
 };
-use std::io::Result;
+use anyhow::Result;
 
 gen_this_macro! {fake_slow}
 

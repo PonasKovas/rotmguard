@@ -1,12 +1,11 @@
 use super::{Module, ModuleInstance, PacketFlow, BLOCK, FORWARD};
 use crate::{
-	extra_datatypes::{ObjectStatusData, Stat, StatData, StatType},
 	gen_this_macro,
-	packets::{ClientPacket, PlayerShoot, ServerPacket},
+	packets::{ClientPacket, PlayerShoot},
 	proxy::Proxy,
-	util::notification::Notification,
 };
-use std::{f32::consts::PI, io::Result};
+use anyhow::Result;
+use std::f32::consts::PI;
 
 gen_this_macro! {cult_staff}
 

@@ -3,12 +3,12 @@ use crate::{
 	assets::ProjectileInfo,
 	extra_datatypes::{ObjectId, ProjectileId},
 	gen_this_macro,
-	module::BLOCK,
 	packets::{EnemyShoot, PlayerHit, UpdatePacket},
 	proxy::Proxy,
 };
+use anyhow::{bail, Result};
 use lru::LruCache;
-use std::{collections::BTreeMap, io::Result, num::NonZero};
+use std::{collections::BTreeMap, num::NonZero};
 use tracing::{error, trace};
 
 gen_this_macro! {autonexus.projectiles}
@@ -57,7 +57,7 @@ impl Projectiles {
 		let shooter_object_type = match projectiles!(proxy).objects.get(&shooter_id) {
 			Some(object_type) => *object_type as u32,
 			None => {
-				trace!("EnemyShoot packet with non-visible owner");
+				trace!(?enemy_shoot, "EnemyShoot packet with non-visible owner");
 
 				// this happens all the time, server sends info about bullets that are not even in visible range
 				// its safe to assume that the client ignores these too
@@ -68,7 +68,7 @@ impl Projectiles {
 		let shooter_projectile_types = match proxy.assets.projectiles.get(&shooter_object_type) {
 			Some(types) => types,
 			None => {
-				error!("Bullet shot by enemy of which assets are not registered. Maybe your assets are outdated?");
+				error!(?enemy_shoot, ?shooter_object_type, "Bullet shot by enemy of which assets are not registered. Maybe your assets are outdated?");
 
 				return PacketFlow::Block; // i guess dont forward the packet, better get DCed than die
 			}
@@ -77,7 +77,7 @@ impl Projectiles {
 		let info = match shooter_projectile_types.get(&(enemy_shoot.bullet_type as u32)) {
 			Some(info) => *info,
 			None => {
-				error!("Bullet type shot of which assets are not registered. Maybe your assets are outdated?");
+				error!(?enemy_shoot, ?shooter_object_type, "Bullet type shot of which assets are not registered. Maybe your assets are outdated?");
 
 				return PacketFlow::Block; // i guess dont forward the packet, better get DCed than die
 			}
@@ -111,12 +111,7 @@ impl Projectiles {
 		let bullet_info = match projectiles!(proxy).bullets.pop(&player_hit.bullet_id) {
 			Some(info) => info,
 			None => {
-				error!(
-					owner = ?projectiles!(proxy).objects.get(&player_hit.bullet_id.owner_id),
-					"Player claims that he got hit by bullet which is not visible."
-				);
-
-				return BLOCK; // Dont forward the packet then, better get DCed than die.
+				bail!("Player claims that he got hit by bullet which is not visible.");
 			}
 		};
 
@@ -128,7 +123,7 @@ impl Projectiles {
 		// we check invulnerable here since it doesnt protect from ground damage
 		// while invincible is checked in take_damage() because it always applies
 		if conditions.invulnerable() {
-			trace!("Player hit while invulnerable.");
+			trace!(?proxy.modules, "Player hit while invulnerable.");
 			return FORWARD; // ignore if invulnerable
 		}
 
@@ -178,7 +173,7 @@ impl Projectiles {
 		// 		.set_armor_broken(true);
 		// }
 
-		trace!(?bullet_info, "Player hit with bullet");
+		trace!(?proxy.modules, ?bullet_info, "Player hit with bullet");
 
 		take_damage(proxy, damage).await
 	}

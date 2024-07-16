@@ -5,7 +5,8 @@ use crate::{
 	packets::{GroundDamage, UpdatePacket},
 	proxy::Proxy,
 };
-use std::{collections::HashMap, io::Result};
+use anyhow::{bail, Result};
+use std::collections::HashMap;
 use tracing::error;
 
 gen_this_macro! {autonexus.ground}
@@ -32,10 +33,7 @@ impl Ground {
 		let damage = match ground!(proxy).hazardous_tiles.get(&(x, y)) {
 			Some(damage) => *damage,
 			None => {
-				error!("Player claims to take ground damage when not standing on hazardous ground! Maybe your assets are outdated?");
-				nexus(proxy).await?;
-
-				return BLOCK;
+				bail!("Player claims to take ground damage when not standing on hazardous ground! Maybe your assets are outdated?");
 			}
 		};
 

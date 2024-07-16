@@ -1,6 +1,7 @@
 use super::{take_damage, PacketFlow, FORWARD};
 use crate::{gen_this_macro, module::BLOCK, packets::AoePacket, proxy::Proxy};
-use std::{collections::VecDeque, io::Result};
+use anyhow::{Context, Result};
+use std::collections::VecDeque;
 use tracing::trace;
 
 gen_this_macro! {autonexus.aoes}
@@ -29,7 +30,7 @@ impl AOEs {
 		let aoes = aoes!(proxy)
 			.aoes
 			.pop_front()
-			.expect("client acknowledged more ticks that server sent");
+			.context("client acknowledged more ticks that server sent")?;
 
 		// this remapping is so that it can be logged conveniently (which aoes hit)
 		let mut aoes: Vec<(AoePacket, bool)> = aoes.into_iter().map(|a| (a, false)).collect();
@@ -91,7 +92,7 @@ impl AOEs {
 		}
 
 		if !aoes.is_empty() {
-			trace!(?aoes, "AOEs");
+			trace!(?proxy.modules, ?aoes, "AOEs");
 		}
 
 		FORWARD

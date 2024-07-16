@@ -38,8 +38,8 @@ pub fn heal(proxy: &mut Proxy<'_>, message: &str) {
 		.min(proxy.modules.stats.get_newest().stats.max_hp as f64);
 
 	debug!(
+		?proxy.modules,
 		heal_amount = amount_healed,
-		new_hp = autonexus!(proxy).hp,
 		"Healed"
 	);
 }

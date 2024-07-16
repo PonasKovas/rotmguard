@@ -6,6 +6,7 @@ use crate::{
 	read::RPRead,
 	write::RPWrite,
 };
+use anyhow::{bail, Context, Result};
 use rc4::{consts::U13, KeyInit, Rc4, StreamCipher};
 use std::{
 	mem::swap,
@@ -77,7 +78,7 @@ impl<'a> Proxy<'a> {
 		modules: RootModuleInstance,
 		mut client: TcpStream,
 		mut server: TcpStream,
-	) -> io::Result<()> {
+	) -> Result<()> {
 		let (client_read, client_write) = client.split();
 		let (server_read, server_write) = server.split();
 
@@ -104,9 +105,9 @@ impl<'a> Proxy<'a> {
 					let raw_packet = match p {
 						Ok(p) => p,
 						Err(e) => {
-							RootModuleInstance::disconnect(&mut proxy, ProxySide::Server).await?;
+							RootModuleInstance::disconnect(&mut proxy, ProxySide::Server).await.context("modules disconnect()")?;
 
-							return Err(e);
+							bail!("Error reading server packet: {e:?}");
 						}
 					};
 
@@ -120,12 +121,12 @@ impl<'a> Proxy<'a> {
 								}
 								Ok(PacketFlow::Block) => {}, // dont forward the packet
 								Err(e) => {
-									error!("Error handling server packet: {e:?}");
+									bail!("Error handling server packet: {e:?}");
 								}
 							}
 						}
 						Err(e) => {
-							error!("Error parsing server packet: {e:?}");
+							bail!("Error parsing server packet: {e:?}");
 						}
 					}
 				},
@@ -135,7 +136,7 @@ impl<'a> Proxy<'a> {
 						Err(e) => {
 							RootModuleInstance::disconnect(&mut proxy, ProxySide::Client).await?;
 
-							return Err(e);
+							bail!("Error reading client packet: {e:?}");
 						}
 					};
 
@@ -149,12 +150,12 @@ impl<'a> Proxy<'a> {
 								}
 								Ok(PacketFlow::Block) => {}, // dont forward the packet
 								Err(e) => {
-									error!("Error handling client packet: {e:?}");
+									bail!("Error handling client packet: {e:?}");
 								}
 							}
 						}
 						Err(e) => {
-							error!("Error parsing client packet: {e:?}");
+							bail!("Error parsing client packet: {e:?}");
 						}
 					}
 				},

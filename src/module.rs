@@ -4,13 +4,13 @@ use crate::{
 };
 use anti_push::AntiPush;
 use antidebuffs::Antidebuffs;
+use anyhow::Result;
 use autonexus::Autonexus;
 use con::Con;
 use cult_staff::CultStaff;
 use fake_slow::FakeSlow;
 use general::General;
 use stats::Stats;
-use std::io::Result;
 
 mod anti_push;
 mod antidebuffs;

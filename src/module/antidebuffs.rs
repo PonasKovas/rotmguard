@@ -5,7 +5,7 @@ use crate::{
 	packets::ServerPacket,
 	proxy::Proxy,
 };
-use std::io::Result;
+use anyhow::Result;
 
 gen_this_macro! {antidebuffs}
 

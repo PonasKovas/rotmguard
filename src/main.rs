@@ -95,9 +95,7 @@ async fn accept_con(
 
 	tokio::spawn(async move {
 		if let Err(e) = Proxy::run(config, assets, modules, socket, real_server).await {
-			if e.kind() != ErrorKind::UnexpectedEof {
-				error!("{e:?}");
-			}
+			error!("{e:?}");
 		}
 	});
 

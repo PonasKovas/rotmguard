@@ -5,10 +5,8 @@ use crate::{
 	packets::{ClientPacket, ServerPacket},
 	proxy::Proxy,
 };
-use std::{
-	collections::VecDeque,
-	io::{Error, Result},
-};
+use anyhow::{bail, Result};
+use std::collections::VecDeque;
 
 gen_this_macro! {stats}
 
@@ -76,9 +74,7 @@ impl ModuleInstance for StatsInst {
 			if stats!(proxy).ticks.is_empty() {
 				// the only way there are no ticks in the VecDeque is if there have been more Move packets than NewTick
 				// which should never happen
-				return Err(Error::other(
-					"client acknowledged tick that wasnt yet received",
-				));
+				bail!("client acknowledged tick that wasnt yet received");
 			}
 		}
 

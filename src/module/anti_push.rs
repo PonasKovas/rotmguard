@@ -5,7 +5,8 @@ use crate::{
 	proxy::Proxy,
 	util::notification::Notification,
 };
-use std::{collections::BTreeMap, io::Result};
+use anyhow::Result;
+use std::collections::BTreeMap;
 
 gen_this_macro! {anti_push}
 

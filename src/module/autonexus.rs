@@ -8,11 +8,11 @@ use crate::{
 	proxy::Proxy,
 	util::notification::Notification,
 };
+use anyhow::Result;
 use aoes::AOEs;
 use derivative::Derivative;
 use ground::Ground;
 use projectiles::Projectiles;
-use std::io::Result;
 use tracing::{debug, error, trace, warn};
 
 gen_this_macro! {autonexus}
@@ -176,7 +176,7 @@ impl ModuleInstance for AutonexusInst {
 				let hp_delta = autonexus!(proxy).hp - server_hp as f64;
 				if hp_delta > 1.0 && server_hp != proxy.modules.stats.get_newest().stats.max_hp {
 					error!(
-						client_hp = autonexus!(proxy).hp,
+						?proxy.modules,
 						"server hp lower than client hp"
 					);
 
@@ -242,7 +242,7 @@ impl ModuleInstance for AutonexusInst {
 				id: 46,
 				bytes: _bytes,
 			} => {
-				error!("DEATH 💀"); // 🪦 願您在天使的懷抱中找到永恆的和平與安寧。安息。
+				error!(?proxy.modules, "DEATH 💀"); // 🪦 願您在天使的懷抱中找到永恆的和平與安寧。安息。
 				save_logs();
 			}
 
@@ -257,7 +257,7 @@ impl ModuleInstance for AutonexusInst {
 // Returns BLOCK if nexused
 async fn take_damage(proxy: &mut Proxy<'_>, damage: i64) -> Result<PacketFlow> {
 	if proxy.modules.stats.get().conditions.invincible() {
-		trace!(damage, "Player would have taken damage but invincible.");
+		trace!(?proxy.modules, damage, "Player would have taken damage but invincible.");
 		return FORWARD;
 	}
 
@@ -265,7 +265,7 @@ async fn take_damage(proxy: &mut Proxy<'_>, damage: i64) -> Result<PacketFlow> {
 
 	proxy.modules.autonexus.hp -= damage as f64;
 
-	debug!(damage, "Damage taken");
+	debug!(?proxy.modules, damage, "Damage taken");
 
 	if proxy.modules.autonexus.hp <= *proxy.config.settings.autonexus_hp.lock().unwrap() as f64 {
 		// AUTONEXUS ENGAGE!!!
@@ -286,7 +286,7 @@ async fn take_damage(proxy: &mut Proxy<'_>, damage: i64) -> Result<PacketFlow> {
 async fn nexus(proxy: &mut Proxy<'_>) -> Result<()> {
 	proxy.write.send_server(&ClientPacket::Escape).await?;
 
-	warn!("Nexusing");
+	warn!(?proxy.modules, "Nexusing");
 
 	Ok(())
 }

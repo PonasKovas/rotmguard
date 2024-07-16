@@ -7,9 +7,9 @@ use crate::{
 	proxy::Proxy,
 	util::notification::Notification,
 };
+use anyhow::{bail, Result};
 use rand::{thread_rng, Rng};
-use std::io::Result;
-use tracing::{error, info};
+use tracing::info;
 
 gen_this_macro! {general}
 
@@ -48,10 +48,10 @@ impl ModuleInstance for GeneralInst {
 				// this is basically client acknowledging a tick.
 
 				if move_packet.tick_id != general!(proxy).client_tick_id {
-					error!(
-						client_tick_id = move_packet.tick_id,
-						server_tick_id = general!(proxy).client_tick_id,
-						"Client received tick that it wasnt expecting!"
+					bail!(
+						"Client acknowledging tick {} even though {} was expected",
+						move_packet.tick_id,
+						general!(proxy).client_tick_id
 					);
 				}
 
@@ -93,7 +93,7 @@ impl ModuleInstance for GeneralInst {
 					};
 					proxy.write.send_client(&packet.into()).await?;
 
-					info!("{:?}", proxy.modules);
+					info!(?proxy.modules, "hi ☺️");
 
 					return BLOCK;
 				}
