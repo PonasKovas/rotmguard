@@ -6,7 +6,7 @@ use crate::{
 };
 use anyhow::{bail, Result};
 use derivative::Derivative;
-use std::io::{self, Error, Write};
+use std::io::{Write};
 
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]

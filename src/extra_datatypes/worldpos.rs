@@ -1,7 +1,7 @@
 use crate::{read::RPRead, write::RPWrite};
 use anyhow::Result;
 use std::{
-	io::{self, Write},
+	io::{Write},
 	ops::{Add, Mul, Sub},
 };
 

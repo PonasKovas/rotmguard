@@ -3,7 +3,7 @@ use crate::{extra_datatypes::ObjectId, read::RPRead, write::RPWrite};
 use anyhow::Result;
 use std::{
 	borrow::Cow,
-	io::{self, Write},
+	io::{Write},
 };
 
 #[derive(Debug, Clone)]

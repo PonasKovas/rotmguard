@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::{
 	borrow::Cow,
-	io::{self, Write},
+	io::{Write},
 };
 
 /// Write packet/datatype in the game protocol format

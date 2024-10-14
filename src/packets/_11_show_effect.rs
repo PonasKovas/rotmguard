@@ -5,7 +5,7 @@ use crate::{
 	write::{write_compressed_int, RPWrite},
 };
 use anyhow::Result;
-use std::io::{self, Write};
+use std::io::{Write};
 
 #[derive(Debug, Clone)]
 pub struct ShowEffect {

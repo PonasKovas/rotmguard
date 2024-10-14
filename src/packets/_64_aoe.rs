@@ -1,7 +1,7 @@
 use super::ServerPacket;
 use crate::{extra_datatypes::WorldPos, read::RPRead, write::RPWrite};
 use anyhow::Result;
-use std::io::{self, Write};
+use std::io::{Write};
 
 #[derive(Debug, Clone)]
 pub struct AoePacket {

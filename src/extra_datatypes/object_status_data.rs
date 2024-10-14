@@ -4,7 +4,7 @@ use crate::{
 	write::{write_compressed_int, RPWrite},
 };
 use anyhow::{bail, Result};
-use std::io::{self, Error, Write};
+use std::io::{Write};
 
 #[derive(Debug, Clone)]
 pub struct ObjectStatusData<'a> {

@@ -5,7 +5,7 @@ use crate::{
 	write::RPWrite,
 };
 use anyhow::Result;
-use std::io::{self, ErrorKind, Write};
+use std::io::{Write};
 
 #[derive(Debug, Clone, Copy)]
 pub struct EnemyShoot {

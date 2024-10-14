@@ -2,7 +2,6 @@ use crate::packets::{NotificationPacket, NotificationType};
 use crate::proxy::ProxyWriteHalf;
 use anyhow::Result;
 use std::borrow::Cow;
-use std::io;
 
 const RED_COLOR: u32 = 0xFF6666;
 const GREEN_COLOR: u32 = 0x66FF66;

@@ -3,7 +3,7 @@ use crate::{read::RPRead, write::RPWrite};
 use anyhow::Result;
 use std::{
 	borrow::Cow,
-	io::{self, Read, Write},
+	io::{Read, Write},
 };
 
 #[derive(Debug, Clone)]
