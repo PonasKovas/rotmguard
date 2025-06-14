@@ -2,7 +2,6 @@ use super::{take_damage, PacketFlow, FORWARD};
 use crate::{gen_this_macro, module::BLOCK, packets::AoePacket, proxy::Proxy};
 use anyhow::{Context, Result};
 use std::collections::VecDeque;
-use tracing::trace;
 
 gen_this_macro! {autonexus.aoes}
 
@@ -89,10 +88,6 @@ impl AOEs {
 					return BLOCK; // dont forward if nexusing
 				}
 			}
-		}
-
-		if !aoes.is_empty() {
-			trace!(?proxy.modules, ?aoes, "AOEs");
 		}
 
 		FORWARD

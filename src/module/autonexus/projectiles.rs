@@ -9,7 +9,7 @@ use crate::{
 use anyhow::{bail, Result};
 use lru::LruCache;
 use std::{collections::BTreeMap, num::NonZero};
-use tracing::{error, trace};
+use tracing::error;
 
 gen_this_macro! {autonexus.projectiles}
 
@@ -57,8 +57,6 @@ impl Projectiles {
 		let shooter_object_type = match projectiles!(proxy).objects.get(&shooter_id) {
 			Some(object_type) => *object_type as u32,
 			None => {
-				trace!(?enemy_shoot, "EnemyShoot packet with non-visible owner");
-
 				// this happens all the time, server sends info about bullets that are not even in visible range
 				// its safe to assume that the client ignores these too
 				return PacketFlow::Forward;
@@ -82,14 +80,6 @@ impl Projectiles {
 				return PacketFlow::Block; // i guess dont forward the packet, better get DCed than die
 			}
 		};
-
-		trace!(
-			?info,
-			"Adding bullets with ids {}..{} (owner {})",
-			enemy_shoot.bullet_id.id,
-			enemy_shoot.bullet_id.id + enemy_shoot.numshots as u16,
-			enemy_shoot.bullet_id.owner_id.0
-		);
 
 		// create N bullets with incremental IDs where N is the number of shots
 		for i in 0..=enemy_shoot.numshots {
@@ -123,7 +113,6 @@ impl Projectiles {
 		// we check invulnerable here since it doesnt protect from ground damage
 		// while invincible is checked in take_damage() because it always applies
 		if conditions.invulnerable() {
-			trace!(?proxy.modules, "Player hit while invulnerable.");
 			return FORWARD; // ignore if invulnerable
 		}
 
@@ -172,8 +161,6 @@ impl Projectiles {
 		// 		.conditions
 		// 		.set_armor_broken(true);
 		// }
-
-		trace!(?proxy.modules, ?bullet_info, "Player hit with bullet");
 
 		take_damage(proxy, damage).await
 	}

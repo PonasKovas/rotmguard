@@ -13,7 +13,7 @@ use aoes::AOEs;
 use derivative::Derivative;
 use ground::Ground;
 use projectiles::Projectiles;
-use tracing::{debug, error, trace, warn};
+use tracing::{debug, error, warn};
 
 gen_this_macro! {autonexus}
 
@@ -253,7 +253,6 @@ impl ModuleInstance for AutonexusInst {
 // Returns BLOCK if nexused
 async fn take_damage(proxy: &mut Proxy, damage: i64) -> Result<PacketFlow> {
 	if proxy.modules.stats.get().conditions.invincible() {
-		trace!(?proxy.modules, damage, "Player would have taken damage but invincible.");
 		return FORWARD;
 	}
 
