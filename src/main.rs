@@ -23,7 +23,7 @@ mod tests;
 mod util;
 mod write;
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
 	// Initialize config
 	let raw_config = fs::read_to_string(config::CONFIG_PATH).context("reading config file")?;
@@ -89,6 +89,9 @@ async fn accept_con(
 
 	info!("Connecting to {original_dst}");
 	let real_server = TcpStream::connect((original_dst, 2051)).await?; // iptables rule will redirect this to port 2050
+
+	real_server.set_nodelay(true)?;
+	socket.set_nodelay(true)?;
 
 	tokio::spawn(async move {
 		if let Err(e) = Proxy::run(config, assets, modules, socket, real_server).await {

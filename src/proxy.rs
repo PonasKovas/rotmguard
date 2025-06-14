@@ -39,7 +39,7 @@ const AVG_PACKET_LENGTH: usize = 512;
 
 // Period of writing buffered packets, in milliseconds.
 // So all buffered packets will be sent to client/server ever X ms.
-const WRITE_PERIOD: u64 = 1;
+const WRITE_PERIOD: u64 = 10;
 
 pub struct Proxy {
 	pub config: Arc<Config>,
