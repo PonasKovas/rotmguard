@@ -1,10 +1,7 @@
 use super::ClientPacket;
 use crate::{read::RPRead, write::RPWrite};
 use anyhow::Result;
-use std::{
-	borrow::Cow,
-	io::{Write},
-};
+use std::borrow::Cow;
 
 #[derive(Debug, Clone)]
 pub struct PlayerText<'a> {
@@ -23,15 +20,12 @@ impl<'a> RPRead<'a> for PlayerText<'a> {
 }
 
 impl<'a> RPWrite for PlayerText<'a> {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut written = 0;
 
-		written += self.text.rp_write(buf)?;
+		written += self.text.rp_write(buf);
 
-		Ok(written)
+		written
 	}
 }
 

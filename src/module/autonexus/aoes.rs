@@ -19,14 +19,14 @@ impl AOEs {
 			aoes: VecDeque::from([Vec::new()]),
 		}
 	}
-	pub fn add_aoe(proxy: &mut Proxy<'_>, aoe: &AoePacket) {
+	pub fn add_aoe(proxy: &mut Proxy, aoe: &AoePacket) {
 		aoes!(proxy).aoes.back_mut().unwrap().push(aoe.clone());
 	}
-	pub fn flush(proxy: &mut Proxy<'_>) {
+	pub fn flush(proxy: &mut Proxy) {
 		aoes!(proxy).aoes.push_back(Vec::new());
 	}
 	// Returns BLOCK if nexused
-	pub async fn check_aoes(proxy: &mut Proxy<'_>) -> Result<PacketFlow> {
+	pub async fn check_aoes(proxy: &mut Proxy) -> Result<PacketFlow> {
 		let aoes = aoes!(proxy)
 			.aoes
 			.pop_front()

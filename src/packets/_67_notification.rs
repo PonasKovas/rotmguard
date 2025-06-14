@@ -1,7 +1,7 @@
 use super::ServerPacket;
 use crate::{extra_datatypes::ObjectId, read::RPRead, write::RPWrite};
 use anyhow::Result;
-use std::{borrow::Cow, io::Write};
+use std::borrow::Cow;
 
 #[derive(Debug)]
 pub struct NotificationPacket<'a> {
@@ -85,64 +85,61 @@ impl<'a> RPRead<'a> for NotificationPacket<'a> {
 }
 
 impl<'a> RPWrite for NotificationPacket<'a> {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut bytes_written = 0;
 
 		match &self.notification {
 			NotificationType::StatIncrease { text } => {
-				bytes_written += 0u8.rp_write(buf)?; // notification type
-				bytes_written += self.extra.rp_write(buf)?;
-				bytes_written += text.rp_write(buf)?;
+				bytes_written += 0u8.rp_write(buf); // notification type
+				bytes_written += self.extra.rp_write(buf);
+				bytes_written += text.rp_write(buf);
 			}
 			NotificationType::ServerMessage { text } => {
-				bytes_written += 1u8.rp_write(buf)?; // notification type
-				bytes_written += self.extra.rp_write(buf)?;
-				bytes_written += text.rp_write(buf)?;
+				bytes_written += 1u8.rp_write(buf); // notification type
+				bytes_written += self.extra.rp_write(buf);
+				bytes_written += text.rp_write(buf);
 			}
 			NotificationType::ErrorMessage { text } => {
-				bytes_written += 2u8.rp_write(buf)?; // notification type
-				bytes_written += self.extra.rp_write(buf)?;
-				bytes_written += text.rp_write(buf)?;
+				bytes_written += 2u8.rp_write(buf); // notification type
+				bytes_written += self.extra.rp_write(buf);
+				bytes_written += text.rp_write(buf);
 			}
 			NotificationType::StickyMessage { text } => {
-				bytes_written += 3u8.rp_write(buf)?; // notification type
-				bytes_written += self.extra.rp_write(buf)?;
-				bytes_written += text.rp_write(buf)?;
+				bytes_written += 3u8.rp_write(buf); // notification type
+				bytes_written += self.extra.rp_write(buf);
+				bytes_written += text.rp_write(buf);
 			}
 			NotificationType::ObjectText {
 				message,
 				object_id,
 				color,
 			} => {
-				bytes_written += 6u8.rp_write(buf)?; // notification type
-				bytes_written += self.extra.rp_write(buf)?;
-				bytes_written += message.rp_write(buf)?;
-				bytes_written += object_id.0.rp_write(buf)?;
-				bytes_written += color.rp_write(buf)?;
+				bytes_written += 6u8.rp_write(buf); // notification type
+				bytes_written += self.extra.rp_write(buf);
+				bytes_written += message.rp_write(buf);
+				bytes_written += object_id.0.rp_write(buf);
+				bytes_written += color.rp_write(buf);
 			}
 			NotificationType::Behavior {
 				message,
 				picture_type,
 				color,
 			} => {
-				bytes_written += 12u8.rp_write(buf)?; // notification type
-				bytes_written += self.extra.rp_write(buf)?;
-				bytes_written += message.rp_write(buf)?;
-				bytes_written += picture_type.rp_write(buf)?;
-				bytes_written += color.rp_write(buf)?;
+				bytes_written += 12u8.rp_write(buf); // notification type
+				bytes_written += self.extra.rp_write(buf);
+				bytes_written += message.rp_write(buf);
+				bytes_written += picture_type.rp_write(buf);
+				bytes_written += color.rp_write(buf);
 			}
 			NotificationType::Other { id, data } => {
-				bytes_written += id.rp_write(buf)?; // notification type
-				bytes_written += self.extra.rp_write(buf)?;
+				bytes_written += id.rp_write(buf); // notification type
+				bytes_written += self.extra.rp_write(buf);
 				bytes_written += data.len();
-				buf.write_all(data)?;
+				buf.extend_from_slice(data);
 			}
 		}
 
-		Ok(bytes_written)
+		bytes_written
 	}
 }
 

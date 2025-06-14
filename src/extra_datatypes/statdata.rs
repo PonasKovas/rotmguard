@@ -3,10 +3,7 @@ use crate::{
 	write::{write_compressed_int, RPWrite},
 };
 use anyhow::Result;
-use std::{
-	borrow::Cow,
-	io::{Write},
-};
+use std::borrow::Cow;
 
 #[derive(Debug, Clone)]
 pub struct StatData<'a> {
@@ -101,10 +98,7 @@ impl<'a> RPRead<'a> for StatData<'a> {
 }
 
 impl<'a> RPWrite for StatData<'a> {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut written = 0;
 
 		let stat_type = match &self.stat_type {
@@ -112,19 +106,19 @@ impl<'a> RPWrite for StatData<'a> {
 			s => unsafe { *(s as *const _ as *const u8) },
 		};
 
-		written += stat_type.rp_write(buf)?;
+		written += stat_type.rp_write(buf);
 
 		match &self.stat {
 			Stat::String(s) => {
-				written += s.rp_write(buf)?;
+				written += s.rp_write(buf);
 			}
 			Stat::Int(i) => {
-				written += write_compressed_int(i, buf)?;
+				written += write_compressed_int(i, buf);
 			}
 		}
 
-		written += write_compressed_int(&self.secondary_stat, buf)?;
+		written += write_compressed_int(&self.secondary_stat, buf);
 
-		Ok(written)
+		written
 	}
 }

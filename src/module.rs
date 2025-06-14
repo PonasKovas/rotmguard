@@ -7,7 +7,6 @@ use antidebuffs::Antidebuffs;
 use anyhow::Result;
 use autonexus::Autonexus;
 use con::Con;
-use cult_staff::CultStaff;
 use fake_slow::FakeSlow;
 use general::General;
 use stats::Stats;
@@ -16,7 +15,6 @@ mod anti_push;
 mod antidebuffs;
 mod autonexus;
 mod con;
-mod cult_staff;
 mod fake_slow;
 mod general;
 mod stats;
@@ -49,44 +47,44 @@ pub trait Module {
 #[allow(unused_variables)]
 pub trait ModuleInstance {
 	async fn pre_client_packet<'a>(
-		proxy: &mut Proxy<'_>,
+		proxy: &mut Proxy,
 		packet: &mut ClientPacket<'a>,
 	) -> Result<PacketFlow> {
 		FORWARD
 	}
 	async fn client_packet<'a>(
-		proxy: &mut Proxy<'_>,
+		proxy: &mut Proxy,
 		packet: &mut ClientPacket<'a>,
 	) -> Result<PacketFlow> {
 		FORWARD
 	}
 	async fn post_client_packet<'a>(
-		proxy: &mut Proxy<'_>,
+		proxy: &mut Proxy,
 		packet: &mut ClientPacket<'a>,
 	) -> Result<PacketFlow> {
 		FORWARD
 	}
 
 	async fn pre_server_packet<'a>(
-		proxy: &mut Proxy<'_>,
+		proxy: &mut Proxy,
 		packet: &mut ServerPacket<'a>,
 	) -> Result<PacketFlow> {
 		FORWARD
 	}
 	async fn server_packet<'a>(
-		proxy: &mut Proxy<'_>,
+		proxy: &mut Proxy,
 		packet: &mut ServerPacket<'a>,
 	) -> Result<PacketFlow> {
 		FORWARD
 	}
 	async fn post_server_packet<'a>(
-		proxy: &mut Proxy<'_>,
+		proxy: &mut Proxy,
 		packet: &mut ServerPacket<'a>,
 	) -> Result<PacketFlow> {
 		FORWARD
 	}
 
-	async fn disconnect(proxy: &mut Proxy<'_>, by: ProxySide) -> Result<()> {
+	async fn disconnect(proxy: &mut Proxy, by: ProxySide) -> Result<()> {
 		Ok(())
 	}
 }
@@ -123,7 +121,7 @@ macro_rules! gen_root_module {
 
 		impl ModuleInstance for RootModuleInstance {
 			async fn client_packet<'a>(
-				proxy: &mut Proxy<'_>,
+				proxy: &mut Proxy,
 				packet: &mut ClientPacket<'a>,
 			) -> Result<PacketFlow> {
 				$(
@@ -145,7 +143,7 @@ macro_rules! gen_root_module {
 				FORWARD
 			}
 			async fn server_packet<'a>(
-				proxy: &mut Proxy<'_>,
+				proxy: &mut Proxy,
 				packet: &mut ServerPacket<'a>,
 			) -> Result<PacketFlow> {
 				$(
@@ -166,7 +164,7 @@ macro_rules! gen_root_module {
 
 				FORWARD
 			}
-			async fn disconnect(proxy: &mut Proxy<'_>, by: ProxySide) -> Result<()> {
+			async fn disconnect(proxy: &mut Proxy, by: ProxySide) -> Result<()> {
 				$(
 					<$path as Module>::Instance::disconnect(proxy, by).await?;
 				)*
@@ -176,25 +174,25 @@ macro_rules! gen_root_module {
 
 			// The root modules doesnt implement these, it calls these for others instead
 			async fn pre_server_packet<'a>(
-				_proxy: &mut Proxy<'_>,
+				_proxy: &mut Proxy,
 				_packet: &mut ServerPacket<'a>,
 			) -> Result<PacketFlow> {
 				unimplemented!();
 			}
 			async fn post_server_packet<'a>(
-				_proxy: &mut Proxy<'_>,
+				_proxy: &mut Proxy,
 				_packet: &mut ServerPacket<'a>,
 			) -> Result<PacketFlow> {
 				unimplemented!();
 			}
 			async fn pre_client_packet<'a>(
-				_proxy: &mut Proxy<'_>,
+				_proxy: &mut Proxy,
 				_packet: &mut ClientPacket<'a>,
 			) -> Result<PacketFlow> {
 				unimplemented!();
 			}
 			async fn post_client_packet<'a>(
-				_proxy: &mut Proxy<'_>,
+				_proxy: &mut Proxy,
 				_packet: &mut ClientPacket<'a>,
 			) -> Result<PacketFlow> {
 				unimplemented!();
@@ -206,7 +204,6 @@ macro_rules! gen_root_module {
 gen_root_module! {
 	general: General,
 	stats: Stats,
-	cult_staff: CultStaff,
 	autonexus: Autonexus,
 	fake_slow: FakeSlow,
 	anti_push: AntiPush,

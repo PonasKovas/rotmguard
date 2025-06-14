@@ -6,7 +6,6 @@ use crate::{
 };
 use anyhow::{bail, Result};
 use derivative::Derivative;
-use std::io::{Write};
 
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
@@ -85,31 +84,28 @@ impl<'a> RPRead<'a> for UpdatePacket<'a> {
 }
 
 impl<'a> RPWrite for UpdatePacket<'a> {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut written = 0;
 
-		written += self.player_position.rp_write(buf)?;
-		written += self.level_type.rp_write(buf)?;
-		written += write_compressed_int(&(self.tiles.len() as i64), buf)?;
+		written += self.player_position.rp_write(buf);
+		written += self.level_type.rp_write(buf);
+		written += write_compressed_int(&(self.tiles.len() as i64), buf);
 		for tile in &self.tiles {
-			written += tile.x.rp_write(buf)?;
-			written += tile.y.rp_write(buf)?;
-			written += tile.tile_type.rp_write(buf)?;
+			written += tile.x.rp_write(buf);
+			written += tile.y.rp_write(buf);
+			written += tile.tile_type.rp_write(buf);
 		}
-		written += write_compressed_int(&(self.new_objects.len() as i64), buf)?;
+		written += write_compressed_int(&(self.new_objects.len() as i64), buf);
 		for obj in &self.new_objects {
-			written += obj.0.rp_write(buf)?;
-			written += obj.1.rp_write(buf)?;
+			written += obj.0.rp_write(buf);
+			written += obj.1.rp_write(buf);
 		}
-		written += write_compressed_int(&(self.to_remove.len() as i64), buf)?;
+		written += write_compressed_int(&(self.to_remove.len() as i64), buf);
 		for obj in &self.to_remove {
-			written += write_compressed_int(&(obj.0 as i64), buf)?;
+			written += write_compressed_int(&(obj.0 as i64), buf);
 		}
 
-		Ok(written)
+		written
 	}
 }
 

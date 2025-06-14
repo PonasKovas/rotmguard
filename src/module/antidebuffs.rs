@@ -28,7 +28,7 @@ impl Module for Antidebuffs {
 
 impl ModuleInstance for AntidebuffsInst {
 	async fn server_packet<'a>(
-		proxy: &mut Proxy<'_>,
+		proxy: &mut Proxy,
 		packet: &mut ServerPacket<'a>,
 	) -> Result<PacketFlow> {
 		match packet {

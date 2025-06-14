@@ -2,7 +2,7 @@ use crate::proxy::Proxy;
 use serde::Deserialize;
 use tracing::{debug, error};
 
-pub fn heal(proxy: &mut Proxy<'_>, message: &str) {
+pub fn heal(proxy: &mut Proxy, message: &str) {
 	// of course they add a sprinkle of invalid JSON to the protocol
 	#[derive(Deserialize)]
 	struct H {

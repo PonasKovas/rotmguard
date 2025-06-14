@@ -5,7 +5,6 @@ use crate::{
 	write::RPWrite,
 };
 use anyhow::Result;
-use std::io::{Write};
 
 #[derive(Debug, Clone)]
 pub struct GotoPacket {
@@ -28,17 +27,14 @@ impl<'a> RPRead<'a> for GotoPacket {
 }
 
 impl RPWrite for GotoPacket {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut written = 0;
 
-		written += self.object_id.0.rp_write(buf)?;
-		written += self.position.rp_write(buf)?;
-		written += self.unknown.rp_write(buf)?;
+		written += self.object_id.0.rp_write(buf);
+		written += self.position.rp_write(buf);
+		written += self.unknown.rp_write(buf);
 
-		Ok(written)
+		written
 	}
 }
 

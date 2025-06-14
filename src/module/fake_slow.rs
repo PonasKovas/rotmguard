@@ -35,7 +35,7 @@ impl Module for FakeSlow {
 
 impl ModuleInstance for FakeSlowInst {
 	async fn client_packet<'a>(
-		proxy: &mut Proxy<'_>,
+		proxy: &mut Proxy,
 		packet: &mut ClientPacket<'a>,
 	) -> Result<PacketFlow> {
 		if let ClientPacket::PlayerText(text) = packet {
@@ -50,10 +50,7 @@ impl ModuleInstance for FakeSlowInst {
 				};
 				fake_slow!(proxy).synced = false;
 
-				Notification::new(msg.to_owned())
-					.green()
-					.send(&mut proxy.write)
-					.await?;
+				Notification::new(msg.to_owned()).green().send(proxy);
 
 				return BLOCK;
 			}
@@ -62,7 +59,7 @@ impl ModuleInstance for FakeSlowInst {
 		FORWARD
 	}
 	async fn server_packet<'a>(
-		proxy: &mut Proxy<'_>,
+		proxy: &mut Proxy,
 		packet: &mut ServerPacket<'a>,
 	) -> Result<PacketFlow> {
 		if let ServerPacket::NewTick(new_tick) = packet {

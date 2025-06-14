@@ -63,7 +63,7 @@ impl Module for Autonexus {
 
 impl ModuleInstance for AutonexusInst {
 	async fn client_packet<'a>(
-		proxy: &mut Proxy<'_>,
+		proxy: &mut Proxy,
 		packet: &mut ClientPacket<'a>,
 	) -> Result<PacketFlow> {
 		match packet {
@@ -79,8 +79,7 @@ impl ModuleInstance for AutonexusInst {
 								*proxy.config.settings.autonexus_hp.lock().unwrap()
 							))
 							.blue()
-							.send(&mut proxy.write)
-							.await?;
+							.send(proxy);
 
 							return BLOCK;
 						}
@@ -90,8 +89,7 @@ impl ModuleInstance for AutonexusInst {
 						Err(e) => {
 							Notification::new(format!("/autonexus <HP>\nError parsing HP: {e}"))
 								.red()
-								.send(&mut proxy.write)
-								.await?;
+								.send(proxy);
 							error!("Error parsing /autonexus command HP: {e:?}");
 
 							return BLOCK;
@@ -102,8 +100,7 @@ impl ModuleInstance for AutonexusInst {
 
 					Notification::new(format!("Autonexus threshold set to {hp}."))
 						.green()
-						.send(&mut proxy.write)
-						.await?;
+						.send(proxy);
 
 					return BLOCK; // dont forward this ;)
 				}
@@ -119,7 +116,7 @@ impl ModuleInstance for AutonexusInst {
 		}
 	}
 	async fn server_packet<'a>(
-		proxy: &mut Proxy<'_>,
+		proxy: &mut Proxy,
 		packet: &mut ServerPacket<'a>,
 	) -> Result<PacketFlow> {
 		match packet {
@@ -187,8 +184,7 @@ impl ModuleInstance for AutonexusInst {
 						let color = 0x006666 | (color << 16);
 						Notification::new(format!("pdelta {hp_delta}"))
 							.color(color)
-							.send(&mut proxy.write)
-							.await?;
+							.send(proxy);
 						let packet = ShowEffect {
 							effect_type: 18,
 							target_object_id: Some(proxy.modules.general.my_object_id),
@@ -198,7 +194,7 @@ impl ModuleInstance for AutonexusInst {
 							duration: Some(1.0),
 							unknown: None,
 						};
-						proxy.write.send_client(&packet.into()).await?;
+						proxy.write_client.add_server_packet(&packet.into());
 
 						save_logs();
 					}
@@ -255,7 +251,7 @@ impl ModuleInstance for AutonexusInst {
 
 // Takes given damage. Does not calculate defense or any status effects except for invincible
 // Returns BLOCK if nexused
-async fn take_damage(proxy: &mut Proxy<'_>, damage: i64) -> Result<PacketFlow> {
+async fn take_damage(proxy: &mut Proxy, damage: i64) -> Result<PacketFlow> {
 	if proxy.modules.stats.get().conditions.invincible() {
 		trace!(?proxy.modules, damage, "Player would have taken damage but invincible.");
 		return FORWARD;
@@ -276,15 +272,14 @@ async fn take_damage(proxy: &mut Proxy<'_>, damage: i64) -> Result<PacketFlow> {
 	if *proxy.config.settings.dev_mode.lock().unwrap() {
 		Notification::new(format!("DAMAGE {}", damage))
 			.color(0x888888)
-			.send(&mut proxy.write)
-			.await?;
+			.send(proxy);
 	}
 
 	FORWARD
 }
 
-async fn nexus(proxy: &mut Proxy<'_>) -> Result<()> {
-	proxy.write.send_server(&ClientPacket::Escape).await?;
+async fn nexus(proxy: &mut Proxy) -> Result<()> {
+	proxy.write_server.add_client_packet(&ClientPacket::Escape);
 
 	warn!(?proxy.modules, "Nexusing");
 

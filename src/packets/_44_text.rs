@@ -1,10 +1,7 @@
 use super::ServerPacket;
 use crate::{extra_datatypes::ObjectId, read::RPRead, write::RPWrite};
 use anyhow::Result;
-use std::{
-	borrow::Cow,
-	io::{Write},
-};
+use std::borrow::Cow;
 
 #[derive(Debug, Clone)]
 pub struct TextPacket<'a> {
@@ -39,23 +36,20 @@ impl<'a> RPRead<'a> for TextPacket<'a> {
 }
 
 impl<'a> RPWrite for TextPacket<'a> {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut written = 0;
 
-		written += self.name.rp_write(buf)?;
-		written += self.object_id.0.rp_write(buf)?;
-		written += self.num_stars.rp_write(buf)?;
-		written += self.bubble_time.rp_write(buf)?;
-		written += self.recipient.rp_write(buf)?;
-		written += self.text.rp_write(buf)?;
-		written += self.clean_text.rp_write(buf)?;
-		written += self.is_supporter.rp_write(buf)?;
-		written += self.star_background.rp_write(buf)?;
+		written += self.name.rp_write(buf);
+		written += self.object_id.0.rp_write(buf);
+		written += self.num_stars.rp_write(buf);
+		written += self.bubble_time.rp_write(buf);
+		written += self.recipient.rp_write(buf);
+		written += self.text.rp_write(buf);
+		written += self.clean_text.rp_write(buf);
+		written += self.is_supporter.rp_write(buf);
+		written += self.star_background.rp_write(buf);
 
-		Ok(written)
+		written
 	}
 }
 

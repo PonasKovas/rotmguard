@@ -4,7 +4,6 @@ use crate::{
 	write::{write_compressed_int, RPWrite},
 };
 use anyhow::{bail, Result};
-use std::io::{Write};
 
 #[derive(Debug, Clone)]
 pub struct ObjectStatusData<'a> {
@@ -40,19 +39,17 @@ impl<'a> RPRead<'a> for ObjectStatusData<'a> {
 }
 
 impl<'a> RPWrite for ObjectStatusData<'a> {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut written = 0;
 
-		written += write_compressed_int(&(self.object_id.0 as i64), buf)?;
-		written += self.position.rp_write(buf)?;
+		written += write_compressed_int(&(self.object_id.0 as i64), buf);
+		written += self.position.rp_write(buf);
 
-		written += write_compressed_int(&(self.stats.len() as i64), buf)?;
+		written += write_compressed_int(&(self.stats.len() as i64), buf);
 		for stat in &self.stats {
-			written += stat.rp_write(buf)?;
+			written += stat.rp_write(buf);
 		}
-		Ok(written)
+
+		written
 	}
 }

@@ -5,7 +5,6 @@ use crate::{
 	write::{write_compressed_int, RPWrite},
 };
 use anyhow::Result;
-use std::io::{Write};
 
 #[derive(Debug, Clone)]
 pub struct ShowEffect {
@@ -86,13 +85,10 @@ impl<'a> RPRead<'a> for ShowEffect {
 }
 
 impl RPWrite for ShowEffect {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut written = 0;
 
-		written += self.effect_type.rp_write(buf)?;
+		written += self.effect_type.rp_write(buf);
 
 		let bitmask = 0b00011110
 			| self.color.is_some() as u8
@@ -100,24 +96,24 @@ impl RPWrite for ShowEffect {
 			| (self.target_object_id.is_some() as u8) << 6
 			| (self.unknown.is_some() as u8) << 7;
 
-		written += bitmask.rp_write(buf)?;
+		written += bitmask.rp_write(buf);
 
 		if let Some(id) = self.target_object_id {
-			written += write_compressed_int(&(id.0 as i64), buf)?;
+			written += write_compressed_int(&(id.0 as i64), buf);
 		}
-		written += self.pos1.rp_write(buf)?;
-		written += self.pos2.rp_write(buf)?;
+		written += self.pos1.rp_write(buf);
+		written += self.pos2.rp_write(buf);
 		if let Some(color) = self.color {
-			written += color.rp_write(buf)?;
+			written += color.rp_write(buf);
 		}
 		if let Some(duration) = self.duration {
-			written += duration.rp_write(buf)?;
+			written += duration.rp_write(buf);
 		}
 		if let Some(unknown) = self.unknown {
-			written += unknown.rp_write(buf)?;
+			written += unknown.rp_write(buf);
 		}
 
-		Ok(written)
+		written
 	}
 }
 

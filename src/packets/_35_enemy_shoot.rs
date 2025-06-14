@@ -5,7 +5,6 @@ use crate::{
 	write::RPWrite,
 };
 use anyhow::Result;
-use std::io::{Write};
 
 #[derive(Debug, Clone, Copy)]
 pub struct EnemyShoot {
@@ -51,25 +50,22 @@ impl<'a> RPRead<'a> for EnemyShoot {
 }
 
 impl RPWrite for EnemyShoot {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut written = 0;
 
-		written += self.bullet_id.id.rp_write(buf)?;
-		written += self.bullet_id.owner_id.0.rp_write(buf)?;
-		written += self.bullet_type.rp_write(buf)?;
-		written += self.position.rp_write(buf)?;
-		written += self.angle.rp_write(buf)?;
-		written += self.damage.rp_write(buf)?;
+		written += self.bullet_id.id.rp_write(buf);
+		written += self.bullet_id.owner_id.0.rp_write(buf);
+		written += self.bullet_type.rp_write(buf);
+		written += self.position.rp_write(buf);
+		written += self.angle.rp_write(buf);
+		written += self.damage.rp_write(buf);
 
 		if self.numshots != 1 {
-			written += self.numshots.rp_write(buf)?;
-			written += self.angle_between_shots.rp_write(buf)?;
+			written += self.numshots.rp_write(buf);
+			written += self.angle_between_shots.rp_write(buf);
 		}
 
-		Ok(written)
+		written
 	}
 }
 

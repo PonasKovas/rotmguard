@@ -1,136 +1,100 @@
-use anyhow::Result;
-use std::{
-	borrow::Cow,
-	io::{Write},
-};
+use std::borrow::Cow;
 
 /// Write packet/datatype in the game protocol format
 pub trait RPWrite {
 	// Returns how many bytes were written
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized;
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize;
 }
 
 impl RPWrite for bool {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
-		buf.write_all(if *self { &[1] } else { &[0] })?;
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
+		buf.extend_from_slice(if *self { &[1] } else { &[0] });
 
-		Ok(1)
+		1
 	}
 }
 
 impl RPWrite for u8 {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
-		buf.write_all(&self.to_be_bytes()[..])?;
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
+		buf.extend_from_slice(&self.to_be_bytes()[..]);
 
-		Ok(1)
+		1
 	}
 }
 
 impl RPWrite for u16 {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
-		buf.write_all(&self.to_be_bytes()[..])?;
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
+		buf.extend_from_slice(&self.to_be_bytes()[..]);
 
-		Ok(2)
+		2
 	}
 }
 
 impl RPWrite for u32 {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
-		buf.write_all(&self.to_be_bytes()[..])?;
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
+		buf.extend_from_slice(&self.to_be_bytes()[..]);
 
-		Ok(4)
+		4
 	}
 }
 
 impl RPWrite for i8 {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
-		buf.write_all(&self.to_be_bytes()[..])?;
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
+		buf.extend_from_slice(&self.to_be_bytes()[..]);
 
-		Ok(1)
+		1
 	}
 }
 
 impl RPWrite for i16 {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
-		buf.write_all(&self.to_be_bytes()[..])?;
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
+		buf.extend_from_slice(&self.to_be_bytes()[..]);
 
-		Ok(2)
+		2
 	}
 }
 
 impl RPWrite for i32 {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
-		buf.write_all(&self.to_be_bytes()[..])?;
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
+		buf.extend_from_slice(&self.to_be_bytes()[..]);
 
-		Ok(4)
+		4
 	}
 }
 
 impl RPWrite for f32 {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
-		buf.write_all(&self.to_be_bytes()[..])?;
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
+		buf.extend_from_slice(&self.to_be_bytes()[..]);
 
-		Ok(4)
+		4
 	}
 }
 
 impl RPWrite for String {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let string_bytes = self.as_bytes();
 		let len = string_bytes.len();
 
-		(len as u16).rp_write(buf)?;
-		buf.write_all(string_bytes)?;
+		(len as u16).rp_write(buf);
+		buf.extend_from_slice(string_bytes);
 
-		Ok(2 + string_bytes.len())
+		2 + string_bytes.len()
 	}
 }
 
 impl<'a> RPWrite for Cow<'a, str> {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let string_bytes = self.as_bytes();
 		let len = string_bytes.len();
 
-		(len as u16).rp_write(buf)?;
-		buf.write_all(string_bytes)?;
+		(len as u16).rp_write(buf);
+		buf.extend_from_slice(string_bytes);
 
-		Ok(2 + string_bytes.len())
+		2 + string_bytes.len()
 	}
 }
 
-pub fn write_compressed_int<W: Write>(value: &i64, buf: &mut W) -> Result<usize> {
+pub fn write_compressed_int(value: &i64, buf: &mut Vec<u8>) -> usize {
 	let is_negative = *value < 0;
 	let mut value = value.abs();
 
@@ -144,7 +108,7 @@ pub fn write_compressed_int<W: Write>(value: &i64, buf: &mut W) -> Result<usize>
 	}
 
 	let mut written = 0;
-	written += byte.rp_write(buf)?;
+	written += byte.rp_write(buf);
 
 	while value != 0 {
 		let mut byte = (value & 0b01111111) as u8;
@@ -152,8 +116,8 @@ pub fn write_compressed_int<W: Write>(value: &i64, buf: &mut W) -> Result<usize>
 		if value != 0 {
 			byte |= 0b10000000;
 		}
-		written += byte.rp_write(buf)?;
+		written += byte.rp_write(buf);
 	}
 
-	Ok(written)
+	written
 }

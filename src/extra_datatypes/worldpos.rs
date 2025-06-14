@@ -1,9 +1,6 @@
 use crate::{read::RPRead, write::RPWrite};
 use anyhow::Result;
-use std::{
-	io::{Write},
-	ops::{Add, Mul, Sub},
-};
+use std::ops::{Add, Mul, Sub};
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct WorldPos {
@@ -24,16 +21,13 @@ impl<'a> RPRead<'a> for WorldPos {
 }
 
 impl RPWrite for WorldPos {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut written = 0;
 
-		written += self.x.rp_write(buf)?;
-		written += self.y.rp_write(buf)?;
+		written += self.x.rp_write(buf);
+		written += self.y.rp_write(buf);
 
-		Ok(written)
+		written
 	}
 }
 

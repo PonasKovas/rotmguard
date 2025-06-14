@@ -34,7 +34,7 @@ mod tests {
 		let mut buf = Vec::new();
 		for case in cases {
 			buf.clear();
-			let n = write_compressed_int(&case, &mut buf).unwrap();
+			let n = write_compressed_int(&case, &mut buf);
 			assert_eq!(n, buf.len(), "Written bytes n incorrect!");
 			assert_eq!(
 				case,

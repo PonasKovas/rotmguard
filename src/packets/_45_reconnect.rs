@@ -1,10 +1,7 @@
 use super::ServerPacket;
 use crate::{read::RPRead, write::RPWrite};
 use anyhow::Result;
-use std::{
-	borrow::Cow,
-	io::{Read, Write},
-};
+use std::{borrow::Cow, io::Read};
 
 #[derive(Debug, Clone)]
 pub struct Reconnect<'a> {
@@ -42,23 +39,20 @@ impl<'a> RPRead<'a> for Reconnect<'a> {
 }
 
 impl<'a> RPWrite for Reconnect<'a> {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut written = 0;
 
-		written += self.hostname.rp_write(buf)?;
-		written += self.address.rp_write(buf)?;
-		written += self.port.rp_write(buf)?;
-		written += self.game_id.rp_write(buf)?;
-		written += self.key_time.rp_write(buf)?;
+		written += self.hostname.rp_write(buf);
+		written += self.address.rp_write(buf);
+		written += self.port.rp_write(buf);
+		written += self.game_id.rp_write(buf);
+		written += self.key_time.rp_write(buf);
 
-		written += (self.key.len() as u16).rp_write(buf)?;
-		buf.write_all(&self.key)?;
+		written += (self.key.len() as u16).rp_write(buf);
+		buf.extend_from_slice(&self.key);
 		written += self.key.len();
 
-		Ok(written)
+		written
 	}
 }
 

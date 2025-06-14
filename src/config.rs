@@ -54,6 +54,4 @@ pub struct EditAssets {
 	pub enabled: bool,
 	/// If true, will remove the client-side debuffs completely
 	pub force_debuffs: bool,
-	/// Makes the staff of unholy sacrifice shoot forward instead of backward
-	pub cult_staff: bool,
 }

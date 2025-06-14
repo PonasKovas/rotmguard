@@ -60,7 +60,7 @@ impl Module for Stats {
 
 impl ModuleInstance for StatsInst {
 	async fn client_packet<'a>(
-		proxy: &mut Proxy<'_>,
+		proxy: &mut Proxy,
 		packet: &mut ClientPacket<'a>,
 	) -> Result<PacketFlow> {
 		if let ClientPacket::Move(move_packet) = packet {
@@ -81,7 +81,7 @@ impl ModuleInstance for StatsInst {
 		FORWARD
 	}
 	async fn server_packet<'a>(
-		proxy: &mut Proxy<'_>,
+		proxy: &mut Proxy,
 		packet: &mut ServerPacket<'a>,
 	) -> Result<PacketFlow> {
 		match packet {

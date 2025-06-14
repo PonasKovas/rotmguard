@@ -1,7 +1,6 @@
 use super::ClientPacket;
 use crate::{extra_datatypes::WorldPos, read::RPRead, write::RPWrite};
 use anyhow::Result;
-use std::io::{Write};
 
 #[derive(Debug, Clone)]
 pub struct Move {
@@ -34,22 +33,19 @@ impl<'a> RPRead<'a> for Move {
 }
 
 impl RPWrite for Move {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut written = 0;
 
-		written += self.tick_id.rp_write(buf)?;
-		written += self.time.rp_write(buf)?;
-		written += (self.move_records.len() as u16).rp_write(buf)?;
+		written += self.tick_id.rp_write(buf);
+		written += self.time.rp_write(buf);
+		written += (self.move_records.len() as u16).rp_write(buf);
 
 		for record in &self.move_records {
-			written += record.0.rp_write(buf)?;
-			written += record.1.rp_write(buf)?;
+			written += record.0.rp_write(buf);
+			written += record.1.rp_write(buf);
 		}
 
-		Ok(written)
+		written
 	}
 }
 

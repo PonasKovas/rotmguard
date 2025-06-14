@@ -1,10 +1,7 @@
 use super::ServerPacket;
 use crate::{extra_datatypes::ObjectId, read::RPRead, write::RPWrite};
 use anyhow::Result;
-use std::{
-	borrow::Cow,
-	io::{Write},
-};
+use std::borrow::Cow;
 
 #[derive(Debug, Clone)]
 pub struct CreateSuccess<'a> {
@@ -27,17 +24,14 @@ impl<'a> RPRead<'a> for CreateSuccess<'a> {
 }
 
 impl<'a> RPWrite for CreateSuccess<'a> {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut written = 0;
 
-		written += self.object_id.0.rp_write(buf)?;
-		written += self.char_id.rp_write(buf)?;
-		written += self.unknown.rp_write(buf)?;
+		written += self.object_id.0.rp_write(buf);
+		written += self.char_id.rp_write(buf);
+		written += self.unknown.rp_write(buf);
 
-		Ok(written)
+		written
 	}
 }
 

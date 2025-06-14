@@ -50,7 +50,7 @@ impl Module for Con {
 
 impl ModuleInstance for ConInst {
 	async fn client_packet<'a>(
-		proxy: &mut Proxy<'_>,
+		proxy: &mut Proxy,
 		packet: &mut ClientPacket<'a>,
 	) -> Result<PacketFlow> {
 		if let ClientPacket::PlayerText(text) = packet {
@@ -64,8 +64,7 @@ impl ModuleInstance for ConInst {
 					None => {
 						Notification::new("Specify a server. Example: eue".to_owned())
 							.blue()
-							.send(&mut proxy.write)
-							.await?;
+							.send(proxy);
 
 						return BLOCK;
 					}
@@ -81,13 +80,12 @@ impl ModuleInstance for ConInst {
 							key_time: 0xffffffff,
 							key: Vec::new(),
 						};
-						proxy.write.send_client(&packet.into()).await?;
+						proxy.write_client.add_server_packet(&packet.into());
 					}
 					None => {
 						Notification::new(format!("Server {srv:?} is invalid."))
 							.red()
-							.send(&mut proxy.write)
-							.await?;
+							.send(proxy);
 					}
 				}
 

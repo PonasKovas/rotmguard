@@ -1,7 +1,6 @@
 use super::ClientPacket;
 use crate::{extra_datatypes::WorldPos, read::RPRead, write::RPWrite};
 use anyhow::Result;
-use std::io::{Write};
 
 #[derive(Debug, Clone, Copy)]
 pub struct PlayerShoot {
@@ -38,24 +37,21 @@ impl<'a> RPRead<'a> for PlayerShoot {
 }
 
 impl RPWrite for PlayerShoot {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut written = 0;
 
-		written += self.time.rp_write(buf)?;
-		written += self.bullet_id.rp_write(buf)?;
-		written += self.weapon_id.rp_write(buf)?;
-		written += self.projectile_id.rp_write(buf)?;
-		written += self.position.rp_write(buf)?;
-		written += self.angle.rp_write(buf)?;
-		written += self.burst.rp_write(buf)?;
-		written += self.pattern_id.rp_write(buf)?;
-		written += self.attack_type.rp_write(buf)?;
-		written += self.player_pos.rp_write(buf)?;
+		written += self.time.rp_write(buf);
+		written += self.bullet_id.rp_write(buf);
+		written += self.weapon_id.rp_write(buf);
+		written += self.projectile_id.rp_write(buf);
+		written += self.position.rp_write(buf);
+		written += self.angle.rp_write(buf);
+		written += self.burst.rp_write(buf);
+		written += self.pattern_id.rp_write(buf);
+		written += self.attack_type.rp_write(buf);
+		written += self.player_pos.rp_write(buf);
 
-		Ok(written)
+		written
 	}
 }
 

@@ -1,7 +1,7 @@
 use crate::proxy::Proxy;
 use tracing::trace;
 
-pub fn apply_passive(proxy: &mut Proxy<'_>, time: f64) {
+pub fn apply_passive(proxy: &mut Proxy, time: f64) {
 	// use previous tick stats
 	let stats = proxy.modules.stats.get_newest();
 

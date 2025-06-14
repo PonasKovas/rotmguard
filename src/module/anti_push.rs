@@ -41,7 +41,7 @@ impl Module for AntiPush {
 
 impl ModuleInstance for AntiPushInst {
 	async fn client_packet<'a>(
-		proxy: &mut Proxy<'_>,
+		proxy: &mut Proxy,
 		packet: &mut ClientPacket<'a>,
 	) -> Result<PacketFlow> {
 		if let ClientPacket::PlayerText(text) = packet {
@@ -56,10 +56,7 @@ impl ModuleInstance for AntiPushInst {
 				};
 				anti_push!(proxy).synced = false;
 
-				Notification::new(msg.to_owned())
-					.green()
-					.send(&mut proxy.write)
-					.await?;
+				Notification::new(msg.to_owned()).green().send(proxy);
 
 				return BLOCK;
 			}
@@ -68,7 +65,7 @@ impl ModuleInstance for AntiPushInst {
 		FORWARD
 	}
 	async fn server_packet<'a>(
-		proxy: &mut Proxy<'_>,
+		proxy: &mut Proxy,
 		packet: &mut ServerPacket<'a>,
 	) -> Result<PacketFlow> {
 		if let ServerPacket::Update(update) = packet {

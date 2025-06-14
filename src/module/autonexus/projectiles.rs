@@ -39,7 +39,7 @@ impl Projectiles {
 			objects: BTreeMap::new(),
 		}
 	}
-	pub fn add_remove_objects(proxy: &mut Proxy<'_>, update: &UpdatePacket) {
+	pub fn add_remove_objects(proxy: &mut Proxy, update: &UpdatePacket) {
 		// remove objects that left the visible area
 		for object in &update.to_remove {
 			projectiles!(proxy).objects.remove(object);
@@ -52,7 +52,7 @@ impl Projectiles {
 				.insert(object.1.object_id, object.0);
 		}
 	}
-	pub fn add_bullet(proxy: &mut Proxy<'_>, enemy_shoot: &EnemyShoot) -> PacketFlow {
+	pub fn add_bullet(proxy: &mut Proxy, enemy_shoot: &EnemyShoot) -> PacketFlow {
 		let shooter_id = enemy_shoot.bullet_id.owner_id;
 		let shooter_object_type = match projectiles!(proxy).objects.get(&shooter_id) {
 			Some(object_type) => *object_type as u32,
@@ -107,7 +107,7 @@ impl Projectiles {
 
 		PacketFlow::Forward
 	}
-	pub async fn player_hit(proxy: &mut Proxy<'_>, player_hit: &PlayerHit) -> Result<PacketFlow> {
+	pub async fn player_hit(proxy: &mut Proxy, player_hit: &PlayerHit) -> Result<PacketFlow> {
 		let bullet_info = match projectiles!(proxy).bullets.pop(&player_hit.bullet_id) {
 			Some(info) => info,
 			None => {

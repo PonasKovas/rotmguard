@@ -1,5 +1,3 @@
-#![feature(noop_waker)]
-
 use anyhow::{Context, Result};
 use assets::Assets;
 use config::Config;

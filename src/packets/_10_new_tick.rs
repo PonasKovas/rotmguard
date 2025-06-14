@@ -6,7 +6,6 @@ use crate::{
 };
 use anyhow::{bail, Result};
 use derivative::Derivative;
-use std::io::{Write};
 
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
@@ -50,23 +49,20 @@ impl<'a> RPRead<'a> for NewTick<'a> {
 }
 
 impl<'a> RPWrite for NewTick<'a> {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut written = 0;
 
-		written += self.tick_id.rp_write(buf)?;
-		written += self.tick_time.rp_write(buf)?;
-		written += self.real_time_ms.rp_write(buf)?;
-		written += self.last_real_time_ms.rp_write(buf)?;
+		written += self.tick_id.rp_write(buf);
+		written += self.tick_time.rp_write(buf);
+		written += self.real_time_ms.rp_write(buf);
+		written += self.last_real_time_ms.rp_write(buf);
 
-		written += (self.statuses.len() as u16).rp_write(buf)?;
+		written += (self.statuses.len() as u16).rp_write(buf);
 		for status in &self.statuses {
-			written += status.rp_write(buf)?;
+			written += status.rp_write(buf);
 		}
 
-		Ok(written)
+		written
 	}
 }
 

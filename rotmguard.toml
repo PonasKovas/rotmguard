@@ -26,5 +26,3 @@ darkness = false # you still dont see very far so disabling this doesnt help, al
 enabled = true
 # If true, will remove the client-side debuffs completely
 force_debuffs = true
-# Makes the staff of unholy sacrifice shoot forward instead of backward
-cult_staff = false

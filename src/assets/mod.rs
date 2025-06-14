@@ -21,8 +21,6 @@ pub struct Assets {
 	pub hazardous_grounds: BTreeMap<u32, i64>,
 	/// grounds that push the player like conveyors
 	pub pushing_grounds: BTreeSet<u32>,
-	/// The object id of the cult staff
-	pub cult_staff_id: u32,
 
 	/// Reverses the changes to assets file on drop
 	reverse_changes_guard: Option<ReverseChangesGuard>,
@@ -92,7 +90,6 @@ fn in_endian<ORDER: ByteOrder>(
 		projectiles: BTreeMap::new(),
 		hazardous_grounds: BTreeMap::new(),
 		pushing_grounds: BTreeSet::new(),
-		cult_staff_id: 0,
 		reverse_changes_guard: None,
 	};
 

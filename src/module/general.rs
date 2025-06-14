@@ -40,7 +40,7 @@ impl Module for General {
 
 impl ModuleInstance for GeneralInst {
 	async fn client_packet<'a>(
-		proxy: &mut Proxy<'_>,
+		proxy: &mut Proxy,
 		packet: &mut ClientPacket<'a>,
 	) -> Result<PacketFlow> {
 		match packet {
@@ -68,8 +68,7 @@ impl ModuleInstance for GeneralInst {
 
 					Notification::new("hi :)".to_owned())
 						.color(color)
-						.send(&mut proxy.write)
-						.await?;
+						.send(proxy);
 
 					let packet = ShowEffect {
 						effect_type: 1,
@@ -80,7 +79,7 @@ impl ModuleInstance for GeneralInst {
 						duration: Some(5.0),
 						unknown: None,
 					};
-					proxy.write.send_client(&packet.into()).await?;
+					proxy.write_client.add_server_packet(&packet.into());
 
 					let packet = ShowEffect {
 						effect_type: 37,
@@ -91,7 +90,7 @@ impl ModuleInstance for GeneralInst {
 						duration: Some(0.5),
 						unknown: None,
 					};
-					proxy.write.send_client(&packet.into()).await?;
+					proxy.write_client.add_server_packet(&packet.into());
 
 					info!(?proxy.modules, "hi ☺️");
 
@@ -107,10 +106,7 @@ impl ModuleInstance for GeneralInst {
 						format!("DEVELOPER MODE {}", if *dev_mode { "ON" } else { "OFF" })
 					};
 
-					Notification::new(message)
-						.green()
-						.send(&mut proxy.write)
-						.await?;
+					Notification::new(message).green().send(proxy);
 
 					return BLOCK;
 				}
@@ -121,7 +117,7 @@ impl ModuleInstance for GeneralInst {
 		FORWARD
 	}
 	async fn server_packet<'a>(
-		proxy: &mut Proxy<'_>,
+		proxy: &mut Proxy,
 		packet: &mut ServerPacket<'a>,
 	) -> Result<PacketFlow> {
 		match packet {

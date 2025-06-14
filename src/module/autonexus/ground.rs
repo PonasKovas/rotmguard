@@ -21,10 +21,7 @@ impl Ground {
 			hazardous_tiles: HashMap::new(),
 		}
 	}
-	pub async fn ground_damage(
-		proxy: &mut Proxy<'_>,
-		packet: &mut GroundDamage,
-	) -> Result<PacketFlow> {
+	pub async fn ground_damage(proxy: &mut Proxy, packet: &mut GroundDamage) -> Result<PacketFlow> {
 		let x = packet.position.x as i16;
 		let y = packet.position.y as i16;
 
@@ -37,7 +34,7 @@ impl Ground {
 
 		take_damage(proxy, damage).await
 	}
-	pub fn add_tiles(proxy: &mut Proxy<'_>, update: &mut UpdatePacket<'_>) {
+	pub fn add_tiles(proxy: &mut Proxy, update: &mut UpdatePacket<'_>) {
 		for tile in &update.tiles {
 			let tile_type = tile.tile_type as u32;
 

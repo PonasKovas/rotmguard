@@ -16,7 +16,7 @@ mod _67_notification;
 mod _90_player_hit;
 mod _9_player_text;
 
-use std::{borrow::Cow, io::Write};
+use std::borrow::Cow;
 
 pub use _101_create_success::CreateSuccess;
 pub use _103_ground_damage::GroundDamage;
@@ -150,97 +150,91 @@ impl<'a> RPRead<'a> for ServerPacket<'a> {
 }
 
 impl<'a> RPWrite for ClientPacket<'a> {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut bytes_written = 0;
 
 		if let Self::Unknown { id, bytes: _ } = self {
-			bytes_written += id.rp_write(buf)?;
+			bytes_written += id.rp_write(buf);
 		} else {
 			let packet_id: u8 = self.discriminator();
-			bytes_written += packet_id.rp_write(buf)?;
+			bytes_written += packet_id.rp_write(buf);
 		}
 
 		match self {
 			Self::PlayerText(p) => {
-				bytes_written += p.rp_write(buf)?;
+				bytes_written += p.rp_write(buf);
 			}
 			Self::PlayerShoot(p) => {
-				bytes_written += p.rp_write(buf)?;
+				bytes_written += p.rp_write(buf);
 			}
 			Self::Move(p) => {
-				bytes_written += p.rp_write(buf)?;
+				bytes_written += p.rp_write(buf);
 			}
 			Self::PlayerHit(p) => {
-				bytes_written += p.rp_write(buf)?;
+				bytes_written += p.rp_write(buf);
 			}
 			Self::GroundDamage(p) => {
-				bytes_written += p.rp_write(buf)?;
+				bytes_written += p.rp_write(buf);
 			}
 			Self::Escape => {}
 			Self::Unknown { id: _, bytes } => {
-				buf.write_all(bytes)?;
+				buf.extend_from_slice(bytes);
 				bytes_written += bytes.len();
 			}
 		}
 
-		Ok(bytes_written)
+		bytes_written
 	}
 }
 
 impl<'a> RPWrite for ServerPacket<'a> {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut bytes_written = 0;
 
 		if let Self::Unknown { id, bytes: _ } = self {
-			bytes_written += id.rp_write(buf)?;
+			bytes_written += id.rp_write(buf);
 		} else {
 			let packet_id: u8 = self.discriminator();
-			bytes_written += packet_id.rp_write(buf)?;
+			bytes_written += packet_id.rp_write(buf);
 		}
 
 		match self {
 			Self::Notification(p) => {
-				bytes_written += p.rp_write(buf)?;
+				bytes_written += p.rp_write(buf);
 			}
 			Self::NewTick(p) => {
-				bytes_written += p.rp_write(buf)?;
+				bytes_written += p.rp_write(buf);
 			}
 			Self::Aoe(p) => {
-				bytes_written += p.rp_write(buf)?;
+				bytes_written += p.rp_write(buf);
 			}
 			Self::Goto(p) => {
-				bytes_written += p.rp_write(buf)?;
+				bytes_written += p.rp_write(buf);
 			}
 			Self::Update(p) => {
-				bytes_written += p.rp_write(buf)?;
+				bytes_written += p.rp_write(buf);
 			}
 			Self::ShowEffect(p) => {
-				bytes_written += p.rp_write(buf)?;
+				bytes_written += p.rp_write(buf);
 			}
 			Self::Reconnect(p) => {
-				bytes_written += p.rp_write(buf)?;
+				bytes_written += p.rp_write(buf);
 			}
 			Self::Text(p) => {
-				bytes_written += p.rp_write(buf)?;
+				bytes_written += p.rp_write(buf);
 			}
 			Self::EnemyShoot(p) => {
-				bytes_written += p.rp_write(buf)?;
+				bytes_written += p.rp_write(buf);
 			}
 			Self::CreateSuccess(p) => {
-				bytes_written += p.rp_write(buf)?;
+				bytes_written += p.rp_write(buf);
 			}
 			Self::Unknown { id: _, bytes } => {
-				buf.write_all(bytes)?;
+				buf.extend_from_slice(bytes);
 				bytes_written += bytes.len();
 			}
 		}
 
-		Ok(bytes_written)
+		bytes_written
 	}
 }

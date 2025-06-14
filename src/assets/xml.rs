@@ -1,11 +1,9 @@
-use std::collections::BTreeMap;
-
 use super::Assets;
 use crate::config::Config;
 use anyhow::{bail, Context, Result};
+use std::collections::BTreeMap;
 use xmltree::{Element, XMLNode};
 
-mod cult_staff;
 mod enemy_projectiles;
 
 pub fn process_xml(
@@ -60,13 +58,6 @@ fn objects(config: &Config, assets: &mut Assets, objects: &mut [XMLNode]) -> Res
 			.context(format!("object {i} 'type' attr doesnt start with 0x"))?;
 		let object_type = u32::from_str_radix(object_type_str, 16)
 			.context(format!("unexpected object {i} type format"))?;
-
-		// edit cult staff cheat
-		if config.settings.edit_assets.cult_staff {
-			if cult_staff::cult_staff(object).context("cult staff cheat")? {
-				assets.cult_staff_id = object_type;
-			}
-		}
 
 		let mut projectiles = BTreeMap::new();
 		enemy_projectiles::handle_projectiles(config, object, &mut projectiles)

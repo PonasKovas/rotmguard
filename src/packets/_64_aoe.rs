@@ -1,7 +1,6 @@
 use super::ServerPacket;
 use crate::{extra_datatypes::WorldPos, read::RPRead, write::RPWrite};
 use anyhow::Result;
-use std::io::{Write};
 
 #[derive(Debug, Clone)]
 pub struct AoePacket {
@@ -34,22 +33,19 @@ impl<'a> RPRead<'a> for AoePacket {
 }
 
 impl RPWrite for AoePacket {
-	fn rp_write<W: Write>(&self, buf: &mut W) -> Result<usize>
-	where
-		Self: Sized,
-	{
+	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut written = 0;
 
-		written += self.position.rp_write(buf)?;
-		written += self.radius.rp_write(buf)?;
-		written += self.damage.rp_write(buf)?;
-		written += self.effect.rp_write(buf)?;
-		written += self.duration.rp_write(buf)?;
-		written += self.orig_type.rp_write(buf)?;
-		written += self.color.rp_write(buf)?;
-		written += self.armor_piercing.rp_write(buf)?;
+		written += self.position.rp_write(buf);
+		written += self.radius.rp_write(buf);
+		written += self.damage.rp_write(buf);
+		written += self.effect.rp_write(buf);
+		written += self.duration.rp_write(buf);
+		written += self.orig_type.rp_write(buf);
+		written += self.color.rp_write(buf);
+		written += self.armor_piercing.rp_write(buf);
 
-		Ok(written)
+		written
 	}
 }
 
