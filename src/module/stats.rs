@@ -59,10 +59,7 @@ impl Module for Stats {
 }
 
 impl ModuleInstance for StatsInst {
-	async fn client_packet<'a>(
-		proxy: &mut Proxy,
-		packet: &mut ClientPacket<'a>,
-	) -> Result<PacketFlow> {
+	async fn client_packet(proxy: &mut Proxy, packet: &mut ClientPacket) -> Result<PacketFlow> {
 		if let ClientPacket::Move(move_packet) = packet {
 			// Update player position
 			if let Some(pos) = move_packet.move_records.last() {
@@ -80,10 +77,7 @@ impl ModuleInstance for StatsInst {
 
 		FORWARD
 	}
-	async fn server_packet<'a>(
-		proxy: &mut Proxy,
-		packet: &mut ServerPacket<'a>,
-	) -> Result<PacketFlow> {
+	async fn server_packet(proxy: &mut Proxy, packet: &mut ServerPacket) -> Result<PacketFlow> {
 		match packet {
 			ServerPacket::NewTick(new_tick) => {
 				stats!(proxy)

@@ -40,10 +40,7 @@ impl Module for AntiPush {
 }
 
 impl ModuleInstance for AntiPushInst {
-	async fn client_packet<'a>(
-		proxy: &mut Proxy,
-		packet: &mut ClientPacket<'a>,
-	) -> Result<PacketFlow> {
+	async fn client_packet(proxy: &mut Proxy, packet: &mut ClientPacket) -> Result<PacketFlow> {
 		if let ClientPacket::PlayerText(text) = packet {
 			let text = &text.text;
 			// `/slow` toggles a permanent slow effect
@@ -56,7 +53,7 @@ impl ModuleInstance for AntiPushInst {
 				};
 				anti_push!(proxy).synced = false;
 
-				Notification::new(msg.to_owned()).green().send(proxy);
+				Notification::new(msg.to_owned()).green().send(proxy).await;
 
 				return BLOCK;
 			}
@@ -64,10 +61,7 @@ impl ModuleInstance for AntiPushInst {
 
 		FORWARD
 	}
-	async fn server_packet<'a>(
-		proxy: &mut Proxy,
-		packet: &mut ServerPacket<'a>,
-	) -> Result<PacketFlow> {
+	async fn server_packet(proxy: &mut Proxy, packet: &mut ServerPacket) -> Result<PacketFlow> {
 		if let ServerPacket::Update(update) = packet {
 			// sync antipush if not synced
 			// that means update all tiles that were sent previously to remove push or to revert

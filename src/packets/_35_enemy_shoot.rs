@@ -17,8 +17,8 @@ pub struct EnemyShoot {
 	pub angle_between_shots: f32,
 }
 
-impl<'a> RPRead<'a> for EnemyShoot {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+impl RPRead for EnemyShoot {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -69,7 +69,7 @@ impl RPWrite for EnemyShoot {
 	}
 }
 
-impl<'a> From<EnemyShoot> for ServerPacket<'a> {
+impl From<EnemyShoot> for ServerPacket {
 	fn from(value: EnemyShoot) -> Self {
 		Self::EnemyShoot(value)
 	}

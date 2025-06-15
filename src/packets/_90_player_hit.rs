@@ -11,8 +11,8 @@ pub struct PlayerHit {
 	pub bullet_id: ProjectileId,
 }
 
-impl<'a> RPRead<'a> for PlayerHit {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+impl RPRead for PlayerHit {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -36,7 +36,7 @@ impl RPWrite for PlayerHit {
 	}
 }
 
-impl<'a> From<PlayerHit> for ClientPacket<'a> {
+impl From<PlayerHit> for ClientPacket {
 	fn from(value: PlayerHit) -> Self {
 		Self::PlayerHit(value)
 	}

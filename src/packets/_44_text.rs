@@ -1,41 +1,40 @@
 use super::ServerPacket;
 use crate::{extra_datatypes::ObjectId, read::RPRead, write::RPWrite};
 use anyhow::Result;
-use std::borrow::Cow;
 
 #[derive(Debug, Clone)]
-pub struct TextPacket<'a> {
-	pub name: Cow<'a, str>,
+pub struct TextPacket {
+	pub name: String,
 	pub object_id: ObjectId,
 	pub num_stars: u16,
 	pub bubble_time: u8,
-	pub recipient: Cow<'a, str>,
-	pub text: Cow<'a, str>,
-	pub clean_text: Cow<'a, str>,
+	pub recipient: String,
+	pub text: String,
+	pub clean_text: String,
 	pub is_supporter: bool,
 	pub star_background: u32,
 }
 
-impl<'a> RPRead<'a> for TextPacket<'a> {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+impl RPRead for TextPacket {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
 		Ok(Self {
-			name: Cow::rp_read(data)?,
+			name: String::rp_read(data)?,
 			object_id: ObjectId(u32::rp_read(data)?),
 			num_stars: u16::rp_read(data)?,
 			bubble_time: u8::rp_read(data)?,
-			recipient: Cow::rp_read(data)?,
-			text: Cow::rp_read(data)?,
-			clean_text: Cow::rp_read(data)?,
+			recipient: String::rp_read(data)?,
+			text: String::rp_read(data)?,
+			clean_text: String::rp_read(data)?,
 			is_supporter: bool::rp_read(data)?,
 			star_background: u32::rp_read(data)?,
 		})
 	}
 }
 
-impl<'a> RPWrite for TextPacket<'a> {
+impl RPWrite for TextPacket {
 	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut written = 0;
 
@@ -53,8 +52,8 @@ impl<'a> RPWrite for TextPacket<'a> {
 	}
 }
 
-impl<'a> From<TextPacket<'a>> for ServerPacket<'a> {
-	fn from(value: TextPacket<'a>) -> Self {
+impl From<TextPacket> for ServerPacket {
+	fn from(value: TextPacket) -> Self {
 		Self::Text(value)
 	}
 }

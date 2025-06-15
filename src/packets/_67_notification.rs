@@ -4,44 +4,44 @@ use anyhow::Result;
 use std::borrow::Cow;
 
 #[derive(Debug)]
-pub struct NotificationPacket<'a> {
+pub struct NotificationPacket {
 	pub extra: u8,
-	pub notification: NotificationType<'a>,
+	pub notification: NotificationType,
 }
 
 #[non_exhaustive]
 #[derive(Debug)]
-pub enum NotificationType<'a> {
+pub enum NotificationType {
 	StatIncrease {
-		text: Cow<'a, str>,
+		text: String,
 	},
 	ServerMessage {
-		text: Cow<'a, str>,
+		text: String,
 	},
 	ErrorMessage {
-		text: Cow<'a, str>,
+		text: String,
 	},
 	StickyMessage {
-		text: Cow<'a, str>,
+		text: String,
 	},
 	ObjectText {
-		message: Cow<'a, str>,
+		message: String,
 		object_id: ObjectId,
 		color: u32,
 	},
 	Behavior {
-		message: Cow<'a, str>,
+		message: String,
 		picture_type: u32,
 		color: u32,
 	},
 	Other {
 		id: u8,
-		data: Cow<'a, [u8]>,
+		data: Vec<u8>,
 	},
 }
 
-impl<'a> RPRead<'a> for NotificationPacket<'a> {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+impl RPRead for NotificationPacket {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -50,30 +50,30 @@ impl<'a> RPRead<'a> for NotificationPacket<'a> {
 
 		let notification = match notification_type {
 			0 => NotificationType::StatIncrease {
-				text: Cow::rp_read(data)?,
+				text: String::rp_read(data)?,
 			},
 			1 => NotificationType::ServerMessage {
-				text: Cow::rp_read(data)?,
+				text: String::rp_read(data)?,
 			},
 			2 => NotificationType::ErrorMessage {
-				text: Cow::rp_read(data)?,
+				text: String::rp_read(data)?,
 			},
 			3 => NotificationType::StickyMessage {
-				text: Cow::rp_read(data)?,
+				text: String::rp_read(data)?,
 			},
 			6 => NotificationType::ObjectText {
-				message: Cow::rp_read(data)?,
+				message: String::rp_read(data)?,
 				object_id: ObjectId(u32::rp_read(data)?),
 				color: u32::rp_read(data)?,
 			},
 			12 => NotificationType::Behavior {
-				message: Cow::rp_read(data)?,
+				message: String::rp_read(data)?,
 				picture_type: u32::rp_read(data)?,
 				color: u32::rp_read(data)?,
 			},
 			id => NotificationType::Other {
 				id,
-				data: Cow::Borrowed(data),
+				data: data.to_owned(),
 			},
 		};
 
@@ -84,7 +84,7 @@ impl<'a> RPRead<'a> for NotificationPacket<'a> {
 	}
 }
 
-impl<'a> RPWrite for NotificationPacket<'a> {
+impl RPWrite for NotificationPacket {
 	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut bytes_written = 0;
 
@@ -143,8 +143,8 @@ impl<'a> RPWrite for NotificationPacket<'a> {
 	}
 }
 
-impl<'a> From<NotificationPacket<'a>> for ServerPacket<'a> {
-	fn from(value: NotificationPacket<'a>) -> Self {
+impl From<NotificationPacket> for ServerPacket {
+	fn from(value: NotificationPacket) -> Self {
 		Self::Notification(value)
 	}
 }

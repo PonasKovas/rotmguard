@@ -6,14 +6,14 @@ use crate::{
 use anyhow::{bail, Result};
 
 #[derive(Debug, Clone)]
-pub struct ObjectStatusData<'a> {
+pub struct ObjectStatusData {
 	pub object_id: ObjectId,
 	pub position: WorldPos,
-	pub stats: Vec<StatData<'a>>,
+	pub stats: Vec<StatData>,
 }
 
-impl<'a> RPRead<'a> for ObjectStatusData<'a> {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+impl RPRead for ObjectStatusData {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -38,7 +38,7 @@ impl<'a> RPRead<'a> for ObjectStatusData<'a> {
 	}
 }
 
-impl<'a> RPWrite for ObjectStatusData<'a> {
+impl RPWrite for ObjectStatusData {
 	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut written = 0;
 

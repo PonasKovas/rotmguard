@@ -39,10 +39,7 @@ impl Module for General {
 }
 
 impl ModuleInstance for GeneralInst {
-	async fn client_packet<'a>(
-		proxy: &mut Proxy,
-		packet: &mut ClientPacket<'a>,
-	) -> Result<PacketFlow> {
+	async fn client_packet(proxy: &mut Proxy, packet: &mut ClientPacket) -> Result<PacketFlow> {
 		match packet {
 			ClientPacket::Move(move_packet) => {
 				// this is basically client acknowledging a tick.
@@ -68,7 +65,8 @@ impl ModuleInstance for GeneralInst {
 
 					Notification::new("hi :)".to_owned())
 						.color(color)
-						.send(proxy);
+						.send(proxy)
+						.await;
 
 					let packet = ShowEffect {
 						effect_type: 1,
@@ -79,7 +77,7 @@ impl ModuleInstance for GeneralInst {
 						duration: Some(5.0),
 						unknown: None,
 					};
-					proxy.write_client.add_server_packet(&packet.into());
+					proxy.client.send(packet.into()).await?;
 
 					let packet = ShowEffect {
 						effect_type: 37,
@@ -90,7 +88,7 @@ impl ModuleInstance for GeneralInst {
 						duration: Some(0.5),
 						unknown: None,
 					};
-					proxy.write_client.add_server_packet(&packet.into());
+					proxy.client.send(packet.into()).await?;
 
 					info!(?proxy.modules, "hi ☺️");
 
@@ -106,7 +104,7 @@ impl ModuleInstance for GeneralInst {
 						format!("DEVELOPER MODE {}", if *dev_mode { "ON" } else { "OFF" })
 					};
 
-					Notification::new(message).green().send(proxy);
+					Notification::new(message).green().send(proxy).await;
 
 					return BLOCK;
 				}
@@ -116,10 +114,7 @@ impl ModuleInstance for GeneralInst {
 
 		FORWARD
 	}
-	async fn server_packet<'a>(
-		proxy: &mut Proxy,
-		packet: &mut ServerPacket<'a>,
-	) -> Result<PacketFlow> {
+	async fn server_packet(proxy: &mut Proxy, packet: &mut ServerPacket) -> Result<PacketFlow> {
 		match packet {
 			ServerPacket::CreateSuccess(create_success) => {
 				general!(proxy).my_object_id = create_success.object_id;

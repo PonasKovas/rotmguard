@@ -33,18 +33,18 @@ pub use _64_aoe::AoePacket;
 pub use _67_notification::{NotificationPacket, NotificationType};
 pub use _90_player_hit::PlayerHit;
 pub use _9_player_text::PlayerText;
-use derivative::Derivative;
 
 use crate::{read::RPRead, write::RPWrite};
 use anyhow::{Context, Result};
+use derivative::Derivative;
 
 /// From client to server
 #[non_exhaustive]
 #[repr(u8)]
 #[derive(Derivative)]
 #[derivative(Debug)]
-pub enum ClientPacket<'a> {
-	PlayerText(PlayerText<'a>) = 9,
+pub enum ClientPacket {
+	PlayerText(PlayerText) = 9,
 	PlayerShoot(PlayerShoot) = 30,
 	Move(Move) = 62,
 	PlayerHit(PlayerHit) = 90,
@@ -53,7 +53,7 @@ pub enum ClientPacket<'a> {
 	Unknown {
 		id: u8,
 		#[derivative(Debug = "ignore")]
-		bytes: Cow<'a, [u8]>,
+		bytes: Vec<u8>,
 	}, // not necessarilly unknown, just not defined in this program, probably because irrelevant
 }
 
@@ -62,39 +62,39 @@ pub enum ClientPacket<'a> {
 #[repr(u8)]
 #[derive(Derivative)]
 #[derivative(Debug)]
-pub enum ServerPacket<'a> {
-	NewTick(NewTick<'a>) = 10,
+pub enum ServerPacket {
+	NewTick(NewTick) = 10,
 	ShowEffect(ShowEffect) = 11,
 	Goto(GotoPacket) = 18,
 	EnemyShoot(EnemyShoot) = 35,
-	Update(UpdatePacket<'a>) = 42,
-	Text(TextPacket<'a>) = 44,
-	Reconnect(Reconnect<'a>) = 45,
+	Update(UpdatePacket) = 42,
+	Text(TextPacket) = 44,
+	Reconnect(Reconnect) = 45,
 	Aoe(AoePacket) = 64,
-	Notification(NotificationPacket<'a>) = 67,
-	CreateSuccess(CreateSuccess<'a>) = 101,
+	Notification(NotificationPacket) = 67,
+	CreateSuccess(CreateSuccess) = 101,
 	Unknown {
 		id: u8,
 		#[derivative(Debug = "ignore")]
-		bytes: Cow<'a, [u8]>,
+		bytes: Vec<u8>,
 	}, // not necessarilly unknown, just not defined in this program, probably because irrelevant
 }
 
-impl<'a> ClientPacket<'a> {
+impl ClientPacket {
 	pub fn discriminator(&self) -> u8 {
 		// This is safe because the enum is repr(u8)
 		unsafe { *(self as *const _ as *const u8) }
 	}
 }
-impl<'a> ServerPacket<'a> {
+impl ServerPacket {
 	pub fn discriminator(&self) -> u8 {
 		// This is safe because the enum is repr(u8)
 		unsafe { *(self as *const _ as *const u8) }
 	}
 }
 
-impl<'a> RPRead<'a> for ClientPacket<'a> {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+impl RPRead for ClientPacket {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -109,7 +109,7 @@ impl<'a> RPRead<'a> for ClientPacket<'a> {
 			105 => Self::Escape,
 			_ => Self::Unknown {
 				id: packet_id,
-				bytes: Cow::Borrowed(data),
+				bytes: data.to_owned(),
 			},
 		};
 
@@ -117,8 +117,8 @@ impl<'a> RPRead<'a> for ClientPacket<'a> {
 	}
 }
 
-impl<'a> RPRead<'a> for ServerPacket<'a> {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+impl RPRead for ServerPacket {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -141,7 +141,7 @@ impl<'a> RPRead<'a> for ServerPacket<'a> {
 			}
 			_ => Self::Unknown {
 				id: packet_id,
-				bytes: Cow::Borrowed(data),
+				bytes: data.to_owned(),
 			},
 		};
 
@@ -149,7 +149,7 @@ impl<'a> RPRead<'a> for ServerPacket<'a> {
 	}
 }
 
-impl<'a> RPWrite for ClientPacket<'a> {
+impl RPWrite for ClientPacket {
 	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut bytes_written = 0;
 
@@ -187,7 +187,7 @@ impl<'a> RPWrite for ClientPacket<'a> {
 	}
 }
 
-impl<'a> RPWrite for ServerPacket<'a> {
+impl RPWrite for ServerPacket {
 	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut bytes_written = 0;
 

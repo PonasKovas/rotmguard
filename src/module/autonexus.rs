@@ -62,10 +62,7 @@ impl Module for Autonexus {
 }
 
 impl ModuleInstance for AutonexusInst {
-	async fn client_packet<'a>(
-		proxy: &mut Proxy,
-		packet: &mut ClientPacket<'a>,
-	) -> Result<PacketFlow> {
+	async fn client_packet(proxy: &mut Proxy, packet: &mut ClientPacket) -> Result<PacketFlow> {
 		match packet {
 			ClientPacket::PlayerText(player_text) => {
 				let text = &player_text.text;
@@ -79,7 +76,8 @@ impl ModuleInstance for AutonexusInst {
 								*proxy.config.settings.autonexus_hp.lock().unwrap()
 							))
 							.blue()
-							.send(proxy);
+							.send(proxy)
+							.await;
 
 							return BLOCK;
 						}
@@ -89,7 +87,8 @@ impl ModuleInstance for AutonexusInst {
 						Err(e) => {
 							Notification::new(format!("/autonexus <HP>\nError parsing HP: {e}"))
 								.red()
-								.send(proxy);
+								.send(proxy)
+								.await;
 							error!("Error parsing /autonexus command HP: {e:?}");
 
 							return BLOCK;
@@ -100,7 +99,8 @@ impl ModuleInstance for AutonexusInst {
 
 					Notification::new(format!("Autonexus threshold set to {hp}."))
 						.green()
-						.send(proxy);
+						.send(proxy)
+						.await;
 
 					return BLOCK; // dont forward this ;)
 				}
@@ -115,10 +115,7 @@ impl ModuleInstance for AutonexusInst {
 			_ => FORWARD,
 		}
 	}
-	async fn server_packet<'a>(
-		proxy: &mut Proxy,
-		packet: &mut ServerPacket<'a>,
-	) -> Result<PacketFlow> {
+	async fn server_packet(proxy: &mut Proxy, packet: &mut ServerPacket) -> Result<PacketFlow> {
 		match packet {
 			ServerPacket::Update(update) => {
 				// // if myself added, set initial hp
@@ -184,7 +181,8 @@ impl ModuleInstance for AutonexusInst {
 						let color = 0x006666 | (color << 16);
 						Notification::new(format!("pdelta {hp_delta}"))
 							.color(color)
-							.send(proxy);
+							.send(proxy)
+							.await;
 						let packet = ShowEffect {
 							effect_type: 18,
 							target_object_id: Some(proxy.modules.general.my_object_id),
@@ -194,7 +192,7 @@ impl ModuleInstance for AutonexusInst {
 							duration: Some(1.0),
 							unknown: None,
 						};
-						proxy.write_client.add_server_packet(&packet.into());
+						proxy.client.send(packet.into()).await.unwrap();
 
 						save_logs();
 					}
@@ -271,14 +269,15 @@ async fn take_damage(proxy: &mut Proxy, damage: i64) -> Result<PacketFlow> {
 	if *proxy.config.settings.dev_mode.lock().unwrap() {
 		Notification::new(format!("DAMAGE {}", damage))
 			.color(0x888888)
-			.send(proxy);
+			.send(proxy)
+			.await;
 	}
 
 	FORWARD
 }
 
 async fn nexus(proxy: &mut Proxy) -> Result<()> {
-	proxy.write_server.add_client_packet(&ClientPacket::Escape);
+	proxy.server.send(ClientPacket::Escape).await?;
 
 	warn!(?proxy.modules, "Nexusing");
 

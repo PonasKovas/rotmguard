@@ -27,10 +27,7 @@ impl Module for Antidebuffs {
 }
 
 impl ModuleInstance for AntidebuffsInst {
-	async fn server_packet<'a>(
-		proxy: &mut Proxy,
-		packet: &mut ServerPacket<'a>,
-	) -> Result<PacketFlow> {
+	async fn server_packet(proxy: &mut Proxy, packet: &mut ServerPacket) -> Result<PacketFlow> {
 		match packet {
 			ServerPacket::Update(update) => {
 				// only interested in my own stats

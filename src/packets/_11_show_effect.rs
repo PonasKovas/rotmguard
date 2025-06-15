@@ -17,8 +17,8 @@ pub struct ShowEffect {
 	pub unknown: Option<u8>,
 }
 
-impl<'a> RPRead<'a> for ShowEffect {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+impl RPRead for ShowEffect {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -117,7 +117,7 @@ impl RPWrite for ShowEffect {
 	}
 }
 
-impl<'a> From<ShowEffect> for ServerPacket<'a> {
+impl From<ShowEffect> for ServerPacket {
 	fn from(value: ShowEffect) -> Self {
 		Self::ShowEffect(value)
 	}

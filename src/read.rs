@@ -1,16 +1,16 @@
 use anyhow::{bail, Context, Result};
 use byteorder::ReadBytesExt;
-use std::{borrow::Cow, io::Read};
+use std::io::Read;
 
 /// Read packet/datatype in the game protocol format
-pub trait RPRead<'a> {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+pub trait RPRead {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized;
 }
 
-impl<'a> RPRead<'a> for bool {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+impl RPRead for bool {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -21,8 +21,8 @@ impl<'a> RPRead<'a> for bool {
 	}
 }
 
-impl<'a> RPRead<'a> for u8 {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+impl RPRead for u8 {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -33,8 +33,8 @@ impl<'a> RPRead<'a> for u8 {
 	}
 }
 
-impl<'a> RPRead<'a> for u16 {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self> {
+impl RPRead for u16 {
+	fn rp_read(data: &mut &[u8]) -> Result<Self> {
 		let mut bytes = [0; 2];
 		data.read_exact(&mut bytes).context("reading u16")?;
 
@@ -42,8 +42,8 @@ impl<'a> RPRead<'a> for u16 {
 	}
 }
 
-impl<'a> RPRead<'a> for u32 {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+impl RPRead for u32 {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -54,8 +54,8 @@ impl<'a> RPRead<'a> for u32 {
 	}
 }
 
-impl<'a> RPRead<'a> for i8 {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+impl RPRead for i8 {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -66,8 +66,8 @@ impl<'a> RPRead<'a> for i8 {
 	}
 }
 
-impl<'a> RPRead<'a> for i16 {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self> {
+impl RPRead for i16 {
+	fn rp_read(data: &mut &[u8]) -> Result<Self> {
 		let mut bytes = [0; 2];
 		data.read_exact(&mut bytes).context("reading i16")?;
 
@@ -75,8 +75,8 @@ impl<'a> RPRead<'a> for i16 {
 	}
 }
 
-impl<'a> RPRead<'a> for i32 {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+impl RPRead for i32 {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -87,8 +87,8 @@ impl<'a> RPRead<'a> for i32 {
 	}
 }
 
-impl<'a> RPRead<'a> for f32 {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+impl RPRead for f32 {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -99,8 +99,8 @@ impl<'a> RPRead<'a> for f32 {
 	}
 }
 
-impl<'a> RPRead<'a> for Cow<'a, str> {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+impl RPRead for String {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -123,7 +123,7 @@ impl<'a> RPRead<'a> for Cow<'a, str> {
 
 		*data = &data[strlen..];
 
-		Ok(Cow::Borrowed(r))
+		Ok(r.to_owned())
 	}
 }
 

@@ -34,7 +34,7 @@ impl Ground {
 
 		take_damage(proxy, damage).await
 	}
-	pub fn add_tiles(proxy: &mut Proxy, update: &mut UpdatePacket<'_>) {
+	pub fn add_tiles(proxy: &mut Proxy, update: &mut UpdatePacket) {
 		for tile in &update.tiles {
 			let tile_type = tile.tile_type as u32;
 

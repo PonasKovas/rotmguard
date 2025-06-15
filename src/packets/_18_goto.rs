@@ -13,8 +13,8 @@ pub struct GotoPacket {
 	pub unknown: i32,
 }
 
-impl<'a> RPRead<'a> for GotoPacket {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+impl RPRead for GotoPacket {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -38,7 +38,7 @@ impl RPWrite for GotoPacket {
 	}
 }
 
-impl<'a> From<GotoPacket> for ServerPacket<'a> {
+impl From<GotoPacket> for ServerPacket {
 	fn from(value: GotoPacket) -> Self {
 		Self::Goto(value)
 	}

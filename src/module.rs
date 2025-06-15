@@ -46,40 +46,28 @@ pub trait Module {
 // An instance of a module for a separate connection (or proxy if you will)
 #[allow(unused_variables)]
 pub trait ModuleInstance {
-	async fn pre_client_packet<'a>(
-		proxy: &mut Proxy,
-		packet: &mut ClientPacket<'a>,
-	) -> Result<PacketFlow> {
+	async fn pre_client_packet(proxy: &mut Proxy, packet: &mut ClientPacket) -> Result<PacketFlow> {
 		FORWARD
 	}
-	async fn client_packet<'a>(
-		proxy: &mut Proxy,
-		packet: &mut ClientPacket<'a>,
-	) -> Result<PacketFlow> {
+	async fn client_packet(proxy: &mut Proxy, packet: &mut ClientPacket) -> Result<PacketFlow> {
 		FORWARD
 	}
-	async fn post_client_packet<'a>(
+	async fn post_client_packet(
 		proxy: &mut Proxy,
-		packet: &mut ClientPacket<'a>,
+		packet: &mut ClientPacket,
 	) -> Result<PacketFlow> {
 		FORWARD
 	}
 
-	async fn pre_server_packet<'a>(
-		proxy: &mut Proxy,
-		packet: &mut ServerPacket<'a>,
-	) -> Result<PacketFlow> {
+	async fn pre_server_packet(proxy: &mut Proxy, packet: &mut ServerPacket) -> Result<PacketFlow> {
 		FORWARD
 	}
-	async fn server_packet<'a>(
-		proxy: &mut Proxy,
-		packet: &mut ServerPacket<'a>,
-	) -> Result<PacketFlow> {
+	async fn server_packet(proxy: &mut Proxy, packet: &mut ServerPacket) -> Result<PacketFlow> {
 		FORWARD
 	}
-	async fn post_server_packet<'a>(
+	async fn post_server_packet(
 		proxy: &mut Proxy,
-		packet: &mut ServerPacket<'a>,
+		packet: &mut ServerPacket,
 	) -> Result<PacketFlow> {
 		FORWARD
 	}
@@ -120,9 +108,9 @@ macro_rules! gen_root_module {
 		}
 
 		impl ModuleInstance for RootModuleInstance {
-			async fn client_packet<'a>(
+			async fn client_packet(
 				proxy: &mut Proxy,
-				packet: &mut ClientPacket<'a>,
+				packet: &mut ClientPacket,
 			) -> Result<PacketFlow> {
 				$(
 					if <$path as Module>::Instance::pre_client_packet(proxy, packet).await? == PacketFlow::Block {
@@ -142,9 +130,9 @@ macro_rules! gen_root_module {
 
 				FORWARD
 			}
-			async fn server_packet<'a>(
+			async fn server_packet(
 				proxy: &mut Proxy,
-				packet: &mut ServerPacket<'a>,
+				packet: &mut ServerPacket,
 			) -> Result<PacketFlow> {
 				$(
 					if <$path as Module>::Instance::pre_server_packet(proxy, packet).await? == PacketFlow::Block {
@@ -173,27 +161,27 @@ macro_rules! gen_root_module {
 			}
 
 			// The root modules doesnt implement these, it calls these for others instead
-			async fn pre_server_packet<'a>(
+			async fn pre_server_packet(
 				_proxy: &mut Proxy,
-				_packet: &mut ServerPacket<'a>,
+				_packet: &mut ServerPacket,
 			) -> Result<PacketFlow> {
 				unimplemented!();
 			}
-			async fn post_server_packet<'a>(
+			async fn post_server_packet(
 				_proxy: &mut Proxy,
-				_packet: &mut ServerPacket<'a>,
+				_packet: &mut ServerPacket,
 			) -> Result<PacketFlow> {
 				unimplemented!();
 			}
-			async fn pre_client_packet<'a>(
+			async fn pre_client_packet(
 				_proxy: &mut Proxy,
-				_packet: &mut ClientPacket<'a>,
+				_packet: &mut ClientPacket,
 			) -> Result<PacketFlow> {
 				unimplemented!();
 			}
-			async fn post_client_packet<'a>(
+			async fn post_client_packet(
 				_proxy: &mut Proxy,
-				_packet: &mut ClientPacket<'a>,
+				_packet: &mut ClientPacket,
 			) -> Result<PacketFlow> {
 				unimplemented!();
 			}

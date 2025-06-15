@@ -4,22 +4,22 @@ use anyhow::Result;
 use std::{borrow::Cow, io::Read};
 
 #[derive(Debug, Clone)]
-pub struct Reconnect<'a> {
-	pub hostname: Cow<'a, str>,
-	pub address: Cow<'a, str>,
+pub struct Reconnect {
+	pub hostname: String,
+	pub address: String,
 	pub port: u16,
 	pub game_id: u32,
 	pub key_time: u32,
 	pub key: Vec<u8>,
 }
 
-impl<'a> RPRead<'a> for Reconnect<'a> {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+impl RPRead for Reconnect {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
-		let hostname = Cow::rp_read(data)?;
-		let address = Cow::rp_read(data)?;
+		let hostname = String::rp_read(data)?;
+		let address = String::rp_read(data)?;
 		let port = u16::rp_read(data)?;
 		let game_id = u32::rp_read(data)?;
 		let key_time = u32::rp_read(data)?;
@@ -38,7 +38,7 @@ impl<'a> RPRead<'a> for Reconnect<'a> {
 	}
 }
 
-impl<'a> RPWrite for Reconnect<'a> {
+impl RPWrite for Reconnect {
 	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut written = 0;
 
@@ -56,8 +56,8 @@ impl<'a> RPWrite for Reconnect<'a> {
 	}
 }
 
-impl<'a> From<Reconnect<'a>> for ServerPacket<'a> {
-	fn from(value: Reconnect<'a>) -> Self {
+impl From<Reconnect> for ServerPacket {
+	fn from(value: Reconnect) -> Self {
 		Self::Reconnect(value)
 	}
 }

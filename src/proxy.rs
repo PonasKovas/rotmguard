@@ -12,13 +12,16 @@ use std::{
 	mem::swap,
 	ops::{Deref, DerefMut},
 	sync::Arc,
-	time::Duration,
 };
 use tokio::{
-	io::{self, AsyncReadExt, AsyncWriteExt},
-	net::{tcp::ReadHalf, TcpStream},
+	io::{self, AsyncReadExt, AsyncWriteExt, BufWriter},
+	net::{
+		tcp::{OwnedReadHalf, ReadHalf},
+		TcpStream,
+	},
 	select,
-	time::interval,
+	sync::mpsc::{channel, Sender},
+	time::{interval, sleep_until, timeout, Duration, Instant},
 };
 use tracing::instrument;
 
@@ -45,8 +48,8 @@ pub struct Proxy {
 	pub config: Arc<Config>,
 	pub assets: Arc<Assets>,
 	pub modules: RootModuleInstance,
-	pub write_client: PacketWriter,
-	pub write_server: PacketWriter,
+	pub client: Sender<ServerPacket>,
+	pub server: Sender<ClientPacket>,
 }
 
 // Basically a specialised better BufWriter
@@ -56,8 +59,8 @@ pub struct PacketWriter {
 }
 
 // Basically a specialised better BufReader
-struct PacketReader<'a> {
-	stream: ReadHalf<'a>,
+struct PacketReader {
+	stream: OwnedReadHalf,
 	rc4: Rc4<U13>,
 	buf: Vec<u8>,
 	// start and end of written data in the buffer
@@ -66,8 +69,8 @@ struct PacketReader<'a> {
 }
 
 // A reference to a raw packet that will remove it from the buffer on Drop
-struct RawPacketRef<'a, 'b> {
-	reader: &'a mut PacketReader<'b>,
+struct RawPacketRef<'a> {
+	reader: &'a mut PacketReader,
 }
 
 impl Proxy {
@@ -76,31 +79,91 @@ impl Proxy {
 		config: Arc<Config>,
 		assets: Arc<Assets>,
 		modules: RootModuleInstance,
-		mut client: TcpStream,
-		mut server: TcpStream,
+		client: TcpStream,
+		server: TcpStream,
 	) -> Result<()> {
-		let (client_read, mut client_write) = client.split();
-		let (server_read, mut server_write) = server.split();
+		let (client_read, mut client_write) = client.into_split();
+		let (server_read, mut server_write) = server.into_split();
+
+		let (client_sender, mut client_recv) = channel::<ServerPacket>(100);
+		let (server_sender, mut server_recv) = channel::<ClientPacket>(100);
+		tokio::spawn(async move {
+			let mut writer = PacketWriter {
+				rc4: Rc4::new(RC4_K_S_TO_C.into()),
+				buf: Vec::with_capacity(DEFAULT_BUFFER_SIZE),
+			};
+
+			let mut last_flush = Instant::now();
+			loop {
+				select! {
+					_ = sleep_until(last_flush + Duration::from_millis(WRITE_PERIOD)) => {
+						client_write.write_all(&writer.buf).await.unwrap();
+						client_write.flush().await.unwrap();
+						writer.buf.clear();
+						last_flush = Instant::now();
+					}
+					pkt = client_recv.recv() => {
+						match pkt {
+							Some(pkt) => {
+								writer.add_server_packet(&pkt);
+
+								if writer.buf.len() > 8 * 1024 {
+									client_write.write_all(&writer.buf).await.unwrap();
+									client_write.flush().await.unwrap();
+									writer.buf.clear();
+									last_flush = Instant::now();
+								}
+							},
+							None => return,
+						}
+					}
+				}
+			}
+		});
+		tokio::spawn(async move {
+			let mut writer = PacketWriter {
+				rc4: Rc4::new(RC4_K_C_TO_S.into()),
+				buf: Vec::with_capacity(DEFAULT_BUFFER_SIZE),
+			};
+
+			let mut last_flush = Instant::now();
+			loop {
+				select! {
+					_ = sleep_until(last_flush + Duration::from_millis(WRITE_PERIOD)) => {
+						server_write.write_all(&writer.buf).await.unwrap();
+						server_write.flush().await.unwrap();
+						writer.buf.clear();
+						last_flush = Instant::now();
+					}
+					pkt = server_recv.recv() => {
+						match pkt {
+							Some(pkt) => {
+								writer.add_client_packet(&pkt);
+
+								if writer.buf.len() > 8 * 1024 {
+									server_write.write_all(&writer.buf).await.unwrap();
+									server_write.flush().await.unwrap();
+									writer.buf.clear();
+									last_flush = Instant::now();
+								}
+							},
+							None => return,
+						}
+					}
+				}
+			}
+		});
 
 		let mut proxy = Proxy {
 			config,
 			assets,
 			modules,
-			write_client: PacketWriter {
-				rc4: Rc4::new(RC4_K_S_TO_C.into()),
-				buf: Vec::with_capacity(DEFAULT_BUFFER_SIZE),
-			},
-			write_server: PacketWriter {
-				rc4: Rc4::new(RC4_K_C_TO_S.into()),
-				buf: Vec::with_capacity(DEFAULT_BUFFER_SIZE),
-			},
+			client: client_sender,
+			server: server_sender,
 		};
 
 		let mut client_reader = PacketReader::new(client_read, RC4_K_C_TO_S);
 		let mut server_reader = PacketReader::new(server_read, RC4_K_S_TO_C);
-
-		let mut writing_interval = interval(Duration::from_millis(WRITE_PERIOD));
-		writing_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
 
 		loop {
 			select! {
@@ -120,7 +183,7 @@ impl Proxy {
 								Ok(PacketFlow::Forward) => {
 									// 👍
 									// forward the packet
-									proxy.write_client.add_server_packet(&p);
+									proxy.client.send(p).await.unwrap();
 								}
 								Ok(PacketFlow::Block) => {}, // dont forward the packet
 								Err(e) => {
@@ -149,7 +212,7 @@ impl Proxy {
 								Ok(PacketFlow::Forward) => {
 									// 👍
 									// forward the packet
-									proxy.write_server.add_client_packet(&p);
+									proxy.server.send(p).await.unwrap();
 								}
 								Ok(PacketFlow::Block) => {}, // dont forward the packet
 								Err(e) => {
@@ -161,16 +224,6 @@ impl Proxy {
 							bail!("Error parsing client packet: {e:?}");
 						}
 					}
-				},
-				_ = writing_interval.tick() => {
-					// write all buffered packets to both client and server
-					client_write.write_all(&proxy.write_client.buf).await?;
-					client_write.flush().await?;
-					proxy.write_client.buf.clear();
-
-					server_write.write_all(&proxy.write_server.buf).await?;
-					server_write.flush().await?;
-					proxy.write_server.buf.clear();
 				},
 			};
 		}
@@ -198,8 +251,8 @@ impl PacketWriter {
 	}
 }
 
-impl<'a> PacketReader<'a> {
-	fn new(stream: ReadHalf<'a>, rc4_key: &[u8; 13]) -> Self {
+impl PacketReader {
+	fn new(stream: OwnedReadHalf, rc4_key: &[u8; 13]) -> Self {
 		PacketReader {
 			stream,
 			rc4: Rc4::new(rc4_key.into()),
@@ -229,7 +282,7 @@ impl<'a> PacketReader<'a> {
 		u32::from_be_bytes([b[i], b[i + 1], b[i + 2], b[i + 3]]) as usize
 	}
 	// Will complete when a whole packet is ready to be read
-	async fn wait_for_whole_packet<'b>(&'b mut self) -> io::Result<RawPacketRef<'b, 'a>> {
+	async fn wait_for_whole_packet(&mut self) -> io::Result<RawPacketRef> {
 		// first we gotta wait for the packet length
 		let packet_length = loop {
 			// check if we have at least 4 bytes written in the buffer
@@ -293,7 +346,7 @@ impl<'a> PacketReader<'a> {
 	}
 }
 
-impl<'a, 'b> Deref for RawPacketRef<'a, 'b> {
+impl<'a> Deref for RawPacketRef<'a> {
 	type Target = [u8];
 
 	fn deref(&self) -> &Self::Target {
@@ -303,7 +356,7 @@ impl<'a, 'b> Deref for RawPacketRef<'a, 'b> {
 	}
 }
 
-impl<'a, 'b> DerefMut for RawPacketRef<'a, 'b> {
+impl<'a> DerefMut for RawPacketRef<'a> {
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		let packet_size = self.reader.get_packet_size();
 
@@ -311,7 +364,7 @@ impl<'a, 'b> DerefMut for RawPacketRef<'a, 'b> {
 	}
 }
 
-impl<'a, 'b> Drop for RawPacketRef<'a, 'b> {
+impl<'a> Drop for RawPacketRef<'a> {
 	fn drop(&mut self) {
 		self.reader.buf_start += self.reader.get_packet_size();
 	}

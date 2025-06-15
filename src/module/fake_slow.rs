@@ -34,10 +34,7 @@ impl Module for FakeSlow {
 }
 
 impl ModuleInstance for FakeSlowInst {
-	async fn client_packet<'a>(
-		proxy: &mut Proxy,
-		packet: &mut ClientPacket<'a>,
-	) -> Result<PacketFlow> {
+	async fn client_packet(proxy: &mut Proxy, packet: &mut ClientPacket) -> Result<PacketFlow> {
 		if let ClientPacket::PlayerText(text) = packet {
 			let text = &text.text;
 			// `/slow` toggles a permanent slow effect
@@ -50,7 +47,7 @@ impl ModuleInstance for FakeSlowInst {
 				};
 				fake_slow!(proxy).synced = false;
 
-				Notification::new(msg.to_owned()).green().send(proxy);
+				Notification::new(msg.to_owned()).green().send(proxy).await;
 
 				return BLOCK;
 			}
@@ -58,10 +55,7 @@ impl ModuleInstance for FakeSlowInst {
 
 		FORWARD
 	}
-	async fn server_packet<'a>(
-		proxy: &mut Proxy,
-		packet: &mut ServerPacket<'a>,
-	) -> Result<PacketFlow> {
+	async fn server_packet(proxy: &mut Proxy, packet: &mut ServerPacket) -> Result<PacketFlow> {
 		if let ServerPacket::NewTick(new_tick) = packet {
 			let mut conditions = proxy.modules.stats.get_newest().conditions;
 			if conditions.slow() {

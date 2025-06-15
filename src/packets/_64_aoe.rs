@@ -14,8 +14,8 @@ pub struct AoePacket {
 	pub armor_piercing: bool,
 }
 
-impl<'a> RPRead<'a> for AoePacket {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+impl RPRead for AoePacket {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -49,7 +49,7 @@ impl RPWrite for AoePacket {
 	}
 }
 
-impl<'a> From<AoePacket> for ServerPacket<'a> {
+impl From<AoePacket> for ServerPacket {
 	fn from(value: AoePacket) -> Self {
 		Self::Aoe(value)
 	}

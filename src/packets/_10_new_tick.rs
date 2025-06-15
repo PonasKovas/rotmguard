@@ -9,17 +9,17 @@ use derivative::Derivative;
 
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
-pub struct NewTick<'a> {
+pub struct NewTick {
 	pub tick_id: u32,
 	pub tick_time: u32,
 	pub real_time_ms: u32,
 	pub last_real_time_ms: u16,
 	#[derivative(Debug = "ignore")]
-	pub statuses: Vec<ObjectStatusData<'a>>,
+	pub statuses: Vec<ObjectStatusData>,
 }
 
-impl<'a> RPRead<'a> for NewTick<'a> {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+impl RPRead for NewTick {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -48,7 +48,7 @@ impl<'a> RPRead<'a> for NewTick<'a> {
 	}
 }
 
-impl<'a> RPWrite for NewTick<'a> {
+impl RPWrite for NewTick {
 	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut written = 0;
 
@@ -66,15 +66,15 @@ impl<'a> RPWrite for NewTick<'a> {
 	}
 }
 
-impl<'a> From<NewTick<'a>> for ServerPacket<'a> {
-	fn from(value: NewTick<'a>) -> Self {
+impl From<NewTick> for ServerPacket {
+	fn from(value: NewTick) -> Self {
 		Self::NewTick(value)
 	}
 }
 
-impl<'a> NewTick<'a> {
+impl NewTick {
 	// Returns a reference to the ObjectStatusData of the requested object in this packet
-	pub fn get_status_of(&mut self, object_id: ObjectId) -> Option<&mut ObjectStatusData<'a>> {
+	pub fn get_status_of(&mut self, object_id: ObjectId) -> Option<&mut ObjectStatusData> {
 		self.statuses
 			.iter_mut()
 			.find(|obj| obj.object_id == object_id)
@@ -85,7 +85,7 @@ impl<'a> NewTick<'a> {
 		&mut self,
 		object_id: ObjectId,
 		default_pos: WorldPos,
-	) -> &mut ObjectStatusData<'a> {
+	) -> &mut ObjectStatusData {
 		let i = match self
 			.statuses
 			.iter_mut()

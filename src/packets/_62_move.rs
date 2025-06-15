@@ -10,8 +10,8 @@ pub struct Move {
 	pub move_records: Vec<(u32, WorldPos)>,
 }
 
-impl<'a> RPRead<'a> for Move {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+impl RPRead for Move {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -49,7 +49,7 @@ impl RPWrite for Move {
 	}
 }
 
-impl<'a> From<Move> for ClientPacket<'a> {
+impl From<Move> for ClientPacket {
 	fn from(value: Move) -> Self {
 		Self::Move(value)
 	}

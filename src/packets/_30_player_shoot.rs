@@ -16,8 +16,8 @@ pub struct PlayerShoot {
 	pub player_pos: WorldPos,
 }
 
-impl<'a> RPRead<'a> for PlayerShoot {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+impl RPRead for PlayerShoot {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -55,7 +55,7 @@ impl RPWrite for PlayerShoot {
 	}
 }
 
-impl<'a> From<PlayerShoot> for ClientPacket<'a> {
+impl From<PlayerShoot> for ClientPacket {
 	fn from(value: PlayerShoot) -> Self {
 		Self::PlayerShoot(value)
 	}

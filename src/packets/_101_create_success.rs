@@ -1,29 +1,28 @@
 use super::ServerPacket;
 use crate::{extra_datatypes::ObjectId, read::RPRead, write::RPWrite};
 use anyhow::Result;
-use std::borrow::Cow;
 
 #[derive(Debug, Clone)]
-pub struct CreateSuccess<'a> {
+pub struct CreateSuccess {
 	pub object_id: ObjectId,
 	pub char_id: u32,
-	pub unknown: Cow<'a, str>,
+	pub unknown: String,
 }
 
-impl<'a> RPRead<'a> for CreateSuccess<'a> {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+impl RPRead for CreateSuccess {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
 		Ok(Self {
 			object_id: ObjectId(u32::rp_read(data)?),
 			char_id: u32::rp_read(data)?,
-			unknown: Cow::rp_read(data)?,
+			unknown: String::rp_read(data)?,
 		})
 	}
 }
 
-impl<'a> RPWrite for CreateSuccess<'a> {
+impl RPWrite for CreateSuccess {
 	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut written = 0;
 
@@ -35,8 +34,8 @@ impl<'a> RPWrite for CreateSuccess<'a> {
 	}
 }
 
-impl<'a> From<CreateSuccess<'a>> for ServerPacket<'a> {
-	fn from(value: CreateSuccess<'a>) -> Self {
+impl From<CreateSuccess> for ServerPacket {
+	fn from(value: CreateSuccess) -> Self {
 		Self::CreateSuccess(value)
 	}
 }

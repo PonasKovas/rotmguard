@@ -41,15 +41,15 @@ impl Notification {
 		self.color(BLUE_COLOR)
 	}
 	/// Sends the notification
-	pub fn send(self, io: &mut Proxy) {
+	pub async fn send(self, io: &mut Proxy) {
 		let packet = NotificationPacket {
 			extra: 0,
 			notification: NotificationType::Behavior {
-				message: Cow::Owned(self.text),
+				message: self.text,
 				picture_type: 0,
 				color: self.color,
 			},
 		};
-		io.write_client.add_server_packet(&packet.into());
+		io.client.send(packet.into()).await.unwrap();
 	}
 }

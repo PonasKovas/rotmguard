@@ -9,13 +9,13 @@ use derivative::Derivative;
 
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
-pub struct UpdatePacket<'a> {
+pub struct UpdatePacket {
 	pub player_position: WorldPos,
 	pub level_type: u8,
 	#[derivative(Debug = "ignore")]
 	pub tiles: Vec<TileData>, // x, y, type
 	#[derivative(Debug = "ignore")]
-	pub new_objects: Vec<(u16, ObjectStatusData<'a>)>, // object type, statuses
+	pub new_objects: Vec<(u16, ObjectStatusData)>, // object type, statuses
 	#[derivative(Debug = "ignore")]
 	pub to_remove: Vec<ObjectId>, // object that left the viewport
 }
@@ -27,8 +27,8 @@ pub struct TileData {
 	pub tile_type: u16,
 }
 
-impl<'a> RPRead<'a> for UpdatePacket<'a> {
-	fn rp_read(data: &mut &'a [u8]) -> Result<Self>
+impl RPRead for UpdatePacket {
+	fn rp_read(data: &mut &[u8]) -> Result<Self>
 	where
 		Self: Sized,
 	{
@@ -83,7 +83,7 @@ impl<'a> RPRead<'a> for UpdatePacket<'a> {
 	}
 }
 
-impl<'a> RPWrite for UpdatePacket<'a> {
+impl RPWrite for UpdatePacket {
 	fn rp_write(&self, buf: &mut Vec<u8>) -> usize {
 		let mut written = 0;
 
@@ -109,8 +109,8 @@ impl<'a> RPWrite for UpdatePacket<'a> {
 	}
 }
 
-impl<'a> From<UpdatePacket<'a>> for ServerPacket<'a> {
-	fn from(value: UpdatePacket<'a>) -> Self {
+impl From<UpdatePacket> for ServerPacket {
+	fn from(value: UpdatePacket) -> Self {
 		Self::Update(value)
 	}
 }
