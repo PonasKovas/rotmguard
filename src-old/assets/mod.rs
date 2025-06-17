@@ -46,6 +46,9 @@ pub fn handle_assets(config: &Config) -> anyhow::Result<Assets> {
 
 	let real_size = file.get_ref().len() as u64;
 
+	// this is all written for unity assets files version 22+ by the way
+	// if you have older version then idk..
+
 	file.read_exact(&mut [0; 4 * 2])?; // 2 ints
 	let version = file.read_i32::<BigEndian>()?;
 	file.read_exact(&mut [0; 4])?; // int
@@ -56,7 +59,7 @@ pub fn handle_assets(config: &Config) -> anyhow::Result<Assets> {
 	let data_offset = file.read_u64::<BigEndian>()?;
 	file.read_i64::<BigEndian>()?; // unknown
 
-	// Some wack ass sanity tests stole from somewhere
+	// Some wack ass sanity tests
 	if version > 100
 		|| file_size > real_size
 		|| metadata_size > real_size

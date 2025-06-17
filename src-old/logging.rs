@@ -10,22 +10,22 @@ use std::{
 use tracing::{error, info, level_filters::LevelFilter};
 use tracing_subscriber::{fmt::MakeWriter, layer::SubscriberExt, EnvFilter, Layer, Registry};
 
+static LOG_BUFFER: LogBuffer = LogBuffer {
+	max_lines: OnceLock::new(),
+	buffer: Mutex::new((0, VecDeque::new())),
+};
+
 struct LogBuffer {
 	max_lines: OnceLock<usize>,
 	// (number of lines currently, buffer)
 	buffer: Mutex<(usize, VecDeque<u8>)>,
 }
 
-static LOG_BUFFER: LogBuffer = LogBuffer {
-	max_lines: OnceLock::new(),
-	buffer: Mutex::new((0, VecDeque::new())),
-};
-
 struct LogWriter<'a> {
 	lock: MutexGuard<'a, (usize, VecDeque<u8>)>,
 }
 
-impl Write for LogWriter<'_> {
+impl<'a> Write for LogWriter<'a> {
 	fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
 		self.lock.0 += buf.iter().filter(|b| **b == b'\n').count();
 

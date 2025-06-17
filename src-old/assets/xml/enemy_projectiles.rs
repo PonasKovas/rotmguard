@@ -1,7 +1,9 @@
-use crate::{assets::ProjectileInfo, config::Config};
-use anyhow::{bail, Context, Result};
 use std::collections::BTreeMap;
+
+use anyhow::{bail, Context, Result};
 use xmltree::{Element, XMLNode};
+
+use crate::{assets::ProjectileInfo, config::Config};
 
 // Adds all projectiles of this object to the given BTreeMap
 // And also removes debuffs if force_debuffs enabled
