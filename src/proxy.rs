@@ -1,13 +1,14 @@
 use crate::Rotmguard;
 use anyhow::Result;
 use bytes::Bytes;
+use futures::{StreamExt as _, stream::FuturesUnordered};
 use reader::Reader;
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 use tokio::{
 	net::TcpStream,
 	select,
-	sync::mpsc::{channel, Sender},
-	time::interval,
+	sync::mpsc::{Sender, channel},
+	task::JoinHandle,
 };
 use tracing::instrument;
 use writer::WriterMessage;
@@ -17,7 +18,6 @@ mod reader;
 mod writer;
 
 const WRITE_CHAN_BUF_SIZE: usize = 128;
-const STREAM_FLUSH_PERIOD: u64 = 10; // ms
 
 // RC4 cipher keys (server to client and client to server)
 #[rustfmt::skip]
@@ -29,6 +29,7 @@ struct Proxy {
 	rotmguard: Arc<Rotmguard>,
 	client: Sender<WriterMessage>,
 	server: Sender<WriterMessage>,
+	writer_tasks: FuturesUnordered<JoinHandle<()>>,
 }
 
 impl Proxy {
@@ -61,14 +62,15 @@ pub async fn run(rotmguard: Arc<Rotmguard>, client: TcpStream, server: TcpStream
 	let (s_read, s_write) = server.into_split();
 	let (c_read, c_write) = client.into_split();
 
-	tokio::spawn(writer::task(s_write, s_recv, RC4_KEY_C2S));
-	tokio::spawn(writer::task(c_write, c_recv, RC4_KEY_S2C));
+	let w1 = tokio::spawn(writer::task(s_write, s_recv, RC4_KEY_C2S));
+	let w2 = tokio::spawn(writer::task(c_write, c_recv, RC4_KEY_S2C));
 
 	// This task will be for reading packets and handling them
 	let proxy = Proxy {
 		rotmguard,
 		client: c_send,
 		server: s_send,
+		writer_tasks: FuturesUnordered::from_iter([w1, w2]),
 	};
 
 	let s_read = Reader::new(s_read, RC4_KEY_S2C);
@@ -79,9 +81,6 @@ pub async fn run(rotmguard: Arc<Rotmguard>, client: TcpStream, server: TcpStream
 
 impl Proxy {
 	async fn run(mut self, mut c_read: Reader, mut s_read: Reader) -> Result<()> {
-		let mut flush_interval = interval(Duration::from_millis(STREAM_FLUSH_PERIOD));
-		flush_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
-
 		loop {
 			select! {
 				res = c_read.read_more() => {
@@ -98,9 +97,10 @@ impl Proxy {
 						logic::handle_s2c_packet(&mut self, packet).await?;
 					}
 				},
-				_ = flush_interval.tick() => {
-					self.flush_server().await;
-					self.flush_client().await;
+				_ = self.writer_tasks.next() => {
+					// either writing task ended
+					// this will drop the channel senders and inevitably stop the other writing thread
+					return Ok(());
 				},
 			}
 		}

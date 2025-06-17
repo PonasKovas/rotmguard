@@ -11,6 +11,7 @@ mod assets;
 mod config;
 mod iptables;
 mod logging;
+mod packet_ids;
 mod proxy;
 mod rc4;
 
