@@ -1,6 +1,6 @@
 use crate::{
 	Rotmguard,
-	packet_ids::{C2S, S2C},
+	protocol::packet_ids::{C2S, S2C},
 };
 use anyhow::Result;
 use bytes::Bytes;
