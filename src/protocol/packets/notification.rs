@@ -3,6 +3,8 @@ use crate::protocol::{
 };
 use bytes::{BufMut, Bytes, BytesMut};
 
+use super::with_context;
+
 // not trying to handle all possible variants of this packet
 // just some basic stuff
 pub struct Notification {
@@ -15,8 +17,8 @@ pub struct Notification {
 impl Notification {
 	pub const ID: u8 = PACKET_ID::S2C_NOTIFICATION;
 
-	pub fn parse(bytes: &mut Bytes) -> Result<Notification, RPReadError> {
-		fn parse_inner(bytes: &mut Bytes) -> Result<Notification, RPReadError> {
+	with_context!{"Notification packet";
+		pub fn parse(bytes: &mut Bytes) -> Result<Notification, RPReadError> {
 			let notification_type = read_u8(bytes, "notification type")?;
 			read_u8(bytes, "extra")?;
 			let text = read_str(bytes, "text")?;
@@ -38,11 +40,6 @@ impl Notification {
 				color,
 			})
 		}
-
-		parse_inner(bytes).map_err(|e| RPReadError::WithContext {
-			ctx: "Notification packet".to_owned(),
-			inner: Box::new(e),
-		})
 	}
 }
 

@@ -45,3 +45,20 @@ gen_enum! {
 		notification -> Notification,
 	}
 }
+
+macro_rules! with_context {
+    (
+    	$context:literal;
+    	pub fn parse($bytes:ident: &mut Bytes) -> Result<$return:ty, RPReadError> $code:tt
+    ) => {
+        pub fn parse($bytes: &mut Bytes) -> Result<$return, RPReadError> {
+			fn parse_inner($bytes: &mut Bytes) -> Result<$return, RPReadError> $code
+
+			parse_inner($bytes).map_err(|e| RPReadError::WithContext {
+				ctx: $context.to_owned(),
+				inner: Box::new(e),
+			})
+		}
+    };
+}
+pub(crate) use with_context;
