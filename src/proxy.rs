@@ -1,7 +1,4 @@
-use crate::{
-	Rotmguard,
-	protocol::packet_ids::{C2S, S2C},
-};
+use crate::{Rotmguard, protocol::packet_ids::PACKET_ID::*};
 use anyhow::Result;
 use bytes::Bytes;
 use futures::{StreamExt as _, stream::FuturesUnordered};
@@ -91,7 +88,7 @@ impl Proxy {
 
 					while let Some(packet) = c_read.try_get_packet()? {
 						let id = packet[0];
-						let to_flush = [C2S::LOAD, C2S::MOVE, C2S::HELLO, C2S::ESCAPE].contains(&id);
+						let to_flush = [C2S_LOAD, C2S_MOVE, C2S_HELLO, C2S_ESCAPE].contains(&id);
 
 						logic::handle_c2s_packet(&mut self, packet).await?;
 
@@ -105,7 +102,7 @@ impl Proxy {
 
 					while let Some(packet) = s_read.try_get_packet()? {
 						let id = packet[0];
-						let to_flush = [S2C::FAILURE, S2C::NEWTICK, S2C::RECONNECT, S2C::MAPINFO].contains(&id);
+						let to_flush = [S2C_FAILURE, S2C_NEWTICK, S2C_RECONNECT, S2C_MAPINFO].contains(&id);
 
 						logic::handle_s2c_packet(&mut self, packet).await?;
 
