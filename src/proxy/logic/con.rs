@@ -2,7 +2,6 @@ use crate::{
 	protocol::packets::{notification::create_notification, reconnect::create_reconnect},
 	proxy::Proxy,
 };
-use anyhow::Result;
 use bytes::Bytes;
 use std::sync::OnceLock;
 
@@ -15,16 +14,20 @@ pub async fn con<'a>(proxy: &mut Proxy, mut args: impl Iterator<Item = &'a str>)
 		}
 	};
 
+	// if extra args (we already took the server arg)
 	if args.count() > 0 {
 		proxy.send_client(usage_notification()).await;
 		return;
 	}
 
-	match proxy.rotmguard.rotmg_servers.get(server) {
+	match proxy
+		.rotmguard
+		.rotmg_servers
+		.get(&server.to_ascii_lowercase())
+	{
 		Some(ip) => {
-			proxy
-				.send_client(create_reconnect("", ip, 2050, 0xfffffffe, 0xffffffff, &[]))
-				.await;
+			let packet = create_reconnect("have fun :)", ip, 2050, 0xfffffffe, 0xffffffff, &[]);
+			proxy.send_client(packet).await;
 		}
 		None => {
 			proxy.send_client(invalid_server_notification()).await;

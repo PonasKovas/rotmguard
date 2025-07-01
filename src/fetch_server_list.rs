@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use std::collections::HashMap;
-use tracing::{debug, info};
+use tracing::info;
 
 // i host this cloudflare worker to allow to make the server list request to rotmg servers
 // (which requires auth) without exposing the login details of the account used here
