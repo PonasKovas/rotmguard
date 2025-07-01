@@ -2,8 +2,10 @@ use bytes::{Buf, BufMut, Bytes};
 use std::ops::Deref;
 use thiserror::Error;
 
-pub mod packet_ids;
+mod packet_ids;
 pub mod packets;
+
+pub use packet_ids::PACKET_ID;
 
 #[derive(Error, Debug)]
 pub enum RPReadError {
@@ -11,6 +13,8 @@ pub enum RPReadError {
 	NotEnoughData,
 	#[error("invalid utf-8")]
 	InvalidUtf8,
+	#[error("invalid varint - too long")]
+	InvalidVarint,
 	#[error("{ctx}: {inner}")]
 	WithContext { ctx: String, inner: Box<Self> },
 }
@@ -47,6 +51,17 @@ pub fn write_u32(data: u32, mut out: impl BufMut) {
 	out.put_u32(data);
 }
 
+pub fn read_f32(data: &mut impl Buf, explanation: &'static str) -> Result<f32, RPReadError> {
+	data.try_get_f32().map_err(|_| RPReadError::WithContext {
+		ctx: explanation.to_owned(),
+		inner: Box::new(RPReadError::NotEnoughData),
+	})
+}
+pub fn write_f32(data: f32, mut out: impl BufMut) {
+	out.put_f32(data);
+}
+
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub struct RotmgStr(Bytes);
 impl RotmgStr {
 	fn new(bytes: Bytes) -> Result<Self, RPReadError> {

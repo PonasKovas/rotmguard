@@ -1,5 +1,5 @@
 use super::with_context;
-use crate::protocol::{RPReadError, RotmgStr, packet_ids::PACKET_ID, read_str};
+use crate::protocol::{PACKET_ID, RPReadError, RotmgStr, read_str};
 use bytes::Bytes;
 
 pub struct PlayerText {

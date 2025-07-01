@@ -1,5 +1,5 @@
 use super::with_context;
-use crate::protocol::{packet_ids::PACKET_ID, write_str, RPReadError};
+use crate::protocol::{PACKET_ID, write_str, RPReadError};
 use bytes::{BufMut, Bytes, BytesMut};
 
 pub struct Reconnect; // reading not implemented because not needed

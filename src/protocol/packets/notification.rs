@@ -1,5 +1,5 @@
 use crate::protocol::{
-	RPReadError, RotmgStr, packet_ids::PACKET_ID, read_str, read_u8, read_u32, write_str,
+	RPReadError, RotmgStr, PACKET_ID, read_str, read_u8, read_u32, write_str,
 };
 use bytes::{BufMut, Bytes, BytesMut};
 

@@ -44,6 +44,7 @@ gen_enum! {
 	S2CPacket {
 		notification -> Notification,
 		reconnect -> Reconnect,
+		newtick -> NewTick,
 	}
 }
 
