@@ -1,5 +1,5 @@
 use crate::rc4::Rc4;
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use bytes::{Buf as _, Bytes, BytesMut};
 use tokio::{io::AsyncReadExt as _, net::tcp::OwnedReadHalf};
 
@@ -40,7 +40,7 @@ impl Reader {
 	// Tries to get a packet from the read buffer, if a full one is there.
 	// Doesnt validate anything, just reads the length prefix and gets that many bytes,
 	// deciphers
-	pub fn try_get_packet(&mut self) -> Result<Option<Bytes>> {
+	pub fn try_get_packet(&mut self) -> Result<Option<BytesMut>> {
 		if self.buf_read < 5 {
 			// minimum for any valid packet is 5 bytes - 4 for length and 1 for packet id
 			return Ok(None);
@@ -74,6 +74,6 @@ impl Reader {
 		// remove the packet length prefix
 		packet_bytes.advance(4);
 
-		Ok(Some(packet_bytes.freeze()))
+		Ok(Some(packet_bytes))
 	}
 }

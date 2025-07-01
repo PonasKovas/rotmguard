@@ -5,8 +5,8 @@ use crate::{
 		C2SPacket, S2CPacket, newtick::create_newtick, notification::create_notification,
 	},
 };
-use anyhow::{Result, bail};
-use bytes::Bytes;
+use anyhow::Result;
+use bytes::{Bytes, BytesMut};
 use std::sync::OnceLock;
 use tracing::error;
 
@@ -21,7 +21,7 @@ pub async fn initialize(rotmguard: &Rotmguard) -> Result<State> {
 	Ok(s)
 }
 
-pub async fn handle_c2s_packet(proxy: &mut Proxy, packet_bytes: Bytes) -> Result<()> {
+pub async fn handle_c2s_packet(proxy: &mut Proxy, packet_bytes: BytesMut) -> Result<()> {
 	let packet = match C2SPacket::parse(&mut packet_bytes.clone()) {
 		Ok(Some(p)) => p,
 		Ok(None) => {
@@ -73,7 +73,7 @@ pub async fn handle_c2s_packet(proxy: &mut Proxy, packet_bytes: Bytes) -> Result
 	Ok(())
 }
 
-pub async fn handle_s2c_packet(proxy: &mut Proxy, packet_bytes: Bytes) -> Result<()> {
+pub async fn handle_s2c_packet(proxy: &mut Proxy, packet_bytes: BytesMut) -> Result<()> {
 	let packet = match S2CPacket::parse(&mut packet_bytes.clone()) {
 		Ok(Some(p)) => p,
 		Ok(None) => {
@@ -94,27 +94,8 @@ pub async fn handle_s2c_packet(proxy: &mut Proxy, packet_bytes: Bytes) -> Result
 	match packet {
 		S2CPacket::Notification(notification) => {}
 		S2CPacket::Reconnect(reconnect) => {}
-		S2CPacket::NewTick(new_tick) => {
-			let mut copy = create_newtick(
-				new_tick.tick_id,
-				new_tick.tick_time,
-				new_tick.real_time_ms,
-				new_tick.last_real_time_ms,
-			);
-
-			for obj in new_tick.statuses.into_iter() {
-				let obj = obj?;
-				copy.add_object(obj.object_id, obj.position_x, obj.position_y);
-				for stat in obj.stats.into_iter() {
-					let stat = stat?;
-					copy.add_stat(stat);
-				}
-			}
-
-			proxy.send_client(copy.finish()).await;
-
-			return Ok(());
-		}
+		S2CPacket::NewTick(new_tick) => {}
+		S2CPacket::Update(update) => {}
 	}
 
 	proxy.send_client(packet_bytes).await;

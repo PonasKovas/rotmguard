@@ -1,9 +1,9 @@
 use super::with_context;
 use crate::protocol::{
-	PACKET_ID, RPReadError, RotmgStr, read_f32, read_str, read_u8, read_u16, read_u32, write_f32,
-	write_str, write_u8, write_u16, write_u32,
+	PACKET_ID, RPReadError, RotmgStr, read_compressed_int, read_f32, read_str, read_u8, read_u16,
+	read_u32, write_compressed_int, write_f32, write_str, write_u8, write_u16, write_u32,
 };
-use bytes::{Buf, BufMut, Bytes, BytesMut};
+use bytes::{Buf, Bytes, BytesMut};
 use std::{iter, mem::take};
 
 const STRING_STATS: [u8; 14] = [6, 31, 38, 54, 62, 71, 72, 80, 82, 115, 121, 127, 128, 147];
@@ -24,6 +24,7 @@ pub struct ObjectStatusData {
 	pub stats: Stats,
 }
 pub struct Stats(u32, Bytes);
+#[derive(Debug)]
 pub enum StatData {
 	String {
 		stat_type: u8,
@@ -66,29 +67,36 @@ impl Statuses {
 			}
 			i += 1;
 
-			let parse_result = (|| {
-				let object_id = read_compressed_int(&mut bytes, "object_id")? as u32;
-				let position_x = read_f32(&mut bytes, "position_x")?;
-				let position_y = read_f32(&mut bytes, "position_y")?;
-
-				let n_stats = read_u8(&mut bytes, "stats len")? as u32;
-				let stats = Stats(n_stats, bytes.clone());
-				for _ in 0..n_stats {
-					// skip stats, move to next ObjectStatusData
-					read_stat(&mut bytes)?;
-				}
-
-				Ok(ObjectStatusData {
-					object_id,
-					position_x,
-					position_y,
-					stats,
-				})
-			})();
-
-			Some(parse_result)
+			Some(read_status(&mut bytes))
 		})
 	}
+}
+
+pub(crate) fn read_status(bytes: &mut Bytes) -> Result<ObjectStatusData, RPReadError> {
+	fn inner(bytes: &mut Bytes) -> Result<ObjectStatusData, RPReadError> {
+		let object_id = read_compressed_int(bytes, "object_id")? as u32;
+		let position_x = read_f32(bytes, "position_x")?;
+		let position_y = read_f32(bytes, "position_y")?;
+
+		let n_stats = read_u8(bytes, "stats len")? as u32;
+		let stats = Stats(n_stats, bytes.clone());
+		for _ in 0..n_stats {
+			// skip stats, move to next ObjectStatusData
+			read_stat(bytes)?;
+		}
+
+		Ok(ObjectStatusData {
+			object_id,
+			position_x,
+			position_y,
+			stats,
+		})
+	}
+
+	inner(bytes).map_err(|e| RPReadError::WithContext {
+		ctx: "ObjectStatusData".to_owned(),
+		inner: Box::new(e),
+	})
 }
 
 impl Stats {
@@ -218,63 +226,4 @@ impl NewTickBuilder {
 	pub fn finish(self) -> Bytes {
 		self.bytes.freeze()
 	}
-}
-
-pub fn write_compressed_int(value: i64, mut out: impl BufMut) {
-	let is_negative = value < 0;
-	let mut value = value.abs();
-
-	let mut byte = (value & 0b00111111) as u8;
-	value >>= 6;
-	if value != 0 {
-		byte |= 0b10000000;
-	}
-	if is_negative {
-		byte |= 0b01000000;
-	}
-
-	write_u8(byte, &mut out);
-
-	while value != 0 {
-		let mut byte = (value & 0b01111111) as u8;
-		value >>= 7;
-		if value != 0 {
-			byte |= 0b10000000;
-		}
-		write_u8(byte, &mut out);
-	}
-}
-
-pub fn read_compressed_int(
-	data: &mut impl Buf,
-	explanation: &'static str,
-) -> Result<i64, RPReadError> {
-	pub fn inner(data: &mut impl Buf) -> Result<i64, RPReadError> {
-		let mut byte = read_u8(data, "reading varint")?;
-
-		let is_negative = (byte & 0b01000000) != 0;
-		let mut shift = 6;
-		let mut value = (byte & 0b00111111) as i64;
-
-		while (byte & 0b10000000) != 0 {
-			if shift >= 6 + 7 * 7 {
-				return Err(RPReadError::InvalidVarint);
-			}
-
-			byte = read_u8(data, "reading varint")?;
-			value |= ((byte & 0b01111111) as i64) << shift;
-			shift += 7;
-		}
-
-		if is_negative {
-			value = -value;
-		}
-
-		Ok(value)
-	}
-
-	inner(data).map_err(|e| RPReadError::WithContext {
-		ctx: explanation.to_owned(),
-		inner: Box::new(e),
-	})
 }

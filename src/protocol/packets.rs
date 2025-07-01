@@ -1,5 +1,5 @@
 use super::RPReadError;
-use bytes::{Buf, Bytes};
+use bytes::{Buf, BytesMut};
 
 macro_rules! gen_enum {
 	($enum_name:ident {
@@ -14,7 +14,7 @@ macro_rules! gen_enum {
 			)*
 		}
 		impl $enum_name {
-			pub fn parse(bytes: &mut Bytes) -> Result<Option<Self>, RPReadError> {
+			pub fn parse(bytes: &mut BytesMut) -> Result<Option<Self>, RPReadError> {
 				let packet_id = bytes.get_u8();
 
 				let parsed = match packet_id {
@@ -45,6 +45,7 @@ gen_enum! {
 		notification -> Notification,
 		reconnect -> Reconnect,
 		newtick -> NewTick,
+		update -> Update,
 	}
 }
 
@@ -52,10 +53,10 @@ gen_enum! {
 macro_rules! with_context {
     (
     	$context:literal;
-    	pub fn parse($bytes:ident: &mut Bytes) -> Result<$return:ty, RPReadError> $code:tt
+    	pub fn parse($bytes:ident: &mut BytesMut) -> Result<$return:ty, RPReadError> $code:tt
     ) => {
-        pub fn parse($bytes: &mut Bytes) -> Result<$return, RPReadError> {
-			fn parse_inner($bytes: &mut Bytes) -> Result<$return, RPReadError> $code
+        pub fn parse($bytes: &mut BytesMut) -> Result<$return, RPReadError> {
+			fn parse_inner($bytes: &mut BytesMut) -> Result<$return, RPReadError> $code
 
 			parse_inner($bytes).map_err(|e| RPReadError::WithContext {
 				ctx: $context.to_owned(),

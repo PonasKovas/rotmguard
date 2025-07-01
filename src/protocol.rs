@@ -109,3 +109,62 @@ pub fn write_str(data: &str, mut out: impl BufMut) {
 	write_u16(len, &mut out);
 	out.put_slice(data.as_bytes());
 }
+
+pub fn write_compressed_int(value: i64, mut out: impl BufMut) {
+	let is_negative = value < 0;
+	let mut value = value.abs();
+
+	let mut byte = (value & 0b00111111) as u8;
+	value >>= 6;
+	if value != 0 {
+		byte |= 0b10000000;
+	}
+	if is_negative {
+		byte |= 0b01000000;
+	}
+
+	write_u8(byte, &mut out);
+
+	while value != 0 {
+		let mut byte = (value & 0b01111111) as u8;
+		value >>= 7;
+		if value != 0 {
+			byte |= 0b10000000;
+		}
+		write_u8(byte, &mut out);
+	}
+}
+
+pub fn read_compressed_int(
+	data: &mut impl Buf,
+	explanation: &'static str,
+) -> Result<i64, RPReadError> {
+	pub fn inner(data: &mut impl Buf) -> Result<i64, RPReadError> {
+		let mut byte = read_u8(data, "reading varint")?;
+
+		let is_negative = (byte & 0b01000000) != 0;
+		let mut shift = 6;
+		let mut value = (byte & 0b00111111) as i64;
+
+		while (byte & 0b10000000) != 0 {
+			if shift >= 6 + 7 * 7 {
+				return Err(RPReadError::InvalidVarint);
+			}
+
+			byte = read_u8(data, "reading varint")?;
+			value |= ((byte & 0b01111111) as i64) << shift;
+			shift += 7;
+		}
+
+		if is_negative {
+			value = -value;
+		}
+
+		Ok(value)
+	}
+
+	inner(data).map_err(|e| RPReadError::WithContext {
+		ctx: explanation.to_owned(),
+		inner: Box::new(e),
+	})
+}
