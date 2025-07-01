@@ -30,6 +30,7 @@ struct Proxy {
 	client: Sender<WriterMessage>,
 	server: Sender<WriterMessage>,
 	writer_tasks: FuturesUnordered<JoinHandle<()>>,
+	state: logic::State,
 }
 
 impl Proxy {
@@ -55,6 +56,8 @@ impl Proxy {
 
 #[instrument(skip_all, fields(ip = ?server.peer_addr()?))]
 pub async fn run(rotmguard: Arc<Rotmguard>, client: TcpStream, server: TcpStream) -> Result<()> {
+	let state = logic::initialize(&rotmguard).await?;
+
 	// spawn the writing tasks
 	let (s_send, s_recv) = channel(WRITE_CHAN_BUF_SIZE);
 	let (c_send, c_recv) = channel(WRITE_CHAN_BUF_SIZE);
@@ -71,6 +74,7 @@ pub async fn run(rotmguard: Arc<Rotmguard>, client: TcpStream, server: TcpStream
 		client: c_send,
 		server: s_send,
 		writer_tasks: FuturesUnordered::from_iter([w1, w2]),
+		state,
 	};
 
 	let s_read = Reader::new(s_read, RC4_KEY_S2C);

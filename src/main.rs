@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use assets::Assets;
 use config::Config;
+use std::collections::HashMap;
 use std::fs;
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
@@ -9,6 +10,7 @@ use tracing::{error, info};
 
 mod assets;
 mod config;
+mod fetch_server_list;
 mod iptables;
 mod logging;
 mod protocol;
@@ -18,6 +20,7 @@ mod rc4;
 struct Rotmguard {
 	config: Config,
 	assets: Assets,
+	rotmg_servers: HashMap<String, String>,
 }
 
 #[tokio::main]
@@ -37,7 +40,11 @@ async fn main() -> Result<()> {
 	// create an iptables rule to redirect all game traffic to our proxy
 	let _iptables_rule = iptables::IpTablesRule::create()?;
 
-	let rotmguard = Arc::new(Rotmguard { config, assets });
+	let rotmguard = Arc::new(Rotmguard {
+		config,
+		assets,
+		rotmg_servers: fetch_server_list::fetch().await?,
+	});
 
 	select! {
 		res = server(rotmguard) => res,

@@ -43,9 +43,11 @@ gen_enum! {
 gen_enum! {
 	S2CPacket {
 		notification -> Notification,
+		reconnect -> Reconnect,
 	}
 }
 
+// wraps the parsing function in another function that adds some context to any error
 macro_rules! with_context {
     (
     	$context:literal;
