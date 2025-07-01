@@ -8,6 +8,7 @@ use crate::{
 use anyhow::{Result, bail};
 use bytes::Bytes;
 use std::sync::OnceLock;
+use tracing::error;
 
 mod antidebuffs;
 mod con;
@@ -30,7 +31,11 @@ pub async fn handle_c2s_packet(proxy: &mut Proxy, packet_bytes: Bytes) -> Result
 			return Ok(());
 		}
 		Err(e) => {
-			bail!("Error parsing c2s packet: {e}")
+			error!("Error parsing C2S packet: {e}");
+			// most likely some rare and obscure packet that does not matter. Forward and keep going
+			proxy.send_server(packet_bytes).await;
+
+			return Ok(());
 		}
 	};
 
@@ -78,7 +83,11 @@ pub async fn handle_s2c_packet(proxy: &mut Proxy, packet_bytes: Bytes) -> Result
 			return Ok(());
 		}
 		Err(e) => {
-			bail!("Error parsing s2c packet: {e}")
+			error!("Error parsing S2C packet: {e}");
+			// most likely some rare and obscure packet that does not matter. Forward and keep going
+			proxy.send_client(packet_bytes).await;
+
+			return Ok(());
 		}
 	};
 
