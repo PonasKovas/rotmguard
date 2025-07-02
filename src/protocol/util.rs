@@ -1,6 +1,14 @@
 use bytes::{BufMut, Bytes, BytesMut};
 use super::{write_str, PACKET_ID};
 
+macro_rules! static_notification {
+    ($text:literal, $color:literal $(,)?) => {{
+        static NOTIFICATION: std::sync::OnceLock<bytes::Bytes> = std::sync::OnceLock::new();
+		NOTIFICATION.get_or_init(|| $crate::protocol::util::create_notification($text, $color)).clone()
+    }};
+}
+pub(crate) use static_notification;
+
 pub fn create_notification(text: &str, color: u32) -> Bytes {
 	let mut buf = BytesMut::with_capacity(text.len() + 13);
 

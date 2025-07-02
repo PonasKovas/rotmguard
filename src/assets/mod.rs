@@ -1,5 +1,5 @@
 use crate::config::Config;
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
 use nix::NixPath;
 use rand::prelude::*;
@@ -18,9 +18,9 @@ pub struct Assets {
 	/// Map<object type -> Map<projectile_type -> projectile_info>>
 	pub projectiles: BTreeMap<u32, BTreeMap<u32, ProjectileInfo>>,
 	/// ground type -> damage
-	pub hazardous_grounds: BTreeMap<u32, i64>,
+	pub hazardous_tiles: BTreeMap<u16, i64>,
 	/// grounds that push the player like conveyors
-	pub pushing_grounds: BTreeSet<u32>,
+	pub conveyor_tiles: BTreeSet<u16>,
 
 	/// Reverses the changes to assets file on drop
 	reverse_changes_guard: Option<ReverseChangesGuard>,
@@ -85,8 +85,8 @@ fn in_endian<ORDER: ByteOrder>(
 ) -> anyhow::Result<Assets> {
 	let mut assets = Assets {
 		projectiles: BTreeMap::new(),
-		hazardous_grounds: BTreeMap::new(),
-		pushing_grounds: BTreeSet::new(),
+		hazardous_tiles: BTreeMap::new(),
+		conveyor_tiles: BTreeSet::new(),
 		reverse_changes_guard: None,
 	};
 

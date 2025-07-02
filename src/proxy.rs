@@ -92,7 +92,7 @@ impl Proxy {
 
 					while let Some(packet) = c_read.try_get_packet()? {
 						let id = packet[0];
-						let to_flush = [C2S_LOAD, C2S_MOVE, C2S_HELLO, C2S_ESCAPE].contains(&id);
+						let to_flush = [C2S_LOAD, C2S_MOVE, C2S_HELLO, C2S_ESCAPE, C2S_CREATE].contains(&id);
 
 						logic::handle_c2s_packet(&mut self, packet).await?;
 

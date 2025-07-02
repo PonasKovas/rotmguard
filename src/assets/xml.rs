@@ -1,6 +1,6 @@
 use super::Assets;
 use crate::config::Config;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::collections::BTreeMap;
 use xmltree::{Element, XMLNode};
 
@@ -92,7 +92,7 @@ fn grounds(_config: &Config, assets: &mut Assets, grounds: &mut [XMLNode]) -> Re
 		let ground_type_str = ground_type_str
 			.strip_prefix("0x")
 			.context(format!("ground {i} 'type' attr doesnt start with 0x"))?;
-		let ground_type = u32::from_str_radix(ground_type_str, 16)
+		let ground_type = u16::from_str_radix(ground_type_str, 16)
 			.context(format!("unexpected ground {i} type format"))?;
 
 		for param in &ground.children {
@@ -115,11 +115,11 @@ fn grounds(_config: &Config, assets: &mut Assets, grounds: &mut [XMLNode]) -> Re
 					.parse::<i64>()
 					.context("Invalid Ground MaxDamage, must be integer")?;
 
-				assets.hazardous_grounds.insert(ground_type, damage);
+				assets.hazardous_tiles.insert(ground_type, damage);
 			}
 
 			if param.name == "Push" {
-				assets.pushing_grounds.insert(ground_type);
+				assets.conveyor_tiles.insert(ground_type);
 			}
 		}
 	}

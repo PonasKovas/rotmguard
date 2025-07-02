@@ -2,7 +2,7 @@ use crate::rc4::Rc4;
 use anyhow::Result;
 use bytes::Bytes;
 use tokio::{io::AsyncWriteExt as _, net::tcp::OwnedWriteHalf, sync::mpsc::Receiver};
-use tracing::error;
+use tracing::{error, warn};
 
 // BufWriter buffer size
 const BUFFER_SIZE: usize = 8 * 1024;
@@ -36,7 +36,30 @@ pub enum WriterMessage {
 
 impl Writer {
 	async fn run(mut self) -> Result<()> {
-		while let Some(msg) = self.channel.recv().await {
+		let mut last_pkt_id = None;
+
+		loop {
+			// timeout added for debugging purposes when connection gets seemingly stuck.
+			let msg = match tokio::time::timeout(
+				tokio::time::Duration::from_secs(5),
+				self.channel.recv(),
+			)
+			.await
+			{
+				Ok(Some(msg)) => msg,
+				Ok(None) => break,
+				Err(_) => {
+					// no sent data in 5 seconds?
+					// If there are unflushed bytes still, this is a bug on our side
+					if !self.buf.is_empty() {
+						warn!(
+							"No data sent in 5 seconds. Packets still wait unflushed. Last packet ID: {last_pkt_id:?}"
+						);
+					}
+					continue;
+				}
+			};
+
 			match msg {
 				WriterMessage::Flush => {
 					self.flush().await?;
@@ -51,10 +74,11 @@ impl Writer {
 
 					// packet itself (ciphered)
 					self.write(&bytes[1..], true).await?;
+
+					last_pkt_id = Some(bytes[0]);
 				}
 			}
 		}
-
 		Ok(())
 	}
 	async fn flush(&mut self) -> Result<(), tokio::io::Error> {

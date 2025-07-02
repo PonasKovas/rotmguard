@@ -1,5 +1,8 @@
 use crate::{
-	protocol::{PACKET_ID::C2S_PLAYERTEXT, read_str, util::create_notification},
+	protocol::{
+		read_str,
+		util::{create_notification, static_notification},
+	},
 	proxy::Proxy,
 };
 use anyhow::Result;
@@ -8,12 +11,8 @@ use std::sync::OnceLock;
 
 mod con;
 
-pub async fn handle_commands(proxy: &mut Proxy, packet_bytes: &mut BytesMut) -> Result<bool> {
-	// only interested in Player Text packet
-	if packet_bytes[0] != C2S_PLAYERTEXT {
-		return Ok(false);
-	}
-
+pub async fn commands(proxy: &mut Proxy, packet_bytes: &mut BytesMut) -> Result<bool> {
+	// the packet is a PlayerText packet
 	let text = read_str(&packet_bytes[1..])?;
 
 	// not interested in stuff that isnt a command
@@ -27,7 +26,6 @@ pub async fn handle_commands(proxy: &mut Proxy, packet_bytes: &mut BytesMut) -> 
 	let mut args = text.split(' ');
 
 	let command = args.next().unwrap();
-
 	match command {
 		"/hi" | "/rotmguard" => {
 			static NOTIFICATION: OnceLock<Bytes> = OnceLock::new();
@@ -39,6 +37,20 @@ pub async fn handle_commands(proxy: &mut Proxy, packet_bytes: &mut BytesMut) -> 
 		}
 		"/con" => {
 			con::con(proxy, args).await;
+
+			Ok(true)
+		}
+		"/ap" | "/antipush" => {
+			proxy.state.antipush_enabled = !proxy.state.antipush_enabled;
+			proxy.state.antipush_synced = false;
+
+			let notification = if proxy.state.antipush_enabled {
+				static_notification!("Anti push enabled", 0xb603fc)
+			} else {
+				static_notification!("Anti push disabled", 0x9103fc)
+			};
+
+			proxy.send_client(notification).await;
 
 			Ok(true)
 		}

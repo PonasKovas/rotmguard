@@ -1,9 +1,8 @@
 use crate::{
-	protocol::util::{create_notification, create_reconnect},
+	protocol::util::{create_reconnect, static_notification},
 	proxy::Proxy,
 };
 use bytes::Bytes;
-use std::sync::OnceLock;
 
 pub async fn con<'a>(proxy: &mut Proxy, mut args: impl Iterator<Item = &'a str>) {
 	let server = match args.next() {
@@ -36,27 +35,15 @@ pub async fn con<'a>(proxy: &mut Proxy, mut args: impl Iterator<Item = &'a str>)
 }
 
 fn usage_notification() -> Bytes {
-	static NOTIFICATION: OnceLock<Bytes> = OnceLock::new();
-
-	NOTIFICATION
-		.get_or_init(|| {
-			create_notification(
-				"Usage: /con <short server name>. Example: /con eue",
-				0xf5cb42,
-			)
-		})
-		.clone()
+	static_notification!(
+		"Usage: /con <short server name>. Example: /con eue",
+		0xf5cb42
+	)
 }
 
 fn invalid_server_notification() -> Bytes {
-	static NOTIFICATION: OnceLock<Bytes> = OnceLock::new();
-
-	NOTIFICATION
-		.get_or_init(|| {
-			create_notification(
-				"Invalid server name. Examples: eusw, use, eun, a, aus",
-				0xf5cb42,
-			)
-		})
-		.clone()
+	static_notification!(
+		"Invalid server name. Examples: eusw, use, eun, a, aus",
+		0xf5cb42,
+	)
 }

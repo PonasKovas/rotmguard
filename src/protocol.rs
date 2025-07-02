@@ -13,7 +13,7 @@ pub fn read_str(mut bytes: &[u8]) -> Result<&str> {
 		bail!("not enough bytes to fit {len} long string");
 	}
 
-	Ok(str::from_utf8(&bytes[0..len])?)
+	Ok(str::from_utf8(&bytes[..len])?)
 }
 pub fn write_str(data: &str, mut out: impl BufMut) {
 	let len: u16 = match data.len().try_into() {
