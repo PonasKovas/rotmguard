@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use std::collections::HashMap;
-use tracing::info;
+use tracing::{error, info};
 
 // i host this cloudflare worker to allow to make the server list request to rotmg servers
 // (which requires auth) without exposing the login details of the account used here
@@ -44,7 +44,9 @@ pub async fn fetch() -> Result<HashMap<String, String>> {
 		}
 
 		info!("[SERVER] {name} -> {address}");
-		servers.insert(name, address);
+		if let Some(_) = servers.insert(name, address) {
+			error!("Server name collision! Very bad!");
+		}
 	}
 
 	Ok(servers)

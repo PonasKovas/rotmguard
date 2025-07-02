@@ -1,5 +1,5 @@
 use crate::{
-	protocol::packets::{notification::create_notification, reconnect::create_reconnect},
+	protocol::util::{create_notification, create_reconnect},
 	proxy::Proxy,
 };
 use bytes::Bytes;
