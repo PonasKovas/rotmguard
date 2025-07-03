@@ -1,10 +1,14 @@
 use bytes::{BufMut, Bytes, BytesMut};
 use super::{write_str, PACKET_ID};
 
+pub const RED: u32 = 0xff8888;
+pub const GREEN: u32 = 0x88ff88;
+pub const BLUE: u32 = 0x8888ff;
+
 macro_rules! static_notification {
-    ($text:literal, $color:literal $(,)?) => {{
+    ($text:expr, $color:expr $(,)?) => {{
         static NOTIFICATION: std::sync::OnceLock<bytes::Bytes> = std::sync::OnceLock::new();
-		NOTIFICATION.get_or_init(|| $crate::protocol::util::create_notification($text, $color)).clone()
+		NOTIFICATION.get_or_init(|| $crate::util::create_notification($text, $color)).clone()
     }};
 }
 pub(crate) use static_notification;

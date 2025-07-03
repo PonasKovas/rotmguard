@@ -1,0 +1,63 @@
+use crate::{
+	proxy::Proxy,
+	util::{GREEN, RED, static_notification},
+};
+use std::collections::BTreeMap;
+
+// the tile with which all pushing tiles are replaced when antipush enabled
+const ANTIPUSH_REPLACEMENT_TILE: u16 = 0x2230; // Spider dirt ground, which reduces walking speed to 35%
+// chosen specifically for this reason, because it would be suspicious (even though as far as my testing went,
+// the server did not automatically detect or kick for this) if you walk against the conveyer at normal speed.
+// but there is no way to make you slower or faster in a specific direction, so i make you slower in ALL directions.
+
+pub struct AntiPush {
+	conveyor_tiles: BTreeMap<(i16, i16), u16>, // position -> original tile type
+	// original tile is stored here so it can be restored when anti-push is disabled
+	enabled: bool,
+	synced: bool,
+}
+
+impl Default for AntiPush {
+	fn default() -> Self {
+		Self {
+			conveyor_tiles: BTreeMap::new(),
+			enabled: false,
+			synced: true,
+		}
+	}
+}
+
+/// Returns a new tile id, if we need to replace the tile type immediatelly in place
+pub fn new_tile(proxy: &mut Proxy, x: i16, y: i16, tile_type: u16) -> Option<u16> {
+	if proxy.rotmguard.assets.conveyor_tiles.contains(&tile_type) {
+		proxy
+			.state
+			.antipush
+			.conveyor_tiles
+			.insert((x, y), tile_type);
+
+		// also IF Anti-push is enabled at this moment, immediatelly replace conveyor tiles in place
+		if proxy.state.antipush.enabled {
+			return Some(ANTIPUSH_REPLACEMENT_TILE);
+		}
+	} else {
+		// if not a conveyor, remove this tile from the conveyor list
+		// (this will do nothing if it wasnt there)
+		proxy.state.antipush.conveyor_tiles.remove(&(x, y));
+	}
+
+	None
+}
+
+pub async fn toggle(proxy: &mut Proxy) {
+	proxy.state.antipush.enabled = !proxy.state.antipush.enabled;
+	proxy.state.antipush.synced = false;
+
+	let notification = if proxy.state.antipush.enabled {
+		static_notification!("Anti push enabled", GREEN)
+	} else {
+		static_notification!("Anti push disabled", RED)
+	};
+
+	proxy.send_client(notification).await;
+}

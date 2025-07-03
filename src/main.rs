@@ -13,9 +13,9 @@ mod config;
 mod fetch_server_list;
 mod iptables;
 mod logging;
-mod protocol;
 mod proxy;
 mod rc4;
+mod util;
 
 struct Rotmguard {
 	config: Config,

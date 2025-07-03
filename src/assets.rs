@@ -2,7 +2,6 @@ use crate::config::Config;
 use anyhow::{Context, bail};
 use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
 use nix::NixPath;
-use rand::prelude::*;
 use reverse_changes::ReverseChangesGuard;
 use std::{
 	collections::{BTreeMap, BTreeSet},
@@ -122,15 +121,7 @@ fn in_endian<ORDER: ByteOrder>(
 	let position = file.position();
 
 	// Iterate over the objects
-
-	// now the below is completely unnecessary but it makes the progress bar not useless
-	// basically we skip like 90% of these objects, and all those that we don't skip
-	// are clustered together like a bunch of clowns in a car, so without this
-	// the progress bar is very jumpy.
-	let mut indices = (0..object_count).collect::<Vec<u64>>();
-	indices.shuffle(&mut rand::thread_rng());
-
-	for (processed, i) in indices.into_iter().enumerate() {
+	for (processed, i) in (0..object_count).enumerate() {
 		if processed != 0 && processed as u64 % (object_count / 5) == 0 {
 			info!("{processed} / {object_count} objects read...");
 		}

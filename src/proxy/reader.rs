@@ -1,6 +1,6 @@
 use crate::rc4::Rc4;
 use anyhow::{Result, bail};
-use bytes::{Buf as _, Bytes, BytesMut};
+use bytes::{Buf as _, BytesMut};
 use tokio::{io::AsyncReadExt as _, net::tcp::OwnedReadHalf};
 
 // BufReader buffer size
