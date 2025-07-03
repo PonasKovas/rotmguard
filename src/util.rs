@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use bytes::{Buf, BufMut, BytesMut};
+use bytes::{Buf, BufMut};
 
 mod create_packet;
 mod packet_ids;
