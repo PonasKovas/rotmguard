@@ -9,6 +9,9 @@ pub use create_packet::*;
 pub use packet_ids::PACKET_ID;
 pub use view::View;
 
+// Object stat types that are strings instead of integers
+pub const OBJECT_STR_STATS: [u8; 14] = [6, 31, 38, 54, 62, 71, 72, 80, 82, 115, 121, 127, 128, 147];
+
 pub fn read_str<'d, 'c>(mut view: View<'d, 'c>) -> Result<&'d str> {
 	let len = view.try_get_u16()? as usize;
 

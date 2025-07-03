@@ -3,7 +3,7 @@ use crate::{
 		Proxy,
 		logic::cheats::{antipush, autonexus},
 	},
-	util::{View, read_compressed_int, read_str},
+	util::{OBJECT_STR_STATS, View, read_compressed_int, read_str},
 };
 use anyhow::Result;
 use bytes::{Buf, BufMut, BytesMut};
@@ -49,10 +49,7 @@ pub async fn update(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resul
 		for _ in 0..n_stats {
 			let stat_type = View(b, c).try_get_u8()?;
 
-			const STRING_STATS: [u8; 14] =
-				[6, 31, 38, 54, 62, 71, 72, 80, 82, 115, 121, 127, 128, 147];
-
-			if STRING_STATS.contains(&stat_type) {
+			if OBJECT_STR_STATS.contains(&stat_type) {
 				let _stat = read_str(View(b, c))?;
 			} else {
 				let _stat = read_compressed_int(View(b, c))?;

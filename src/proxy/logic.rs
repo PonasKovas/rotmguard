@@ -31,6 +31,7 @@ pub async fn handle_s2c_packet(proxy: &mut Proxy, mut packet_bytes: BytesMut) ->
 	let cursor = &mut 0;
 	let block_packet = match View(&packet_bytes, cursor).get_u8() {
 		PACKET_ID::S2C_UPDATE => packets::update(proxy, &mut packet_bytes, cursor).await?,
+		PACKET_ID::S2C_NEWTICK => packets::newtick(proxy, &mut packet_bytes, cursor).await?,
 		_ => false,
 	};
 
