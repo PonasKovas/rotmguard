@@ -61,3 +61,30 @@ pub async fn toggle(proxy: &mut Proxy) {
 
 	proxy.send_client(notification).await;
 }
+
+// checks if antipush is not synced, and if so, returns an iterator of extra tile data
+// to add to an update packet. (x, y, tile_id)
+pub fn extra_tile_data(
+	proxy: &mut Proxy,
+) -> Option<impl Iterator<Item = (i16, i16, u16)> + ExactSizeIterator> {
+	if proxy.state.antipush.synced {
+		return None;
+	}
+
+	proxy.state.antipush.synced = true;
+
+	Some(
+		proxy
+			.state
+			.antipush
+			.conveyor_tiles
+			.iter()
+			.map(|(&(x, y), &original_tile_id)| {
+				if proxy.state.antipush.enabled {
+					(x, y, ANTIPUSH_REPLACEMENT_TILE)
+				} else {
+					(x, y, original_tile_id)
+				}
+			}),
+	)
+}

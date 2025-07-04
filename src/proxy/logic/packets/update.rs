@@ -3,11 +3,10 @@ use crate::{
 		Proxy,
 		logic::cheats::{antipush, autonexus},
 	},
-	util::{OBJECT_STR_STATS, View, read_compressed_int, read_str},
+	util::{OBJECT_STR_STATS, View, read_compressed_int, read_str, write_compressed_int},
 };
 use anyhow::Result;
 use bytes::{Buf, BufMut, BytesMut};
-use tracing::warn;
 
 pub async fn update(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Result<bool> {
 	// Update packets add/remove objects and tiles that are on the client screen
@@ -21,7 +20,9 @@ pub async fn update(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resul
 	// TILES
 	//
 
+	let tiles_n_pos = *c;
 	let tiles_n = read_compressed_int(View(b, c))?;
+	let tile_data_pos = *c;
 	for _ in 0..tiles_n {
 		let x = View(b, c).try_get_i16()?;
 		let y = View(b, c).try_get_i16()?;
@@ -33,6 +34,36 @@ pub async fn update(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resul
 			// replace last 2 bytes
 			(&mut b[(*c - 2)..]).put_u16(new_tile_id);
 		}
+	}
+
+	// if antipush not synced, need to add more tile data to replace all previously sent conveyer tiles
+	if let Some(extra_tiles) = antipush::extra_tile_data(proxy) {
+		// since this involves adding extra bytes to the packet, we need to sadly make a new buffer
+		let mut new_buf = BytesMut::with_capacity(b.len() + extra_tiles.len() * 6 + 1);
+		// each extra tile is 6 bytes (i16,i16,u16) and we also add an extra byte for potential increase
+		// of the size of tiles_n varint
+
+		// first copy all bytes up to tiles
+		new_buf.extend_from_slice(&b[..tiles_n_pos]);
+
+		// write the new tiles_n
+		write_compressed_int(tiles_n + extra_tiles.len() as i64, &mut new_buf);
+
+		// then copy all original tile data
+		new_buf.extend_from_slice(&b[tile_data_pos..*c]);
+
+		// then write extra tile data
+		for (x, y, tile) in extra_tiles {
+			new_buf.put_i16(x);
+			new_buf.put_i16(y);
+			new_buf.put_u16(tile);
+		}
+
+		// then copy all remaining bytes and replace the original buffer with the new buffer
+		let new_cursor = new_buf.len();
+		new_buf.extend_from_slice(&b[*c..]);
+		*b = new_buf;
+		*c = new_cursor;
 	}
 
 	//
@@ -64,14 +95,6 @@ pub async fn update(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resul
 	let to_remove_n = read_compressed_int(View(b, c))?;
 	for _ in 0..to_remove_n {
 		let _object_id = read_compressed_int(View(b, c))?;
-	}
-
-	let leftover = View(b, c).slice().len();
-	if leftover > 0 {
-		warn!(
-			"Leftover unparsed bytes at UPDATE packet:\n{:?}",
-			&View(b, c).slice()[..leftover.min(500)]
-		);
 	}
 
 	Ok(false)

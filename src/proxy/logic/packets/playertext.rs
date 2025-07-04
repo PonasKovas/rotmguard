@@ -7,20 +7,11 @@ use crate::{
 };
 use anyhow::Result;
 use bytes::BytesMut;
-use tracing::warn;
 
 pub async fn playertext(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Result<bool> {
 	// The packet is used to handle commands
 
 	let text = read_str(View(b, c))?;
-
-	let leftover = View(b, c).slice().len();
-	if leftover > 0 {
-		warn!(
-			"Leftover unparsed bytes at UPDATE packet:\n{:?}",
-			&View(b, c).slice()[..leftover.min(500)]
-		);
-	}
 
 	// not interested in stuff that isnt a command
 	// - must start with `/`

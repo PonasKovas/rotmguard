@@ -4,7 +4,6 @@ use crate::{
 };
 use anyhow::Result;
 use bytes::{Buf, BytesMut};
-use tracing::warn;
 
 pub async fn newtick(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Result<bool> {
 	// Update object related stats
@@ -32,14 +31,6 @@ pub async fn newtick(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resu
 			}
 			let _secondary = read_compressed_int(View(b, c))?;
 		}
-	}
-
-	let leftover = View(b, c).slice().len();
-	if leftover > 0 {
-		warn!(
-			"Leftover unparsed bytes at NEWTICK packet:\n{:?}",
-			&View(b, c).slice()[..leftover.min(500)]
-		);
 	}
 
 	Ok(false)
