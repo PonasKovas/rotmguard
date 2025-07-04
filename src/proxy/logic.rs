@@ -2,7 +2,7 @@ use super::Proxy;
 use crate::util::{PACKET_ID, View};
 use anyhow::Result;
 use bytes::{Buf, BytesMut};
-use cheats::{antipush::AntiPush, autonexus::Autonexus};
+use cheats::{antipush::AntiPush, autonexus::Autonexus, fakeslow::FakeSlow};
 use tracing::warn;
 
 mod cheats;
@@ -11,7 +11,9 @@ mod packets;
 #[derive(Default)]
 pub struct State {
 	my_obj_id: u32,
+	condition: u64,
 	antipush: AntiPush,
+	fakeslow: FakeSlow,
 	autonexus: Autonexus,
 }
 

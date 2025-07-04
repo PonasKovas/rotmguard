@@ -1,3 +1,4 @@
+use super::CONDITION_STAT_ID;
 use crate::{
 	proxy::{
 		Proxy,
@@ -89,9 +90,12 @@ pub async fn update(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resul
 				let stat_pos = *c;
 				let mut stat = read_compressed_int(View(b, c))?;
 
-				if object_id == proxy.state.my_obj_id {
+				// if status about self and is condition stat
+				if object_id == proxy.state.my_obj_id && stat_type == CONDITION_STAT_ID {
+					proxy.state.condition = stat as u64;
+
 					let original_stat_size = size_as_compressed_int(stat);
-					antidebuffs::self_stat(proxy, stat_type, &mut stat);
+					antidebuffs::self_condition_stat(proxy, &mut stat);
 
 					// overwrite the stat with the potentially modified one
 					write_compressed_int_exact_size(stat, original_stat_size, &mut b[stat_pos..]);

@@ -1,7 +1,7 @@
 use crate::{
 	proxy::{
 		Proxy,
-		logic::cheats::{antipush, con},
+		logic::cheats::{antipush, con, fakeslow},
 	},
 	util::{BLUE, View, read_str, static_notification},
 };
@@ -38,6 +38,11 @@ pub async fn playertext(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> R
 		}
 		"/ap" | "/antipush" => {
 			antipush::toggle(proxy).await;
+
+			Ok(true)
+		}
+		"/slow" => {
+			fakeslow::toggle(proxy).await;
 
 			Ok(true)
 		}

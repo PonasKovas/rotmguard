@@ -24,6 +24,6 @@ darkness = false # you still dont see very far so disabling this doesnt help, al
 # The following will edit game resource files, you will need to launch the game AFTER rotmguard is already running
 # for these to work.
 [settings.edit_assets]
-enabled = false
+enabled = true
 # If true, will remove the client-side debuffs completely
 force_debuffs = true
