@@ -7,7 +7,7 @@ use crate::{
 };
 use anyhow::Result;
 use bytes::{Buf, BufMut, BytesMut};
-use tracing::error;
+use tracing::warn;
 
 pub async fn update(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Result<bool> {
 	// Update packets add/remove objects and tiles that are on the client screen
@@ -68,7 +68,7 @@ pub async fn update(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resul
 
 	let leftover = View(b, c).slice().len();
 	if leftover > 0 {
-		error!(
+		warn!(
 			"Leftover unparsed bytes at UPDATE packet:\n{:?}",
 			&View(b, c).slice()[..leftover.min(500)]
 		);
