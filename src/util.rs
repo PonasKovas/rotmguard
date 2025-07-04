@@ -33,20 +33,33 @@ pub fn write_str(data: &str, mut out: impl BufMut) {
 	out.put_u16(len);
 	out.put_slice(data.as_bytes());
 }
+pub fn size_as_compressed_int(value: i64) -> usize {
+	let value = value.abs() as u64;
+
+	let bits_needed = 64 - value.leading_zeros() as usize;
+	// first byte fits only 6 bits because of sign flag
+	if bits_needed <= 6 {
+		return 1;
+	}
+	let remaining_bits = bits_needed - 6;
+
+	// subsequent bytes fit 7 bits
+	1 + remaining_bits.div_ceil(7)
+}
 pub fn read_compressed_int(mut view: View) -> Result<i64> {
 	let mut byte = view.try_get_u8()?;
 
-	let is_negative = (byte & 0b01000000) != 0;
+	let is_negative = (byte & 0x40) != 0;
 	let mut shift = 6;
-	let mut value = (byte & 0b00111111) as i64;
+	let mut value = (byte & 0x3f) as i64;
 
-	while (byte & 0b10000000) != 0 {
-		if shift >= 6 + 7 * 7 {
+	while (byte & 0x80) != 0 {
+		if shift >= 64 {
 			bail!("Varint too long");
 		}
 
 		byte = view.try_get_u8()?;
-		value |= ((byte & 0b01111111) as i64) << shift;
+		value |= ((byte & 0x7f) as i64) << shift;
 		shift += 7;
 	}
 
@@ -56,27 +69,35 @@ pub fn read_compressed_int(mut view: View) -> Result<i64> {
 
 	Ok(value)
 }
-pub fn write_compressed_int(value: i64, mut out: impl BufMut) {
-	let is_negative = value < 0;
+pub fn write_compressed_int(value: i64, out: impl BufMut) {
+	let size = size_as_compressed_int(value);
+
+	write_compressed_int_exact_size(value, size, out);
+}
+// writes the varint potentially bad-formed with trailing zero bytes so its exactly N bytes long
+pub fn write_compressed_int_exact_size(value: i64, exact_size: usize, mut out: impl BufMut) {
+	let natural_size = size_as_compressed_int(value);
+	if exact_size < natural_size {
+		panic!(
+			"varint {value} cant be written as {exact_size} bytes as it requires at least {natural_size} bytes inherently. This is a bug.",
+		)
+	}
+
+	let mut buf = [0x80u8; 10]; // continuation bit set for all bytes
+	buf[exact_size - 1] = 0; // remove the continuation bit from the last byte
+	if value.is_negative() {
+		buf[0] |= 0x40;
+	}
 	let mut value = value.abs();
 
-	let mut byte = (value & 0b00111111) as u8;
+	let first_byte = (value & 0x3f) as u8;
 	value >>= 6;
-	if value != 0 {
-		byte |= 0b10000000;
-	}
-	if is_negative {
-		byte |= 0b01000000;
-	}
+	buf[0] |= first_byte;
 
-	out.put_u8(byte);
-
-	while value != 0 {
-		let mut byte = (value & 0b01111111) as u8;
+	for i in 1..natural_size {
+		buf[i] |= (value & 0x7f) as u8;
 		value >>= 7;
-		if value != 0 {
-			byte |= 0b10000000;
-		}
-		out.put_u8(byte);
 	}
+
+	out.put_slice(&buf[..exact_size]);
 }

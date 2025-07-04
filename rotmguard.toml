@@ -17,12 +17,13 @@ blind = true
 hallucinating = true
 drunk = true
 confused = true
+hexed = true
 unstable = true
 darkness = false # you still dont see very far so disabling this doesnt help, all it does it make you not know when the effect is actually over
 
 # The following will edit game resource files, you will need to launch the game AFTER rotmguard is already running
 # for these to work.
 [settings.edit_assets]
-enabled = true
+enabled = false
 # If true, will remove the client-side debuffs completely
 force_debuffs = true

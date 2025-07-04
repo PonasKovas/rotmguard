@@ -32,8 +32,6 @@ async fn main() -> Result<()> {
 	// Initialize logger
 	logging::init_logger(&config)?;
 
-	info!("Reading assets.");
-
 	// Read the resource assets
 	let assets = assets::handle_assets(&config)?;
 

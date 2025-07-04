@@ -41,6 +41,9 @@ pub struct Debuffs {
 	pub confused: bool,
 	/// If true will be disabled
 	#[serde(default)]
+	pub hexed: bool,
+	/// If true will be disabled
+	#[serde(default)]
 	pub unstable: bool,
 	/// If true will be disabled
 	#[serde(default)]

@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 // the tile with which all pushing tiles are replaced when antipush enabled
 const ANTIPUSH_REPLACEMENT_TILE: u16 = 0x2230; // Spider dirt ground, which reduces walking speed to 35%
 // chosen specifically for this reason, because it would be suspicious (even though as far as my testing went,
-// the server did not automatically detect or kick for this) if you walk against the conveyer at normal speed.
+// the server did not automatically detect or kick/ban for this) if you walk against the conveyer at normal speed.
 // but there is no way to make you slower or faster in a specific direction, so i make you slower in ALL directions.
 
 pub struct AntiPush {
@@ -27,6 +27,7 @@ impl Default for AntiPush {
 	}
 }
 
+/// To be called when new tiles enter the player screen or are replaced in the Update packet
 /// Returns a new tile id, if we need to replace the tile type immediatelly in place
 pub fn new_tile(proxy: &mut Proxy, x: i16, y: i16, tile_type: u16) -> Option<u16> {
 	if proxy.rotmguard.assets.conveyor_tiles.contains(&tile_type) {
@@ -49,6 +50,7 @@ pub fn new_tile(proxy: &mut Proxy, x: i16, y: i16, tile_type: u16) -> Option<u16
 	None
 }
 
+/// toggles the antipush cheat
 pub async fn toggle(proxy: &mut Proxy) {
 	proxy.state.antipush.enabled = !proxy.state.antipush.enabled;
 	proxy.state.antipush.synced = false;
