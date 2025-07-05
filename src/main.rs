@@ -13,6 +13,7 @@ mod config;
 mod fetch_server_list;
 mod iptables;
 mod logging;
+mod packet_logger;
 mod proxy;
 mod rc4;
 mod util;
@@ -31,6 +32,10 @@ async fn main() -> Result<()> {
 
 	// Initialize logger
 	logging::init_logger(&config)?;
+
+	if packet_logger::enabled() {
+		info!("Packet logging enabled");
+	}
 
 	// Read the resource assets
 	let assets = assets::handle_assets(&config)?;

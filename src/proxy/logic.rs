@@ -1,9 +1,12 @@
 use super::Proxy;
-use crate::util::{PACKET_ID, View};
+use crate::{
+	logging::save_logs,
+	util::{PACKET_ID, View},
+};
 use anyhow::Result;
 use bytes::{Buf, BytesMut};
 use cheats::{antipush::AntiPush, autonexus::Autonexus, fakeslow::FakeSlow};
-use tracing::warn;
+use tracing::{info, warn};
 
 mod cheats;
 mod packets;
@@ -59,6 +62,11 @@ pub async fn handle_s2c_packet(proxy: &mut Proxy, mut packet_bytes: BytesMut) ->
 		PACKET_ID::S2C_NEWTICK => packets::newtick(proxy, &mut packet_bytes, cursor).await?,
 		PACKET_ID::S2C_CREATE_SUCCESS => {
 			packets::create_success(proxy, &mut packet_bytes, cursor).await?
+		}
+		PACKET_ID::S2C_DEATH => {
+			info!("holy shit 💀"); // 🪦 願您在天使的懷抱中找到永恆的和平與安寧。安息。
+			save_logs();
+			false
 		}
 		_ => {
 			packet_parsed = false;
