@@ -56,7 +56,7 @@ impl PacketLogger {
 
 		log.write_u8(dir).await?; // direction - either 'c' or 's' (coming from where?)
 		log.write_u128_le(elapsed.as_nanos()).await?; // time as nanoseconds since start of logging
-		log.write_u32(packet.len() as u32).await?; // packet length
+		log.write_u32_le(packet.len() as u32).await?; // packet length
 		log.write_all(packet).await?; // the actual packet (first byte is the packet id)
 
 		Ok(())
