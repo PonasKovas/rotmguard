@@ -40,9 +40,8 @@ pub async fn newtick(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resu
 
 				// if status about self and is condition stat
 				if object_id == proxy.state.my_obj_id && stat_type == CONDITION_STAT_ID {
-					proxy.state.condition = stat as u64;
-
 					let original_stat_size = size_as_compressed_int(stat);
+
 					antidebuffs::self_condition_stat(proxy, &mut stat);
 					fakeslow::self_condition_stat(proxy, &mut stat);
 

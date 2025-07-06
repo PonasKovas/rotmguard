@@ -14,7 +14,6 @@ mod packets;
 #[derive(Default)]
 pub struct State {
 	my_obj_id: u32,
-	condition: u64,
 	antipush: AntiPush,
 	fakeslow: FakeSlow,
 	autonexus: Autonexus,

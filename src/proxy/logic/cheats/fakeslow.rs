@@ -9,6 +9,7 @@ use super::antidebuffs;
 const SLOW_BIT: u64 = 0x8;
 
 pub struct FakeSlow {
+	condition: u64,
 	enabled: bool,
 	synced: bool,
 }
@@ -16,6 +17,7 @@ pub struct FakeSlow {
 impl Default for FakeSlow {
 	fn default() -> Self {
 		Self {
+			condition: 0,
 			enabled: false,
 			synced: true,
 		}
@@ -25,6 +27,7 @@ impl Default for FakeSlow {
 /// To be called in NewTick when the condition stat about self is read
 /// may modify the stat
 pub fn self_condition_stat(proxy: &mut Proxy, stat: &mut i64) {
+	proxy.state.fakeslow.condition = *stat as u64;
 	proxy.state.fakeslow.synced = true;
 
 	if proxy.state.fakeslow.enabled {
@@ -60,7 +63,7 @@ pub fn extra_object_status(
 	}
 	proxy.state.fakeslow.synced = true;
 
-	let mut new_condition = proxy.state.condition as i64;
+	let mut new_condition = proxy.state.fakeslow.condition as i64;
 	antidebuffs::self_condition_stat(proxy, &mut new_condition);
 	if proxy.state.fakeslow.enabled {
 		new_condition |= SLOW_BIT as i64;
