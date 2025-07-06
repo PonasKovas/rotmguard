@@ -1,9 +1,11 @@
+use std::sync::atomic::Ordering;
+
 use crate::{
 	proxy::{
 		Proxy,
 		logic::cheats::{antipush, con, fakeslow},
 	},
-	util::{BLUE, View, read_str, static_notification},
+	util::{BLUE, View, create_notification, read_str, static_notification},
 };
 use anyhow::Result;
 use bytes::BytesMut;
@@ -28,6 +30,32 @@ pub async fn playertext(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> R
 		"/hi" | "/rotmguard" => {
 			let notification = static_notification!("hi :)", BLUE);
 			proxy.send_client(notification.clone()).await;
+
+			Ok(true)
+		}
+		"/flushskips" => {
+			let total = proxy
+				.rotmguard
+				.flush_skips
+				.total_packets
+				.load(Ordering::Relaxed);
+			let flushes = proxy.rotmguard.flush_skips.flushes.load(Ordering::Relaxed);
+			let total_time = proxy
+				.rotmguard
+				.flush_skips
+				.total_time
+				.load(Ordering::Relaxed);
+
+			let percent_flushed = 100.0 * flushes as f32 / total as f32;
+			let avg_delay = total_time as f32 / total as f32;
+			proxy
+				.send_client(create_notification(
+					&format!(
+						"Total packets: {total}. Flushed: {percent_flushed:.2}%. Avg delay: {avg_delay:.2}us"
+					),
+					0x8888ff,
+				))
+				.await;
 
 			Ok(true)
 		}

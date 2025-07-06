@@ -66,6 +66,7 @@ pub async fn handle_s2c_packet(proxy: &mut Proxy, mut packet_bytes: BytesMut) ->
 		PACKET_ID::S2C_DEATH => {
 			info!("holy shit 💀"); // 🪦 願您在天使的懷抱中找到永恆的和平與安寧。安息。
 			save_logs();
+			packet_parsed = false;
 			false
 		}
 		_ => {

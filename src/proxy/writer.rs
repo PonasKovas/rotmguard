@@ -1,13 +1,33 @@
-use crate::rc4::Rc4;
+use crate::util::PACKET_ID::*;
+use crate::{Rotmguard, rc4::Rc4};
 use anyhow::Result;
 use bytes::Bytes;
+use std::sync::Arc;
+use std::sync::atomic::Ordering;
+use std::time::Instant;
 use tokio::{io::AsyncWriteExt as _, net::tcp::OwnedWriteHalf, sync::mpsc::Receiver};
 use tracing::{error, warn};
 
 // BufWriter buffer size
 const BUFFER_SIZE: usize = 8 * 1024;
 
-pub async fn task(stream: OwnedWriteHalf, channel: Receiver<WriterMessage>, rc4_key: &[u8; 13]) {
+// small packets that are sent frequently
+// we will avoid flushing the buffers for these packets
+// since they usually come together with some other packets that will get it flushed
+#[rustfmt::skip]
+const LOW_PRIORITY_PACKETS: &[u8] = &[
+	S2C_UPDATE, C2S_UPDATEACK, S2C_ENEMYSHOOT, S2C_REALM_SCORE_UPDATE, C2S_SHOOT_ACK,
+	S2C_SHOWEFFECT, C2S_PLAYERSHOOT, C2S_OTHERHIT, S2C_DAMAGE, C2S_ENEMYHIT, S2C_PING,
+	C2S_PONG, S2C_NOTIFICATION, S2C_CLIENTSTAT, S2C_INVRESULT, C2S_USEITEM, C2S_PLAYERHIT,
+	S2C_AOE, C2S_AOEACK,
+];
+
+pub async fn task(
+	rotmguard: Arc<Rotmguard>,
+	stream: OwnedWriteHalf,
+	channel: Receiver<Bytes>,
+	rc4_key: &[u8; 13],
+) {
 	let writer = Writer {
 		stream,
 		buf: Vec::with_capacity(BUFFER_SIZE),
@@ -15,7 +35,7 @@ pub async fn task(stream: OwnedWriteHalf, channel: Receiver<WriterMessage>, rc4_
 		channel,
 	};
 
-	if let Err(e) = writer.run().await {
+	if let Err(e) = writer.run(rotmguard).await {
 		error!("Writer task: {e:?}");
 	}
 }
@@ -27,20 +47,17 @@ struct Writer {
 	stream: OwnedWriteHalf,
 	buf: Vec<u8>,
 	rc4: Rc4,
-	channel: Receiver<WriterMessage>,
-}
-pub enum WriterMessage {
-	Flush,
-	Bytes(Bytes),
+	channel: Receiver<Bytes>,
 }
 
 impl Writer {
-	async fn run(mut self) -> Result<()> {
-		let mut last_pkt_id = None;
+	async fn run(mut self, rotmguard: Arc<Rotmguard>) -> Result<()> {
+		let mut unflushed_packet_ids = Vec::with_capacity(128);
+		let mut last_flush = Instant::now();
 
 		loop {
 			// timeout added for debugging purposes when connection gets seemingly stuck.
-			let msg = match tokio::time::timeout(
+			let bytes = match tokio::time::timeout(
 				tokio::time::Duration::from_secs(5),
 				self.channel.recv(),
 			)
@@ -50,33 +67,47 @@ impl Writer {
 				Ok(None) => break,
 				Err(_) => {
 					// no sent data in 5 seconds?
-					// If there are unflushed bytes still, this is a bug on our side
+					// If there are unflushed bytes still, this might be a bug on our side
 					if !self.buf.is_empty() {
 						warn!(
-							"No data sent in 5 seconds. Packets still wait unflushed. Last packet ID: {last_pkt_id:?}"
+							"No data sent in 5 seconds. Packets still wait unflushed. unflushed_packets: {unflushed_packet_ids:?}"
 						);
 					}
 					continue;
 				}
 			};
 
-			match msg {
-				WriterMessage::Flush => {
-					self.flush().await?;
-				}
-				WriterMessage::Bytes(bytes) => {
-					// packet len
-					self.write(&u32::to_be_bytes(bytes.len() as u32 + 4), false) // includes itself so +4
-						.await?;
+			unflushed_packet_ids.push(bytes[0]);
+			rotmguard
+				.flush_skips
+				.total_packets
+				.fetch_add(1, Ordering::Relaxed);
 
-					// packet id
-					self.write(&bytes[0..1], false).await?;
+			// packet len
+			self.write(&u32::to_be_bytes(bytes.len() as u32 + 4), false) // includes itself so +4
+				.await?;
 
-					// packet itself (ciphered)
-					self.write(&bytes[1..], true).await?;
+			// packet id
+			self.write(&bytes[0..1], false).await?;
 
-					last_pkt_id = Some(bytes[0]);
-				}
+			// packet itself (ciphered)
+			self.write(&bytes[1..], true).await?;
+
+			if !LOW_PRIORITY_PACKETS.contains(&bytes[0]) {
+				self.flush().await?;
+
+				unflushed_packet_ids.clear();
+
+				let elapsed = last_flush.elapsed().as_micros() as u64;
+				last_flush = Instant::now();
+				rotmguard
+					.flush_skips
+					.flushes
+					.fetch_add(1, Ordering::Relaxed);
+				rotmguard
+					.flush_skips
+					.total_time
+					.fetch_add(elapsed, Ordering::Relaxed);
 			}
 		}
 		Ok(())

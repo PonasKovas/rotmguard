@@ -4,6 +4,7 @@ use config::Config;
 use std::collections::HashMap;
 use std::fs;
 use std::sync::Arc;
+use std::sync::atomic::AtomicU64;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::select;
 use tracing::{error, info};
@@ -22,6 +23,17 @@ struct Rotmguard {
 	config: Config,
 	assets: Assets,
 	rotmg_servers: HashMap<String, String>,
+	flush_skips: FlushSkips,
+}
+
+#[derive(Default)]
+struct FlushSkips {
+	// total packets forwarded/sent
+	total_packets: AtomicU64,
+	// total IO flushes on the stream
+	flushes: AtomicU64,
+	// total summed spaces between flushes
+	total_time: AtomicU64,
 }
 
 #[tokio::main]
@@ -47,6 +59,7 @@ async fn main() -> Result<()> {
 		config,
 		assets,
 		rotmg_servers: fetch_server_list::fetch().await?,
+		flush_skips: Default::default(),
 	});
 
 	select! {

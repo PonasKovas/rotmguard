@@ -1,4 +1,4 @@
-use crate::{Rotmguard, packet_logger, util::PACKET_ID::*};
+use crate::{Rotmguard, packet_logger};
 use anyhow::Result;
 use bytes::Bytes;
 use futures::{StreamExt as _, stream::FuturesUnordered};
@@ -11,7 +11,6 @@ use tokio::{
 	task::JoinHandle,
 };
 use tracing::instrument;
-use writer::WriterMessage;
 
 mod logic;
 mod reader;
@@ -25,21 +24,10 @@ const RC4_KEY_S2C: &[u8; 13] = &[0xC9, 0x1D, 0x9E, 0xEC, 0x42, 0x01, 0x60, 0x73,
 #[rustfmt::skip]
 const RC4_KEY_C2S: &[u8; 13] = &[0x5A, 0x4D, 0x20, 0x16, 0xBC, 0x16, 0xDC, 0x64, 0x88, 0x31, 0x94, 0xFF, 0xD9];
 
-// small packets that are sent frequently
-// we will avoid flushing the buffers for these packets
-// since they usually come together with some other packets that will get it flushed
-#[rustfmt::skip]
-const LOW_PRIORITY_PACKETS: &[u8] = &[
-	S2C_UPDATE, C2S_UPDATEACK, S2C_ENEMYSHOOT, S2C_REALM_SCORE_UPDATE, C2S_SHOOT_ACK,
-	S2C_SHOWEFFECT, C2S_PLAYERSHOOT, C2S_OTHERHIT, S2C_DAMAGE, C2S_ENEMYHIT, S2C_PING,
-	C2S_PONG, S2C_NOTIFICATION, S2C_CLIENTSTAT, S2C_INVRESULT, C2S_USEITEM, C2S_PLAYERHIT,
-	S2C_AOE, C2S_AOEACK,
-];
-
 struct Proxy {
 	rotmguard: Arc<Rotmguard>,
-	client: Sender<WriterMessage>,
-	server: Sender<WriterMessage>,
+	client: Sender<Bytes>,
+	server: Sender<Bytes>,
 	writer_tasks: FuturesUnordered<JoinHandle<()>>,
 	state: logic::State,
 }
@@ -48,20 +36,12 @@ impl Proxy {
 	/// must be a single valid packet, length not included.
 	async fn send_client(&self, bytes: Bytes) {
 		// dont care if fails
-		let _ = self.client.send(WriterMessage::Bytes(bytes)).await;
+		let _ = self.client.send(bytes).await;
 	}
 	/// must be a single valid packet, length not included.
 	async fn send_server(&self, bytes: Bytes) {
 		// dont care if fails
-		let _ = self.server.send(WriterMessage::Bytes(bytes)).await;
-	}
-	async fn flush_client(&self) {
-		// dont care if fails
-		let _ = self.client.send(WriterMessage::Flush).await;
-	}
-	async fn flush_server(&self) {
-		// dont care if fails
-		let _ = self.server.send(WriterMessage::Flush).await;
+		let _ = self.server.send(bytes).await;
 	}
 }
 
@@ -74,8 +54,18 @@ pub async fn run(rotmguard: Arc<Rotmguard>, client: TcpStream, server: TcpStream
 	let (s_read, s_write) = server.into_split();
 	let (c_read, c_write) = client.into_split();
 
-	let w1 = tokio::spawn(writer::task(s_write, s_recv, RC4_KEY_C2S));
-	let w2 = tokio::spawn(writer::task(c_write, c_recv, RC4_KEY_S2C));
+	let w1 = tokio::spawn(writer::task(
+		Arc::clone(&rotmguard),
+		s_write,
+		s_recv,
+		RC4_KEY_C2S,
+	));
+	let w2 = tokio::spawn(writer::task(
+		Arc::clone(&rotmguard),
+		c_write,
+		c_recv,
+		RC4_KEY_S2C,
+	));
 
 	// This task will be for reading packets and handling them
 	let proxy = Proxy {
@@ -113,14 +103,7 @@ impl Proxy {
 					while let Some(packet) = c_read.try_get_packet()? {
 						packet_logger.add(packet_logger::Direction::C2S, &packet).await?;
 
-						let id = packet[0];
-
 						logic::handle_c2s_packet(&mut self, packet).await?;
-
-						let skip_flushing = LOW_PRIORITY_PACKETS.contains(&id);
-						if !skip_flushing {
-							self.flush_server().await;
-						}
 					}
 				},
 				res = s_read.read_more() => {
@@ -129,14 +112,8 @@ impl Proxy {
 					while let Some(packet) = s_read.try_get_packet()? {
 						packet_logger.add(packet_logger::Direction::S2C, &packet).await?;
 
-						let id = packet[0];
 
 						logic::handle_s2c_packet(&mut self, packet).await?;
-
-						let skip_flushing = LOW_PRIORITY_PACKETS.contains(&id);
-						if !skip_flushing {
-							self.flush_client().await;
-						}
 					}
 				},
 				_ = self.writer_tasks.next() => {
