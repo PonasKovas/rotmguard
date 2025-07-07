@@ -58,7 +58,6 @@ impl Ticks {
 }
 
 pub fn new_tick_start(proxy: &mut Proxy, tick_id: u32, tick_time: u32) {
-	proxy.state.autonexus.ticks.base.heals = 0;
 	proxy.state.autonexus.ticks.base.id = tick_id;
 	proxy.state.autonexus.ticks.base.time = tick_time;
 }
@@ -136,6 +135,7 @@ pub async fn new_tick_finish(proxy: &mut Proxy) {
 		.ticks
 		.queue
 		.push_back(proxy.state.autonexus.ticks.base);
+	proxy.state.autonexus.ticks.base.heals = 0;
 }
 
 pub async fn client_tick_acknowledge(proxy: &mut Proxy) {
@@ -204,7 +204,7 @@ pub async fn client_tick_acknowledge(proxy: &mut Proxy) {
 
 	let ticks_since_damage = tick.id - proxy.state.autonexus.last_damage_tick;
 	if (ticks_since_damage >= 10 && tick.stats.hp != proxy.state.autonexus.hp as i64)
-		|| (tick.stats.hp as f32) < proxy.state.autonexus.hp
+		|| tick.stats.hp < proxy.state.autonexus.hp as i64
 	{
 		if devmode(proxy) {
 			proxy
