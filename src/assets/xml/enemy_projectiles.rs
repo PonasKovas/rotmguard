@@ -1,5 +1,5 @@
 use crate::{assets::ProjectileInfo, config::Config};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::collections::BTreeMap;
 use xmltree::{Element, XMLNode};
 
@@ -8,7 +8,7 @@ use xmltree::{Element, XMLNode};
 pub fn handle_projectiles(
 	config: &Config,
 	object: &mut Element,
-	projectiles: &mut BTreeMap<u32, ProjectileInfo>,
+	projectiles: &mut BTreeMap<u8, ProjectileInfo>,
 ) -> Result<()> {
 	let mut i = 0;
 	for parameter in &mut object.children {
@@ -20,7 +20,7 @@ pub fn handle_projectiles(
 			continue;
 		}
 		let projectile_id = match parameter.attributes.get("id") {
-			Some(s) => s.parse::<u32>().context("Projectile id non-integer")?,
+			Some(s) => s.parse::<u8>().context("Projectile id non-integer")?,
 			None => i,
 		};
 

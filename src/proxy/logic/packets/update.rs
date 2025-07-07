@@ -1,11 +1,10 @@
-use super::CONDITION_STAT_ID;
 use crate::{
 	proxy::{
 		Proxy,
 		logic::cheats::{antidebuffs, antipush, autonexus, fakeslow},
 	},
 	util::{
-		OBJECT_STR_STATS, View, read_compressed_int, read_str, size_as_compressed_int,
+		OBJECT_STR_STATS, STAT_TYPE, View, read_compressed_int, read_str, size_as_compressed_int,
 		write_compressed_int, write_compressed_int_exact_size,
 	},
 };
@@ -74,12 +73,18 @@ pub async fn update(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resul
 	// NEW OBJECTS
 	//
 	let objects_n = read_compressed_int(View(b, c))?;
+	let mut new_objects = Vec::with_capacity(objects_n as usize);
 	for _ in 0..objects_n {
-		let _object_type = View(b, c).try_get_u16()?;
+		let object_type = View(b, c).try_get_u16()?;
 		let object_id = read_compressed_int(View(b, c))? as u32;
 		let _position_x = View(b, c).try_get_f32()?;
 		let _position_y = View(b, c).try_get_f32()?;
 		let n_stats = read_compressed_int(View(b, c))? as usize;
+
+		// amazing protocol with this packet first adding new objects
+		// and only then removing old, forcing me to allocate a vector here
+		// (old object gets removed and a new one gets added with the same id often)
+		new_objects.push((object_id, object_type));
 
 		for _ in 0..n_stats {
 			let stat_type = View(b, c).try_get_u8()?;
@@ -90,15 +95,23 @@ pub async fn update(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resul
 				let stat_pos = *c;
 				let mut stat = read_compressed_int(View(b, c))?;
 
-				// if status about self and is condition stat
-				if object_id == proxy.state.my_obj_id && stat_type == CONDITION_STAT_ID {
+				if object_id == proxy.state.my_obj_id {
 					let original_stat_size = size_as_compressed_int(stat);
 
-					antidebuffs::self_condition_stat(proxy, &mut stat);
-					fakeslow::self_condition_stat(proxy, &mut stat);
+					autonexus::initial_self_stat(proxy, stat_type, &mut stat);
+					autonexus::self_stat(proxy, stat_type, stat).await;
 
-					// overwrite the stat with the potentially modified one
-					write_compressed_int_exact_size(stat, original_stat_size, &mut b[stat_pos..]);
+					if stat_type == STAT_TYPE::CONDITION {
+						antidebuffs::self_condition_stat(proxy, &mut stat);
+						fakeslow::self_condition_stat(proxy, &mut stat);
+
+						// overwrite the stat with the potentially modified one
+						write_compressed_int_exact_size(
+							stat,
+							original_stat_size,
+							&mut b[stat_pos..],
+						);
+					}
 				}
 			}
 			let _secondary = read_compressed_int(View(b, c))?;
@@ -110,7 +123,13 @@ pub async fn update(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resul
 	//
 	let to_remove_n = read_compressed_int(View(b, c))?;
 	for _ in 0..to_remove_n {
-		let _object_id = read_compressed_int(View(b, c))?;
+		let object_id = read_compressed_int(View(b, c))?;
+
+		autonexus::remove_object(proxy, object_id as u32);
+	}
+
+	for (object_id, object_type) in new_objects {
+		autonexus::add_object(proxy, object_id, object_type);
 	}
 
 	Ok(false)

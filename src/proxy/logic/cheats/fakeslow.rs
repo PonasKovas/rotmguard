@@ -1,12 +1,13 @@
-use crate::{
-	proxy::{Proxy, logic::packets::CONDITION_STAT_ID},
-	util::{GREEN, RED, static_notification},
-};
-use std::iter::once;
-
 use super::antidebuffs;
-
-const SLOW_BIT: u64 = 0x8;
+use crate::{
+	proxy::{
+		Proxy,
+		logic::packets::{ExtraObject, StatData},
+	},
+	util::{CONDITION_BITFLAG, GREEN, RED, STAT_TYPE, static_notification},
+};
+use either::Either;
+use std::iter::once;
 
 pub struct FakeSlow {
 	condition: u64,
@@ -31,7 +32,7 @@ pub fn self_condition_stat(proxy: &mut Proxy, stat: &mut i64) {
 	proxy.state.fakeslow.synced = true;
 
 	if proxy.state.fakeslow.enabled {
-		*stat = ((*stat as u64) | SLOW_BIT) as i64;
+		*stat = ((*stat as u64) | CONDITION_BITFLAG::SLOW) as i64;
 	}
 }
 
@@ -50,28 +51,30 @@ pub async fn toggle(proxy: &mut Proxy) {
 }
 
 // checks if fakeslow is not synced, and if so, returns an extra self object status
-// to add to a newtick packet. (object id, position, stats)
+// to add to a newtick packet.
 pub fn extra_object_status(
 	proxy: &mut Proxy,
-) -> Option<(
-	u32,
-	(f32, f32),
-	impl Iterator<Item = (u8, i64, i64)> + ExactSizeIterator,
-)> {
+) -> impl Iterator<Item = ExtraObject<impl Iterator<Item = StatData> + ExactSizeIterator>> {
 	if proxy.state.fakeslow.synced {
-		return None;
+		return None.into_iter();
 	}
 	proxy.state.fakeslow.synced = true;
 
 	let mut new_condition = proxy.state.fakeslow.condition as i64;
 	antidebuffs::self_condition_stat(proxy, &mut new_condition);
 	if proxy.state.fakeslow.enabled {
-		new_condition |= SLOW_BIT as i64;
+		new_condition |= CONDITION_BITFLAG::SLOW as i64;
 	}
 
-	Some((
-		proxy.state.my_obj_id,
-		(0.0, 0.0),
-		once((CONDITION_STAT_ID, new_condition, -1)),
-	))
+	Some(ExtraObject {
+		obj_id: proxy.state.my_obj_id,
+		pos_x: 0.0, // literally doesnt matter
+		pos_y: 0.0,
+		stats: once(StatData {
+			stat_type: STAT_TYPE::CONDITION,
+			data: Either::Right(new_condition),
+			secondary: -1,
+		}),
+	})
+	.into_iter()
 }

@@ -3,9 +3,9 @@ use std::sync::atomic::Ordering;
 use crate::{
 	proxy::{
 		Proxy,
-		logic::cheats::{antipush, con, fakeslow},
+		logic::cheats::{antipush, autonexus, con, fakeslow},
 	},
-	util::{BLUE, View, create_notification, read_str, static_notification},
+	util::{BLUE, GREEN, RED, View, create_notification, read_str, static_notification},
 };
 use anyhow::Result;
 use bytes::BytesMut;
@@ -29,7 +29,23 @@ pub async fn playertext(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> R
 	match command {
 		"/hi" | "/rotmguard" => {
 			let notification = static_notification!("hi :)", BLUE);
-			proxy.send_client(notification.clone()).await;
+			proxy.send_client(notification).await;
+
+			Ok(true)
+		}
+		"/devmode" => {
+			let state = {
+				let mut dev_mode = proxy.rotmguard.config.settings.dev_mode.lock().unwrap();
+				*dev_mode = !*dev_mode;
+				*dev_mode
+			};
+
+			let notification = if state {
+				static_notification!("developer mode on", GREEN)
+			} else {
+				static_notification!("developer mode off", RED)
+			};
+			proxy.send_client(notification).await;
 
 			Ok(true)
 		}
@@ -53,9 +69,14 @@ pub async fn playertext(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> R
 					&format!(
 						"Total packets: {total}. Flushed: {percent_flushed:.2}%. Avg delay: {avg_delay:.2}us"
 					),
-					0x8888ff,
+					BLUE,
 				))
 				.await;
+
+			Ok(true)
+		}
+		"/autonexus" => {
+			autonexus::command(proxy, args).await;
 
 			Ok(true)
 		}

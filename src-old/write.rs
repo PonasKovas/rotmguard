@@ -94,7 +94,7 @@ impl<'a> RPWrite for Cow<'a, str> {
 	}
 }
 
-pub fn write_compressed_int(value: &i64, buf: &mut Vec<u8>) -> usize {
+pub fn write_compressed_int(value: i64, buf: &mut Vec<u8>) -> usize {
 	let is_negative = *value < 0;
 	let mut value = value.abs();
 

@@ -4,7 +4,7 @@ use crate::{
 };
 use bytes::Bytes;
 
-pub async fn con<'a>(proxy: &mut Proxy, mut args: impl Iterator<Item = &'a str>) {
+pub async fn con(proxy: &mut Proxy, mut args: impl Iterator<Item = &str>) {
 	let server = match args.next() {
 		Some(s) => s,
 		None => {

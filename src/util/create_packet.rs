@@ -1,5 +1,5 @@
 use bytes::{BufMut, Bytes, BytesMut};
-use super::{write_str, PACKET_ID};
+use super::{size_as_compressed_int, write_compressed_int, write_str, PACKET_ID::{self, C2S_ESCAPE}};
 
 pub const RED: u32 = 0xff8888;
 pub const GREEN: u32 = 0x88ff88;
@@ -44,6 +44,42 @@ pub fn create_reconnect(hostname: &str, address: &str, port: u16, game_id: u32, 
 	buf.extend_from_slice(key);					//  key len
 	///////////////////////////////////////////////////////////////////////
 	// 									TOTAL:	//	17+hostname len+address len+key len
+	///////////////////////////////////////////////////////////////////////
+
+	buf.freeze()
+}
+
+pub fn create_escape() -> Bytes {
+	Bytes::from_static(&[C2S_ESCAPE])
+}
+
+pub fn create_effect(effect_id: u8, object_id: Option<u32>, pos1: (f32, f32), pos2: (f32, f32), color: Option<u32>, duration: Option<f32>) -> Bytes {
+	let expected_size = 19 + object_id.map(|id| size_as_compressed_int(id as i64)).unwrap_or(0) + 4 * color.is_some() as usize + 4 * duration.is_some() as usize;
+	let mut buf = BytesMut::with_capacity(expected_size);
+
+	buf.put_u8(PACKET_ID::S2C_SHOWEFFECT);		//	1 // packet id
+	buf.put_u8(effect_id);						//	1 // effect id
+	let bitmask = 0b00011110
+			| color.is_some() as u8
+			| (duration.is_some() as u8) << 5
+			| (object_id.is_some() as u8) << 6;
+	buf.put_u8(bitmask);						//	1 // bitmask
+	if let Some(id) = object_id {
+		write_compressed_int(id as i64, &mut buf); 	// effect id
+	}
+	buf.put_f32(pos1.0);						//	4
+	buf.put_f32(pos1.1);						//	4
+	buf.put_f32(pos2.0);						//	4
+	buf.put_f32(pos2.1);						//	4
+	if let Some(color) = color {
+		buf.put_u32(color); 					// 4 // color
+	}
+	if let Some(duration) = duration {
+		buf.put_f32(duration); 					// 4 // duration
+	}
+	
+	///////////////////////////////////////////////////////////////////////
+	// 									TOTAL:	//	19+effect_id + color + duration
 	///////////////////////////////////////////////////////////////////////
 
 	buf.freeze()

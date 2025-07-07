@@ -15,7 +15,7 @@ pub struct Config {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Settings {
 	/// HP at which to autonexus. Recommended value 20
-	pub autonexus_hp: Mutex<i64>,
+	pub autonexus_hp: Mutex<i32>,
 	/// If true, will activate developer mode.
 	pub dev_mode: Mutex<bool>,
 	/// How many log lines to save up to the event that triggered a log save
@@ -52,7 +52,6 @@ pub struct Debuffs {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct EditAssets {
-	/// If true will be disabled
 	pub enabled: bool,
 	/// If true, will remove the client-side debuffs completely
 	pub force_debuffs: bool,

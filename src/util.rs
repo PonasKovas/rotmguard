@@ -3,10 +3,12 @@ use bytes::{Buf, BufMut};
 
 mod create_packet;
 mod packet_ids;
+mod stat_types;
 mod view;
 
 pub use create_packet::*;
-pub use packet_ids::PACKET_ID;
+pub use packet_ids::*;
+pub use stat_types::*;
 pub use view::View;
 
 // Object stat types that are strings instead of integers

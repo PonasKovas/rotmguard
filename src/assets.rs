@@ -15,7 +15,7 @@ mod xml;
 
 pub struct Assets {
 	/// Map<object type -> Map<projectile_type -> projectile_info>>
-	pub projectiles: BTreeMap<u32, BTreeMap<u32, ProjectileInfo>>,
+	pub projectiles: BTreeMap<u32, BTreeMap<u8, ProjectileInfo>>,
 	/// ground type -> damage
 	pub hazardous_tiles: BTreeMap<u16, i64>,
 	/// grounds that push the player like conveyors
