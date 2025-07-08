@@ -1,10 +1,10 @@
 use super::devmode;
 use crate::{
 	proxy::{
-		Proxy,
 		logic::packets::{ExtraObject, StatData},
+		Proxy,
 	},
-	util::{CONDITION_BITFLAG, STAT_TYPE, create_effect, create_notification},
+	util::{create_effect, create_notification, CONDITION_BITFLAG, STAT_TYPE},
 };
 use either::Either;
 use serde::Deserialize;
@@ -227,7 +227,7 @@ pub async fn client_tick_acknowledge(proxy: &mut Proxy) {
 // if devmode enabled will replace the fame bar with simulated hp
 pub fn extra_object_status(
 	proxy: &mut Proxy,
-) -> impl Iterator<Item = ExtraObject<impl Iterator<Item = StatData> + ExactSizeIterator>> {
+) -> impl Iterator<Item = ExtraObject<impl Iterator<Item = StatData<'_>> + ExactSizeIterator>> {
 	if !devmode(proxy) {
 		return None.into_iter();
 	}

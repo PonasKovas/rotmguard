@@ -1,10 +1,10 @@
 use super::antidebuffs;
 use crate::{
 	proxy::{
-		Proxy,
 		logic::packets::{ExtraObject, StatData},
+		Proxy,
 	},
-	util::{CONDITION_BITFLAG, GREEN, RED, STAT_TYPE, static_notification},
+	util::{static_notification, CONDITION_BITFLAG, GREEN, RED, STAT_TYPE},
 };
 use either::Either;
 use std::iter::once;
@@ -54,7 +54,7 @@ pub async fn toggle(proxy: &mut Proxy) {
 // to add to a newtick packet.
 pub fn extra_object_status(
 	proxy: &mut Proxy,
-) -> impl Iterator<Item = ExtraObject<impl Iterator<Item = StatData> + ExactSizeIterator>> {
+) -> impl Iterator<Item = ExtraObject<impl Iterator<Item = StatData<'_>> + ExactSizeIterator>> {
 	if proxy.state.fakeslow.synced {
 		return None.into_iter();
 	}
