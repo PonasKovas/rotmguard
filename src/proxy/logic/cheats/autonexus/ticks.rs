@@ -165,7 +165,12 @@ pub async fn client_tick_acknowledge(proxy: &mut Proxy) {
 		if tick.stats.hp < tick.stats.max_hp {
 			// vit regeneration
 			let vit = tick.stats.vit as f32;
-			let mut regen_amount = time_seconds * (1.0 + 0.24 * vit);
+			// these values have been found by doing precise analysis of the packets.
+			// the actual range for them can be found in assets/vit_regen_possible_values.png
+			// we can assume 2.0 base regen because the polygon falls right on it and its so clean
+			// and the cleanest (least decimal places) slope that can be paired with it
+			// happens to be 0.2407. so here we are.
+			let mut regen_amount = time_seconds * (2.0 + 0.2407 * vit);
 			if (tick.stats.conditions & CONDITION_BITFLAG::IN_COMBAT) != 0 {
 				regen_amount /= 2.0;
 			}
