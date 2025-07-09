@@ -1,4 +1,5 @@
 mod create_success;
+mod damage;
 mod enemyshoot;
 mod ground_damage;
 mod r#move;
@@ -9,6 +10,7 @@ mod playertext;
 mod update;
 
 pub use create_success::create_success;
+pub use damage::damage;
 pub use enemyshoot::enemyshoot;
 pub use ground_damage::ground_damage;
 pub use r#move::r#move;

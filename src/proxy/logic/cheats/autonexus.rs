@@ -73,7 +73,7 @@ async fn take_damage(proxy: &mut Proxy, dmg: i64) {
 	proxy.state.autonexus.last_damage_tick = proxy.state.autonexus.ticks.current().id;
 
 	let threshold = *proxy.rotmguard.config.settings.autonexus_hp.lock().unwrap();
-	if proxy.state.autonexus.hp <= threshold as f32 {
+	if proxy.state.autonexus.hp < threshold as f32 {
 		// AUTONEXUS ENGAGE!!!
 		proxy.send_server(create_escape()).await;
 		info!("nexusing");
