@@ -1,10 +1,10 @@
 use super::devmode;
 use crate::{
 	proxy::{
-		logic::packets::{ExtraObject, StatData},
 		Proxy,
+		logic::packets::{ExtraObject, StatData},
 	},
-	util::{create_effect, create_notification, CONDITION_BITFLAG, STAT_TYPE},
+	util::{CONDITION_BITFLAG, STAT_TYPE, create_effect, create_notification},
 };
 use either::Either;
 use serde::Deserialize;
@@ -184,33 +184,29 @@ pub async fn client_tick_acknowledge(proxy: &mut Proxy) {
 		}
 	}
 
-	if devmode(proxy) {
-		let hp_delta = tick.stats.hp as f32 - proxy.state.autonexus.hp;
+	let hp_delta = tick.stats.hp - proxy.state.autonexus.hp.round() as i64;
 
-		if hp_delta <= -1.0 {
-			proxy
-				.send_client(create_notification(
-					&format!("negdelta {hp_delta}"),
-					0xff2222,
-				))
-				.await;
-			proxy
-				.send_client(create_effect(
-					18,
-					Some(proxy.state.my_obj_id),
-					(0.0, 0.0),
-					(0.0, 0.0),
-					Some(0xffffff),
-					Some(1.0),
-				))
-				.await;
-		}
+	if devmode(proxy) && hp_delta <= -1 {
+		proxy
+			.send_client(create_notification(
+				&format!("negdelta {hp_delta}"),
+				0xff2222,
+			))
+			.await;
+		proxy
+			.send_client(create_effect(
+				18,
+				Some(proxy.state.my_obj_id),
+				(0.0, 0.0),
+				(0.0, 0.0),
+				Some(0xffffff),
+				Some(1.0),
+			))
+			.await;
 	}
 
 	let ticks_since_damage = tick.id - proxy.state.autonexus.last_damage_tick;
-	if (ticks_since_damage >= 10 && tick.stats.hp != proxy.state.autonexus.hp as i64)
-		|| tick.stats.hp < proxy.state.autonexus.hp as i64
-	{
+	if (ticks_since_damage >= 10 && hp_delta != 0) || hp_delta <= 1 {
 		if devmode(proxy) {
 			proxy
 				.send_client(create_notification(
