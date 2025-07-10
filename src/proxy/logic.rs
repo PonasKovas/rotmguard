@@ -14,6 +14,7 @@ mod packets;
 #[derive(Default)]
 pub struct State {
 	my_obj_id: u32,
+	position: (f32, f32),
 	antipush: AntiPush,
 	fakeslow: FakeSlow,
 	autonexus: Autonexus,
@@ -29,6 +30,7 @@ pub async fn handle_c2s_packet(proxy: &mut Proxy, mut packet_bytes: BytesMut) ->
 		PACKET_ID::C2S_PLAYERTEXT => packets::playertext(proxy, &mut packet_bytes, cursor).await?,
 		PACKET_ID::C2S_MOVE => packets::r#move(proxy, &mut packet_bytes, cursor).await?,
 		PACKET_ID::C2S_PLAYERHIT => packets::playerhit(proxy, &mut packet_bytes, cursor).await?,
+		PACKET_ID::C2S_AOEACK => packets::aoeack(proxy, &mut packet_bytes, cursor).await?,
 		PACKET_ID::C2S_GROUNDDAMAGE => {
 			packets::ground_damage(proxy, &mut packet_bytes, cursor).await?
 		}
@@ -72,6 +74,7 @@ pub async fn handle_s2c_packet(proxy: &mut Proxy, mut packet_bytes: BytesMut) ->
 			packets::notification(proxy, &mut packet_bytes, cursor).await?
 		}
 		PACKET_ID::S2C_DAMAGE => packets::damage(proxy, &mut packet_bytes, cursor).await?,
+		PACKET_ID::S2C_AOE => packets::aoe(proxy, &mut packet_bytes, cursor).await?,
 		PACKET_ID::S2C_DEATH => {
 			info!("holy shit 💀"); // 🪦 願您在天使的懷抱中找到永恆的和平與安寧。安息。
 			save_logs();

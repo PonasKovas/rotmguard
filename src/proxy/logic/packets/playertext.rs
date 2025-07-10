@@ -1,14 +1,13 @@
-use std::sync::atomic::Ordering;
-
 use crate::{
 	proxy::{
-		logic::cheats::{antipush, autonexus, con, fakeslow},
 		Proxy,
+		logic::cheats::{antipush, autonexus, con, fakeslow},
 	},
-	util::{create_notification, read_str, static_notification, View, BLUE, GREEN, RED},
+	util::{BLUE, GREEN, RED, View, create_notification, read_str, static_notification},
 };
 use anyhow::Result;
 use bytes::BytesMut;
+use std::sync::atomic::Ordering;
 
 pub async fn playertext(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Result<bool> {
 	// The packet is used to handle commands
