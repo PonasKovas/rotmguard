@@ -16,8 +16,6 @@ pub struct Config {
 pub struct Settings {
 	/// HP at which to autonexus. Recommended value 20
 	pub autonexus_hp: Mutex<i32>,
-	/// Reduces lag by blocking certain packets
-	pub antilag: Mutex<bool>,
 	/// If true, will activate developer mode.
 	pub dev_mode: Mutex<bool>,
 	/// How many log lines to save up to the event that triggered a log save

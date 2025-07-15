@@ -2,10 +2,10 @@ use std::sync::atomic::Ordering;
 
 use crate::{
 	proxy::{
-		logic::cheats::{antipush, autonexus, con, fakeslow},
 		Proxy,
+		logic::cheats::{antipush, autonexus, con, fakeslow},
 	},
-	util::{create_notification, read_str, static_notification, View, BLUE, GREEN, RED},
+	util::{BLUE, GREEN, RED, View, create_notification, read_str, static_notification},
 };
 use anyhow::Result;
 use bytes::BytesMut;
@@ -29,22 +29,6 @@ pub async fn playertext(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> R
 	match command {
 		"/hi" | "/rotmguard" => {
 			let notification = static_notification!("hi :)", BLUE);
-			proxy.send_client(notification).await;
-
-			Ok(true)
-		}
-		"/antilag" => {
-			let state = {
-				let mut antilag = proxy.rotmguard.config.settings.antilag.lock().unwrap();
-				*antilag = !*antilag;
-				*antilag
-			};
-
-			let notification = if state {
-				static_notification!("antilag on", GREEN)
-			} else {
-				static_notification!("antilag off", RED)
-			};
 			proxy.send_client(notification).await;
 
 			Ok(true)
