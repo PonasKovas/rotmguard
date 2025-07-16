@@ -1,9 +1,8 @@
-use std::collections::BTreeMap;
-
 use super::take_damage;
 use crate::proxy::Proxy;
 use anyhow::Result;
 use anyhow::bail;
+use std::collections::BTreeMap;
 
 #[derive(Default)]
 pub struct Ground {
@@ -11,7 +10,12 @@ pub struct Ground {
 }
 
 pub fn new_tile(proxy: &mut Proxy, x: i16, y: i16, tile_type: u16) {
-	match proxy.rotmguard.assets.hazardous_tiles.get(&tile_type) {
+	match proxy
+		.rotmguard
+		.assets
+		.hazardous_tiles
+		.get(&(tile_type as u32))
+	{
 		Some(&dmg) => {
 			proxy
 				.state

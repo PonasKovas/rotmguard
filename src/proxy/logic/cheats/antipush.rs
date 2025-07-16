@@ -30,7 +30,12 @@ impl Default for AntiPush {
 /// To be called when new tiles enter the player screen or are replaced in the Update packet
 /// Returns a new tile id, if we need to replace the tile type immediatelly in place
 pub fn new_tile(proxy: &mut Proxy, x: i16, y: i16, tile_type: u16) -> Option<u16> {
-	if proxy.rotmguard.assets.conveyor_tiles.contains(&tile_type) {
+	if proxy
+		.rotmguard
+		.assets
+		.conveyor_tiles
+		.contains(&(tile_type as u32))
+	{
 		proxy
 			.state
 			.antipush

@@ -9,6 +9,8 @@ assets_res = "/home/mykolas/.steam/root/steamapps/compatdata/200210/pfx/drive_c/
 [settings]
 # HP below which (not AT which) to autonexus. Recommended value 20
 autonexus_hp = 1
+# Enables damage monitoring, see stats with /dmg command
+damage_monitor = true
 # If true, will activate developer mode.
 dev_mode = false
 # How many log lines to save up to the event that triggered a log save

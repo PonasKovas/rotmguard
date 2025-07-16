@@ -16,6 +16,8 @@ pub struct Config {
 pub struct Settings {
 	/// HP at which to autonexus. Recommended value 20
 	pub autonexus_hp: Mutex<i32>,
+	/// Enables damage monitoring, see stats with /dmg command
+	pub damage_monitor: bool,
 	/// If true, will activate developer mode.
 	pub dev_mode: Mutex<bool>,
 	/// How many log lines to save up to the event that triggered a log save

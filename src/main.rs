@@ -50,7 +50,7 @@ async fn main() -> Result<()> {
 	}
 
 	// Read the resource assets
-	let assets = assets::handle_assets(&config)?;
+	let assets = assets::handle_assets(&config).context("reading assets")?;
 
 	// create an iptables rule to redirect all game traffic to our proxy
 	let _iptables_rule = iptables::IpTablesRule::create()?;

@@ -1,38 +1,107 @@
 use crate::config::Config;
 use anyhow::{Context, bail};
 use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
+use bytes::Buf;
+use either::Either;
 use nix::NixPath;
 use reverse_changes::ReverseChangesGuard;
 use std::{
-	collections::{BTreeMap, BTreeSet},
+	collections::{BTreeMap, BTreeSet, HashMap},
 	io::{self, Cursor, Error, Read},
 };
 use tracing::{debug, info};
 use xml::process_xml;
 
+mod get_sprite;
 mod reverse_changes;
+#[allow(
+	unused_imports,
+	unsafe_op_in_unsafe_fn,
+	dead_code,
+	mismatched_lifetime_syntaxes
+)]
+mod spritesheetf;
 mod xml;
 
-pub struct Assets {
-	/// Map<object type -> Map<projectile_type -> projectile_info>>
-	pub projectiles: BTreeMap<u32, BTreeMap<u8, ProjectileInfo>>,
-	/// ground type -> damage
-	pub hazardous_tiles: BTreeMap<u16, i64>,
-	/// grounds that push the player like conveyors
-	pub conveyor_tiles: BTreeSet<u16>,
+const TEXT_ASSET: i32 = 49;
+const TEXTURE2D_ASSET: i32 = 28;
 
+pub struct Assets {
+	pub spritesheets: HashMap<String, Spritesheet>,
+	pub animated_spritesheets: HashMap<String, Spritesheet>,
+	/// object type -> object data
+	pub objects: HashMap<u32, Object>,
+	/// enchantment type -> enchantment data
+	pub enchantments: HashMap<u32, Enchantment>,
+	/// ground type -> damage
+	pub hazardous_tiles: BTreeMap<u32, i64>,
+	/// grounds that push the player like conveyors
+	pub conveyor_tiles: BTreeSet<u32>,
 	/// Reverses the changes to assets file on drop
 	reverse_changes_guard: Option<ReverseChangesGuard>,
 }
 
+// mapping sprite id to actual sprite PNG
+pub type Spritesheet = BTreeMap<u32, Vec<u8>>;
+
+pub struct Object {
+	pub name: String,
+	/// whether the sprite is from normal spritesheets or animated spritesheets
+	pub is_animated: bool,
+	/// spritesheet and index
+	pub sprite: (String, u32),
+	/// projectile type -> projectile data
+	pub projectiles: BTreeMap<u8, ProjectileInfo>,
+}
+
+pub struct Enchantment {
+	pub name: String,
+	pub effect: EnchantmentEffect,
+}
+
+pub enum EnchantmentEffect {
+	FlatLifeRegen(f32),
+	PercentageLifeRegen(f32),
+	Other, // not particularly interested in the gazillion other enchantments
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct ProjectileInfo {
+	// either precise damage or a range
+	pub damage: Either<i32, (i32, i32)>,
 	pub armor_piercing: bool,
 	pub inflicts_cursed: bool,
 	pub inflicts_exposed: bool,
 	pub inflicts_sick: bool,
 	pub inflicts_bleeding: bool,
 	pub inflicts_armor_broken: bool,
+}
+
+#[derive(Default)]
+struct RawAssets {
+	spritesheetf: View,
+	characters: Image,
+	map_objects: Image,
+	// name, view
+	text_assets: Vec<(String, View)>,
+}
+
+#[derive(Default)]
+struct Image {
+	w: u32,
+	h: u32,
+	data: Vec<u8>,
+}
+
+#[derive(Default, Clone, Copy)]
+struct View {
+	pos: usize,
+	len: usize,
+}
+impl View {
+	fn get(self, file: &mut [u8]) -> &mut [u8] {
+		&mut file[self.pos..(self.pos + self.len)]
+	}
 }
 
 pub fn handle_assets(config: &Config) -> anyhow::Result<Assets> {
@@ -82,13 +151,6 @@ fn in_endian<ORDER: ByteOrder>(
 	file: &mut Cursor<Vec<u8>>,
 	data_offset: u64,
 ) -> anyhow::Result<Assets> {
-	let mut assets = Assets {
-		projectiles: BTreeMap::new(),
-		hazardous_tiles: BTreeMap::new(),
-		conveyor_tiles: BTreeSet::new(),
-		reverse_changes_guard: None,
-	};
-
 	file.read_u32::<ORDER>()?; // target_platform
 	let enable_type_tree = file.read_u8()? != 0;
 
@@ -120,6 +182,8 @@ fn in_endian<ORDER: ByteOrder>(
 	// save the position because we will be jumping around
 	let position = file.position();
 
+	let mut raw_assets = RawAssets::default();
+
 	// Iterate over the objects
 	for (processed, i) in (0..object_count).enumerate() {
 		if processed != 0 && processed as u64 % (object_count / 5) == 0 {
@@ -137,40 +201,93 @@ fn in_endian<ORDER: ByteOrder>(
 		let type_id = file.read_u32::<ORDER>()?;
 		let class_id = types[type_id as usize];
 
-		if class_id != 49 {
-			// 49 is TextAsset - the only one we need
+		if ![TEXT_ASSET, TEXTURE2D_ASSET].contains(&class_id) {
 			continue;
 		}
 
 		// now we gotta jump to the actual object data to read it
 		file.set_position(byte_start);
 
-		let name = read_string::<ORDER>(file)?;
-		align_stream(file);
+		match class_id {
+			TEXT_ASSET => {
+				let name = read_string::<ORDER>(file).context("object name")?;
+				align_stream(file);
 
-		let bytes_n = file.read_u32::<ORDER>()? as usize;
-		let p = file.position() as usize;
-		let slice = &mut file.get_mut()[p..(p + bytes_n)];
+				let bytes_n = file.read_u32::<ORDER>()? as usize;
 
-		match xmltree::Element::parse(&*slice) {
-			Ok(xml) => process_xml(config, &mut assets, xml, slice)
-				.context(format!("Error processing XML {:?}", name))?,
-			Err(e) => {
-				debug!("Skipping object {name:?} which is a TextAsset but not valid XML: {e:?}");
+				let view = View {
+					pos: file.position() as usize,
+					len: bytes_n,
+				};
+
+				if name == "spritesheetf" {
+					raw_assets.spritesheetf = view;
+				} else {
+					raw_assets.text_assets.push((name, view));
+				}
 			}
+			TEXTURE2D_ASSET => {
+				let name = read_string::<ORDER>(file).context("object name")?;
+				align_stream(file);
+
+				let _forced_fallback_format = file.read_u32::<ORDER>()?;
+				let _downscale_fallback = file.read_u8()?;
+				let _alpha_channel_optional = file.read_u8()?;
+				align_stream(file);
+				let width = file.read_u32::<ORDER>()?;
+				let height = file.read_u32::<ORDER>()?;
+				let _complete_image_size = file.read_u32::<ORDER>()?;
+				let _mips_stripped = file.read_u32::<ORDER>()?;
+				let texture_format = file.read_u32::<ORDER>()?;
+				let _mip_count = file.read_u32::<ORDER>()?;
+				let _is_readable = file.read_u8()?;
+				let _is_preprocessed = file.read_u8()?;
+				let _ignore_master_texture_limit = file.read_u8()?;
+				let _streaming_mipmaps = file.read_u8()?;
+				align_stream(file);
+				let _streaming_mipmaps_priority = file.read_u32::<ORDER>()?;
+				let _image_count = file.read_u32::<ORDER>()?;
+				let _texture_dimension = file.read_u32::<ORDER>()?;
+				let _filter_mode = file.read_u32::<ORDER>()?;
+				let _aniso = file.read_u32::<ORDER>()?;
+				let _mip_bias = file.read_f32::<ORDER>()?;
+				let _wrap_mode = file.read_u32::<ORDER>()?;
+				let _wrap_v = file.read_u32::<ORDER>()?;
+				let _wrap_w = file.read_u32::<ORDER>()?;
+				let _lightmap_format = file.read_u32::<ORDER>()?;
+				let _color_space = file.read_u32::<ORDER>()?;
+				let platform_blob_n = file.read_u32::<ORDER>()?;
+				file.advance(platform_blob_n as usize);
+				align_stream(file);
+				let image_data_size = file.read_u32::<ORDER>()? as usize;
+				let mut image_data = vec![0u8; image_data_size];
+				file.read_exact(&mut image_data)?;
+
+				let image = Image {
+					w: width,
+					h: height,
+					data: image_data,
+				};
+
+				if name == "characters" {
+					if texture_format != 4 {
+						bail!("expected RGBA32 Texture2D image format");
+					}
+					raw_assets.characters = image;
+				} else if name == "mapObjects" {
+					if texture_format != 4 {
+						bail!("expected RGBA32 Texture2D image format");
+					}
+					raw_assets.map_objects = image;
+				}
+			}
+			_ => {}
 		}
 	}
 
+	let assets = raw_assets.parse(file.get_mut(), config)?;
+
 	info!("All assets extracted and read.");
-
-	if config.settings.edit_assets.enabled {
-		assets.reverse_changes_guard = Some(ReverseChangesGuard::new(
-			&config.assets_res,
-			file.get_ref(),
-		)?);
-
-		info!("Assets in filesystem modified.");
-	}
 
 	Ok(assets)
 }
@@ -209,4 +326,94 @@ fn align_stream(file: &mut Cursor<Vec<u8>>) {
 	let position = file.position();
 	let bytes_to_skip = (4 - (position % 4)) % 4;
 	file.set_position(position + bytes_to_skip);
+}
+
+impl RawAssets {
+	fn parse(self, file: &mut Vec<u8>, config: &Config) -> anyhow::Result<Assets> {
+		// first make sure we actually collected all the views we need
+		if self.spritesheetf.pos == 0 {
+			bail!("spritesheetf not found");
+		}
+		if self.characters.data.is_empty() {
+			bail!("characters not found");
+		}
+		if self.map_objects.data.is_empty() {
+			bail!("mapObjects not found");
+		}
+		if self.text_assets.is_empty() {
+			bail!("no text assets found");
+		}
+
+		let mut assets = Assets {
+			spritesheets: HashMap::new(),
+			animated_spritesheets: HashMap::new(),
+			objects: HashMap::new(),
+			enchantments: HashMap::new(),
+			hazardous_tiles: BTreeMap::new(),
+			conveyor_tiles: BTreeSet::new(),
+			reverse_changes_guard: None,
+		};
+
+		// parse and extract the sprites
+		let spritesheetf = spritesheetf::root_as_sprite_sheet_root(self.spritesheetf.get(file))?;
+
+		for s in spritesheetf.sprites().unwrap() {
+			if ![2, 4].contains(&s.atlas_id()) {
+				continue;
+			}
+			let mut sprites = BTreeMap::new();
+
+			for s in s.sprites().unwrap() {
+				sprites.insert(
+					s.index() as u32,
+					self.get_sprite(s.atlas_id(), *s.position().unwrap()),
+				);
+			}
+
+			assets
+				.spritesheets
+				.insert(s.name().unwrap().to_owned(), sprites);
+		}
+
+		for s in spritesheetf.animated_sprites().unwrap() {
+			let sprite = s.sprite().unwrap();
+			if ![2, 4].contains(&sprite.atlas_id()) {
+				continue;
+			}
+
+			assets
+				.animated_spritesheets
+				.entry(s.name().unwrap().to_owned())
+				.or_insert(BTreeMap::new())
+				.insert(
+					s.index() as u32,
+					self.get_sprite(sprite.atlas_id(), *sprite.position().unwrap()),
+				);
+		}
+
+		//  XML data
+		for (name, view) in self.text_assets {
+			let slice = view.get(file);
+
+			match xmltree::Element::parse(&*slice) {
+				Ok(xml) => process_xml(config, &mut assets, xml, slice)
+					.context(format!("Error processing XML {:?}", name))?,
+				Err(e) => {
+					// not all text assets are XML and thats fine.
+					debug!(
+						"Skipping object {name:?} which is a TextAsset but not valid XML: {e:?}"
+					);
+				}
+			}
+		}
+
+		if config.settings.edit_assets.enabled {
+			assets.reverse_changes_guard =
+				Some(ReverseChangesGuard::new(&config.assets_res, file)?);
+
+			info!("Assets in filesystem modified.");
+		}
+
+		Ok(assets)
+	}
 }

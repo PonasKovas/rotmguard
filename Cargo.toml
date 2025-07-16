@@ -23,6 +23,8 @@ toml = "0.8.13"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }
 xmltree = "0.10.3"
+flatbuffers = "25.2.10"
+png = "0.17.16"
 
 [profile.release]
 debug = true

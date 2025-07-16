@@ -60,8 +60,8 @@ pub async fn new_bullet(
 		None => return Ok(()),
 	};
 
-	let object_bullet_types = match proxy.rotmguard.assets.projectiles.get(&object_type) {
-		Some(t) => t,
+	let object_bullet_types = match proxy.rotmguard.assets.objects.get(&object_type) {
+		Some(t) => &t.projectiles,
 		None => bail!(
 			"Bullet shot by enemy ({object_type}) of which assets are not registered. Maybe your assets are outdated?"
 		),

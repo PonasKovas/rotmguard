@@ -5,7 +5,9 @@ use crate::{
 };
 use anyhow::Result;
 use bytes::{Buf, BytesMut};
-use cheats::{antipush::AntiPush, autonexus::Autonexus, fakeslow::FakeSlow};
+use cheats::{
+	antipush::AntiPush, autonexus::Autonexus, damage_monitor::DamageMonitor, fakeslow::FakeSlow,
+};
 use tracing::{info, warn};
 
 mod cheats;
@@ -17,6 +19,7 @@ pub struct State {
 	antipush: AntiPush,
 	fakeslow: FakeSlow,
 	autonexus: Autonexus,
+	damage_monitor: DamageMonitor,
 }
 
 pub async fn handle_c2s_packet(proxy: &mut Proxy, mut packet_bytes: BytesMut) -> Result<()> {
@@ -62,6 +65,7 @@ pub async fn handle_s2c_packet(proxy: &mut Proxy, mut packet_bytes: BytesMut) ->
 
 	let packet_id = View(&packet_bytes, cursor).get_u8();
 	let block_packet = match packet_id {
+		PACKET_ID::S2C_MAPINFO => packets::mapinfo(proxy, &mut packet_bytes, cursor).await?,
 		PACKET_ID::S2C_UPDATE => packets::update(proxy, &mut packet_bytes, cursor).await?,
 		PACKET_ID::S2C_NEWTICK => packets::newtick(proxy, &mut packet_bytes, cursor).await?,
 		PACKET_ID::S2C_CREATE_SUCCESS => {
