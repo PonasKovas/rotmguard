@@ -99,36 +99,7 @@ pub async fn player_hit(proxy: &mut Proxy, bullet_id: u16, owner_id: u32) -> Res
 		None => bail!("Player claims that he got hit by bullet which is not visible."),
 	};
 
-	let tick = proxy.state.autonexus.ticks.current();
-	let conditions = tick.stats.conditions;
-	let conditions2 = tick.stats.conditions2;
-
-	if (conditions & CONDITION_BITFLAG::INVULNERABLE) != 0 {
-		return Ok(());
-	}
-
-	// calculate damage
-
-	let mut damage = damage as i64;
-	if !projectile.armor_piercing && (conditions & CONDITION_BITFLAG::ARMOR_BROKEN) == 0 {
-		let mut def = tick.stats.def;
-		if (conditions & CONDITION_BITFLAG::ARMORED) != 0 {
-			def += def / 2; // x1.5
-		}
-
-		let potential_damage = damage - def;
-		// a bullet must always deal at least 10% of its damage, doesnt matter the def
-		let min_damage = damage as i64 / 10;
-
-		damage = potential_damage.max(min_damage);
-	}
-
-	if (conditions2 & CONDITION2_BITFLAG::EXPOSED) != 0 {
-		damage += 20;
-	}
-	if (conditions2 & CONDITION2_BITFLAG::CURSED) != 0 {
-		damage += damage / 4; // x 1.25
-	}
+	take_damage(proxy, damage as i64, projectile.armor_piercing).await;
 
 	// immediatelly apply any status effects (conditions) if this bullet inflicts
 	proxy.state.autonexus.ticks.for_each(|tick| {
@@ -148,8 +119,6 @@ pub async fn player_hit(proxy: &mut Proxy, bullet_id: u16, owner_id: u32) -> Res
 			tick.stats.conditions |= CONDITION_BITFLAG::ARMOR_BROKEN;
 		}
 	});
-
-	take_damage(proxy, damage).await;
 
 	Ok(())
 }

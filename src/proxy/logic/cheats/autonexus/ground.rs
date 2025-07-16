@@ -1,4 +1,4 @@
-use super::take_damage;
+use super::take_damage_raw;
 use crate::proxy::Proxy;
 use anyhow::Result;
 use anyhow::bail;
@@ -40,7 +40,7 @@ pub async fn ground_damage(proxy: &mut Proxy, x: i16, y: i16) -> Result<()> {
 		}
 	};
 
-	take_damage(proxy, damage).await;
+	take_damage_raw(proxy, damage).await;
 
 	Ok(())
 }

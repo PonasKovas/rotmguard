@@ -1,5 +1,3 @@
-use std::sync::atomic::Ordering;
-
 use crate::{
 	proxy::{
 		Proxy,
@@ -9,6 +7,7 @@ use crate::{
 };
 use anyhow::Result;
 use bytes::BytesMut;
+use std::sync::atomic::Ordering;
 
 pub async fn playertext(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Result<bool> {
 	// The packet is used to handle commands

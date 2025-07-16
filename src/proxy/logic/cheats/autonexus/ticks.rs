@@ -186,37 +186,30 @@ pub async fn client_tick_acknowledge(proxy: &mut Proxy) {
 
 	let hp_delta = tick.stats.hp - proxy.state.autonexus.hp.round() as i64;
 
-	if devmode(proxy) && hp_delta <= -1 {
-		let critical = hp_delta <= -2;
+	if devmode(proxy) && hp_delta <= -2 {
 		proxy
 			.send_client(create_notification(
 				&format!("negdelta {hp_delta}"),
-				if critical { 0xaa4422 } else { 0xff2222 },
+				0xff2222,
 			))
 			.await;
-		if critical {
-			proxy
-				.send_client(create_effect(
-					18,
-					Some(proxy.state.my_obj_id),
-					(0.0, 0.0),
-					(0.0, 0.0),
-					Some(0xffffff),
-					Some(1.0),
-				))
-				.await;
-		}
-
+		proxy
+			.send_client(create_effect(
+				18,
+				Some(proxy.state.my_obj_id),
+				(0.0, 0.0),
+				(0.0, 0.0),
+				Some(0xffffff),
+				Some(1.0),
+			))
+			.await;
 	}
 
 	let ticks_since_damage = tick.id - proxy.state.autonexus.last_damage_tick;
 	if (ticks_since_damage >= 10 && hp_delta != 0) || hp_delta <= -1 {
 		if devmode(proxy) {
 			proxy
-				.send_client(create_notification(
-					&format!("SYNC {hp_delta}"),
-					0xff88ff,
-				))
+				.send_client(create_notification(&format!("SYNC {hp_delta}"), 0xff88ff))
 				.await;
 		}
 

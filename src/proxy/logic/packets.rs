@@ -1,3 +1,5 @@
+mod aoe;
+mod aoeack;
 mod create_success;
 mod damage;
 mod enemyshoot;
@@ -10,6 +12,8 @@ mod playerhit;
 mod playertext;
 mod update;
 
+pub use aoe::aoe;
+pub use aoeack::aoeack;
 pub use create_success::create_success;
 pub use damage::damage;
 pub use enemyshoot::enemyshoot;
