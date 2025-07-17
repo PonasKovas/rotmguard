@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use assets::Assets;
 use config::Config;
+use damage_monitor_http_server::DamageMonitorHttp;
 use std::collections::HashMap;
 use std::fs;
 use std::sync::Arc;
@@ -11,6 +12,7 @@ use tracing::{error, info};
 
 mod assets;
 mod config;
+mod damage_monitor_http_server;
 mod fetch_server_list;
 mod iptables;
 mod logging;
@@ -24,6 +26,7 @@ struct Rotmguard {
 	assets: Assets,
 	rotmg_servers: HashMap<String, String>,
 	flush_skips: FlushSkips,
+	damage_monitor_http: DamageMonitorHttp,
 }
 
 #[derive(Default)]
@@ -55,11 +58,14 @@ async fn main() -> Result<()> {
 	// create an iptables rule to redirect all game traffic to our proxy
 	let _iptables_rule = iptables::IpTablesRule::create()?;
 
+	let damage_monitor_http = DamageMonitorHttp::new(&config).await?;
+
 	let rotmguard = Arc::new(Rotmguard {
 		config,
 		assets,
 		rotmg_servers: fetch_server_list::fetch().await?,
 		flush_skips: Default::default(),
+		damage_monitor_http,
 	});
 
 	select! {

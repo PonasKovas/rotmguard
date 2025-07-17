@@ -1,5 +1,6 @@
 mod aoe;
 mod aoeack;
+pub mod common;
 mod create_success;
 mod damage;
 mod enemyshoot;

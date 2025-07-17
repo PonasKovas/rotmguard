@@ -288,6 +288,7 @@ fn in_endian<ORDER: ByteOrder>(
 	let assets = raw_assets.parse(file.get_mut(), config)?;
 
 	info!("All assets extracted and read.");
+	info!("Objects loaded: {}", assets.objects.len());
 
 	Ok(assets)
 }

@@ -2,13 +2,13 @@ use crate::config::Config;
 use anyhow::Result;
 use std::{
 	collections::VecDeque,
-	fs::{create_dir_all, File},
+	fs::{File, create_dir_all},
 	io::Write,
 	path::Path,
 	sync::{Mutex, MutexGuard, OnceLock},
 };
 use tracing::{error, info, level_filters::LevelFilter};
-use tracing_subscriber::{fmt::MakeWriter, layer::SubscriberExt, EnvFilter, Layer, Registry};
+use tracing_subscriber::{EnvFilter, Layer, Registry, fmt::MakeWriter, layer::SubscriberExt};
 
 struct LogBuffer {
 	max_lines: OnceLock<usize>,

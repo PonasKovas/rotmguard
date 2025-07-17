@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ map_name }}</title>
+    <link rel="icon" type="image/x-icon" href="data:image/png;base64,{{ self::template_util::icon() }}">
+<style>
+:root {
+    --c1: #36393B;
+    --c2: #7A82AB;
+    --c2-darker: #6D7499;
+    --c3: #C6D4FF;
+    --c4: #ABB557;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: sans-serif;
+    font-size: 16px;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.damage-window {
+    display: flex;
+    height: 100%;
+}
+
+.content-panel {
+    flex-grow: 1;
+    background-color: var(--c1);
+    color: var(--c3);
+    overflow: auto;
+    padding: 5px;
+}
+
+.sidebar-panel {
+    flex-shrink: 0;
+    width: 300px;
+    background-color: var(--c2);
+    overflow-y: auto;
+}
+
+.sidebar-panel .info {
+    background-color: var(--c4);
+    color: var(--c1);
+    padding: 10px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.info .dungeon-name {
+    font-weight: 600;
+    margin: 0;
+    padding-bottom: 5px;
+}
+
+.info .dungeon-time {
+    margin: 0;
+}
+
+.damage-window > input[type="radio"] {
+    display: none;
+}
+
+/* By default, hide all player lists */
+.player-list {
+    display: none;
+}
+
+.enemy-tab {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 10px;
+    height: 30px;
+    cursor: pointer;
+    user-select: none;
+    color: var(--c1);
+    position: relative; /* For the underline pseudo-element */
+    transition: background-color 200ms ease, color 200ms ease;
+}
+
+.enemy-tab:hover {
+    background-color: var(--c2-darker);
+}
+
+.enemy-tab .enemy-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 10px;
+    font-weight: 500;
+}
+
+.enemy-tab::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    height: 2px;
+    width: 0;
+    background-color: var(--c3);
+    transition: width 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.player-row {
+    display: flex;
+    align-items: center;
+    padding: 5px 10px;
+    gap: 5px;
+}
+
+.player-row.is-self {
+    font-weight: 600;
+    /* Animated Gradient Text */
+    background-image: linear-gradient(to right, var(--c4), var(--c3), var(--c4), var(--c3), var(--c4), var(--c3), var(--c4));
+    background-size: 300% 100%;
+    color: transparent;
+    -webkit-background-clip: text;
+    background-clip: text;
+    animation: gradient-scroll 3s linear infinite;
+}
+
+@keyframes gradient-scroll {
+    0% { background-position-x: 0%; }
+    100% { background-position-x: 100%; }
+}
+
+.player-place { width: 30px; text-align: right; flex-shrink: 0; }
+.player-status { width: 15px; text-align: right; font-weight: 800; flex-shrink: 0; }
+.player-name { min-width: 200px; flex-grow: 1; }
+.player-damage { width: 60px; flex-shrink: 0; }
+.player-percent { width: 60px; flex-shrink: 0; }
+.player-items { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+
+.item-slot {
+    width: 16px;
+    height: 16px;
+    position: relative;
+}
+
+/* Enchantment Glow */
+.item-slot::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: transparent;
+}
+.item-slot.enchant-1::before { background: radial-gradient(circle, #81fe3eaa 20%, transparent 60%); }
+.item-slot.enchant-2::before { background: radial-gradient(circle, #3188fdaa 20%, transparent 60%); }
+.item-slot.enchant-3::before { background: radial-gradient(circle, #c84cffaa 20%, transparent 60%); }
+.item-slot.enchant-4::before { background: radial-gradient(circle, #ffe529aa 20%, transparent 60%); }
+
+/* Actual item sprite */
+.item-slot::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    image-rendering: pixelated;
+}
+
+.item-slot .tooltip {
+    display: none;
+    position: absolute;
+    top: 50%;
+    right: 50%;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px;
+    border-radius: 4px;
+    width: max-content;
+    pointer-events: none; /* Don't let tooltip block hover */
+    z-index: 10;
+}
+
+.item-slot:hover .tooltip {
+    display: block;
+}
+
+.tooltip .item-name {
+    font-weight: 600;
+    margin: 0 0 5px 0;
+}
+
+.tooltip .enchantment {
+    font-weight: normal;
+    margin: 0;
+}
+
+.item-slot.item-id-staff::after {
+    background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAAAXNSR0IB2cksfwAAAARnQU1BAACxjwv8YQUAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAAZiS0dEAP8A/wD/oL2nkwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAGJJREFUWMPtlMEJACAMxKy4/8r1rQ9Fil7BZAEPE1oKgBZ7/aC7+3KQ2bCpZv9BBkZp6uZQ/P1AUzc33z0UcwevR79pDsXcwejdO20MxTSYrTkU06C6ORTToLo5FH83EEBNB2bGHD+25JYSAAAAAElFTkSuQmCC");
+}
+
+/* Show the player list corresponding to the checked radio button */
+#enemy-tab-1:checked ~ .content-panel #player-list-1 {
+    display: block;
+}
+#enemy-tab-2:checked ~ .content-panel #player-list-2 {
+    display: block;
+}
+
+/* Style the active tab label */
+#enemy-tab-1:checked ~ .sidebar-panel label[for="enemy-tab-1"],
+#enemy-tab-2:checked ~ .sidebar-panel label[for="enemy-tab-2"] {
+    background-color: var(--c1);
+    color: var(--c3);
+}
+
+/* Animate the underline for the active tab */
+#enemy-tab-1:checked ~ .sidebar-panel label[for="enemy-tab-1"]::after,
+#enemy-tab-2:checked ~ .sidebar-panel label[for="enemy-tab-2"]::after {
+    width: 100%;
+}
+</style>
+</head>
+<body>
+    <div class="damage-window">
+        <input type="radio" name="enemy-tabs" id="enemy-tab-1" checked>
+        <input type="radio" name="enemy-tabs" id="enemy-tab-2">
+
+        <main class="content-panel">
+            <!-- Data for the first enemy tab -->
+            <div class="player-list" id="player-list-1">
+                <!-- Player Row (Self) -->
+                <div class="player-row is-self">
+                    <span class="player-place">1.</span>
+                    <span class="player-status"></span>
+                    <span class="player-name">Player</span>
+                    <span class="player-damage">250.0K</span>
+                    <span class="player-percent">25.00%</span>
+                    <div class="player-items">
+                        <div class="item-slot enchant-1 item-id-staff">
+                            <div class="tooltip">
+                                <p class="item-name">Bloodbath Blade</p>
+                                <p class="enchantment">Dexterity Bonus III</p>
+                            </div>
+                        </div>
+                        <div class="item-slot enchant-2 item-id-staff">
+                            <div class="tooltip">
+                                <p class="item-name">Helm of the Juggernaut</p>
+                                <p class="enchantment">Vitality Bonus I</p>
+                                <p class="enchantment">Defense Bonus II</p>
+                            </div>
+                        </div>
+                        <div class="item-slot item-id-staff"></div>
+                        <div class="item-slot enchant-3 item-id-staff">
+                            <div class="tooltip">
+                                <p class="item-name">Ring of Unbound Health</p>
+                                <p class="enchantment">Health Bonus I</p>
+                                <p class="enchantment">Health Bonus II</p>
+                                <p class="enchantment">Health Bonus III</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Player Row (Other) -->
+                <div class="player-row">
+                    <span class="player-place">2.</span>
+                    <span class="player-status">🪦</span>
+                    <span class="player-name">Alduion</span>
+                    <span class="player-damage">123.5K</span>
+                    <span class="player-percent">12.35%</span>
+                    <div class="player-items">
+                        <div class="item-slot enchant-1 item-id-staff">
+                             <div class="tooltip">
+                                <p class="item-name">Staff of Extreme Prejudice</p>
+                                <p class="enchantment">Attack Bonus II</p>
+                            </div>
+                        </div>
+                        <div class="item-slot item-id-staff"></div>
+                        <div class="item-slot item-id-staff"></div>
+                        <div class="item-slot item-id-staff"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data for the second enemy tab -->
+            <div class="player-list" id="player-list-2">
+                <!-- Player Row (Other) -->
+                <div class="player-row">
+                    <span class="player-place">1.</span>
+                    <span class="player-status">N</span>
+                    <span class="player-name">Otter</span>
+                    <span class="player-damage">50.0K</span>
+                    <span class="player-percent">50.00%</span>
+                     <div class="player-items">
+                        <div class="item-slot item-id-staff"></div>
+                        <div class="item-slot item-id-staff"></div>
+                        <div class="item-slot item-id-staff"></div>
+                        <div class="item-slot item-id-staff"></div>
+                    </div>
+                </div>
+
+                <!-- Player Row (Self) -->
+                <div class="player-row is-self">
+                    <span class="player-place">2.</span>
+                    <span class="player-status"></span>
+                    <span class="player-name">Player</span>
+                    <span class="player-damage">25.0K</span>
+                    <span class="player-percent">25.00%</span>
+                    <div class="player-items">
+                        <div class="item-slot enchant-4 item-id-staff">
+                            <div class="tooltip">
+                                <p class="item-name">A Very Enchanted Item</p>
+                                <p class="enchantment">Enchant 1</p>
+                                <p class="enchantment">Enchant 2</p>
+                                <p class="enchantment">Enchant 3</p>
+                                <p class="enchantment">Enchant 4</p>
+                            </div>
+                        </div>
+                        <div class="item-slot item-id-staff"></div>
+                        <div class="item-slot item-id-staff"></div>
+                        <div class="item-slot item-id-staff"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Sidebar Panel (Enemy List / Tabs) -->
+        <aside class="sidebar-panel">
+            <div class="info">
+                <p class="dungeon-name">Oryx's Sanctuary</span>
+                <p class="dungeon-time">at 2025-07-16 9:16:11</span>
+            </div>
+            <div class="enemy-list">
+                <!-- The 'for' attribute connects this label to the hidden radio input -->
+                <label for="enemy-tab-1" class="enemy-tab">
+                    <span class="enemy-name">Oryx the Mad God</span>
+                    <span class="enemy-hp">76.5M</span>
+                </label>
+                <label for="enemy-tab-2" class="enemy-tab">
+                    <span class="enemy-name">Second enemy very very long name</span>
+                    <span class="enemy-hp">6.5M</span>
+                </label>
+            </div>
+        </aside>
+    </div>
+</body>
+</html>

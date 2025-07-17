@@ -1,11 +1,14 @@
 use crate::{
 	proxy::{
 		Proxy,
-		logic::cheats::{antidebuffs, antipush, autonexus, fakeslow},
+		logic::{
+			cheats::{antidebuffs, antipush, autonexus, damage_monitor, fakeslow},
+			packets::common::parse_object_data,
+		},
 	},
 	util::{
-		OBJECT_STR_STATS, STAT_TYPE, View, read_compressed_int, read_str, size_as_compressed_int,
-		write_compressed_int, write_compressed_int_exact_size,
+		STAT_TYPE, View, read_compressed_int, size_as_compressed_int, write_compressed_int,
+		write_compressed_int_exact_size,
 	},
 };
 use anyhow::Result;
@@ -72,50 +75,17 @@ pub async fn update(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resul
 	//
 	// NEW OBJECTS
 	//
+	// skip at first, to first remove the old objects first and then go back
+	// so save the current cursor position
+	let new_objects_pos = *c;
 	let objects_n = read_compressed_int(View(b, c))?;
-	let mut new_objects = Vec::with_capacity(objects_n as usize);
 	for _ in 0..objects_n {
-		let object_type = View(b, c).try_get_u16()?;
-		let object_id = read_compressed_int(View(b, c))? as u32;
-		let _position_x = View(b, c).try_get_f32()?;
-		let _position_y = View(b, c).try_get_f32()?;
-		let n_stats = read_compressed_int(View(b, c))? as usize;
-
-		// amazing protocol with this packet first adding new objects
-		// and only then removing old, forcing me to allocate a vector here
-		// (old object gets removed and a new one gets added with the same id often)
-		new_objects.push((object_id, object_type));
-
-		for _ in 0..n_stats {
-			let stat_type = View(b, c).try_get_u8()?;
-
-			if OBJECT_STR_STATS.contains(&stat_type) {
-				let _stat = read_str(View(b, c))?;
-			} else {
-				let stat_pos = *c;
-				let mut stat = read_compressed_int(View(b, c))?;
-
-				if object_id == proxy.state.my_obj_id {
-					let original_stat_size = size_as_compressed_int(stat);
-
-					autonexus::initial_self_stat(proxy, stat_type, &mut stat);
-					autonexus::self_stat(proxy, stat_type, stat).await;
-
-					if stat_type == STAT_TYPE::CONDITION {
-						antidebuffs::self_condition_stat(proxy, &mut stat);
-						fakeslow::self_condition_stat(proxy, &mut stat);
-
-						// overwrite the stat with the potentially modified one
-						write_compressed_int_exact_size(
-							stat,
-							original_stat_size,
-							&mut b[stat_pos..],
-						);
-					}
-				}
-			}
-			let _secondary = read_compressed_int(View(b, c))?;
-		}
+		let _object_type = View(b, c).try_get_u16()?;
+		parse_object_data!(b, c;
+			object(_, _, _) => {};
+			int_stat(_, _) => {};
+			str_stat(_, _) => {};
+		);
 	}
 
 	//
@@ -123,14 +93,62 @@ pub async fn update(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resul
 	//
 	let to_remove_n = read_compressed_int(View(b, c))?;
 	for _ in 0..to_remove_n {
-		let object_id = read_compressed_int(View(b, c))?;
+		let object_id = read_compressed_int(View(b, c))? as u32;
 
-		autonexus::remove_object(proxy, object_id as u32);
+		autonexus::remove_object(proxy, object_id);
+		damage_monitor::remove_object(proxy, object_id);
+	}
+	let end_cursor = *c;
+
+	//
+	// GO BACK TO NEW OBJECTS
+	//
+
+	*c = new_objects_pos;
+	let objects_n = read_compressed_int(View(b, c))?;
+	for _ in 0..objects_n {
+		let object_type = View(b, c).try_get_u16()?;
+
+		let mut dmg_monitor_processor;
+		parse_object_data!(b, c;
+			object(object_id, _pos_x, _pos_y) => {
+				dmg_monitor_processor = damage_monitor::ObjectStatusProcessor::new(object_id, object_type);
+
+				autonexus::add_object(proxy, object_id, object_type);
+			};
+			int_stat(stat_type, stat) => {
+				dmg_monitor_processor.add_int_stat(stat_type, stat);
+
+				if object_id == proxy.state.my_obj_id {
+					let mut new_stat = stat;
+					let original_stat_size = size_as_compressed_int(stat);
+
+					autonexus::initial_self_stat(proxy, stat_type, &mut new_stat);
+					autonexus::self_stat(proxy, stat_type, stat).await;
+
+					if stat_type == STAT_TYPE::CONDITION {
+						antidebuffs::self_condition_stat(proxy, &mut new_stat);
+						fakeslow::self_condition_stat(proxy, &mut new_stat);
+
+						// overwrite the stat with the potentially modified one
+						let stat_pos = *c - original_stat_size;
+						write_compressed_int_exact_size(
+							new_stat,
+							original_stat_size,
+							&mut b[stat_pos..],
+						);
+					}
+				}
+			};
+			str_stat(stat_type, stat) => {
+				dmg_monitor_processor.add_str_stat(stat_type, stat);
+			};
+		);
+
+		dmg_monitor_processor.finish(proxy);
 	}
 
-	for (object_id, object_type) in new_objects {
-		autonexus::add_object(proxy, object_id, object_type);
-	}
+	*c = end_cursor;
 
 	Ok(false)
 }

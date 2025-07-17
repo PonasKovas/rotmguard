@@ -1,11 +1,14 @@
 use crate::{
 	proxy::{
 		Proxy,
-		logic::cheats::{antidebuffs, autonexus, fakeslow},
+		logic::{
+			cheats::{antidebuffs, autonexus, damage_monitor, fakeslow},
+			packets::common::parse_object_data,
+		},
 	},
 	util::{
-		OBJECT_STR_STATS, STAT_TYPE, View, read_compressed_int, read_str, size_as_compressed_int,
-		write_compressed_int, write_compressed_int_exact_size, write_str,
+		STAT_TYPE, View, size_as_compressed_int, write_compressed_int,
+		write_compressed_int_exact_size, write_str,
 	},
 };
 use anyhow::Result;
@@ -40,19 +43,14 @@ pub async fn newtick(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resu
 	let statuses_n_pos = *c;
 	let statuses_n = View(b, c).try_get_u16()?;
 	for _ in 0..statuses_n {
-		let object_id = read_compressed_int(View(b, c))? as u32;
-		let _position_x = View(b, c).try_get_f32()?;
-		let _position_y = View(b, c).try_get_f32()?;
-		let n_stats = read_compressed_int(View(b, c))? as usize;
+		let mut dmg_monitor_processor;
 
-		for _ in 0..n_stats {
-			let stat_type = View(b, c).try_get_u8()?;
-
-			if OBJECT_STR_STATS.contains(&stat_type) {
-				let _stat = read_str(View(b, c))?;
-			} else {
-				let stat_pos = *c;
-				let mut stat = read_compressed_int(View(b, c))?;
+		parse_object_data!(b, c;
+			object(object_id, _pos_x, _pos_y) => {
+				dmg_monitor_processor = damage_monitor::ObjectStatusProcessor::update(object_id);
+			};
+			int_stat(stat_type, stat) => {
+				dmg_monitor_processor.add_int_stat(stat_type, stat);
 
 				// if status about self and is condition stat
 				if object_id == proxy.state.my_obj_id {
@@ -61,20 +59,26 @@ pub async fn newtick(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resu
 					autonexus::self_stat(proxy, stat_type, stat).await;
 
 					if stat_type == STAT_TYPE::CONDITION {
-						antidebuffs::self_condition_stat(proxy, &mut stat);
-						fakeslow::self_condition_stat(proxy, &mut stat);
+						let mut new_stat = stat;
+						antidebuffs::self_condition_stat(proxy, &mut new_stat);
+						fakeslow::self_condition_stat(proxy, &mut new_stat);
 
 						// overwrite the stat with the potentially modified one
+						let stat_pos = *c - original_stat_size;
 						write_compressed_int_exact_size(
-							stat,
+							new_stat,
 							original_stat_size,
 							&mut b[stat_pos..],
 						);
 					}
 				}
-			}
-			let _secondary = read_compressed_int(View(b, c))?;
-		}
+			};
+			str_stat(stat_type, stat) => {
+				dmg_monitor_processor.add_str_stat(stat_type, stat);
+			};
+		);
+
+		dmg_monitor_processor.finish(proxy);
 	}
 
 	if View(b, c).has_remaining() {

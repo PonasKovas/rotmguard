@@ -71,10 +71,10 @@ pub async fn self_stat(proxy: &mut Proxy, stat_type: u8, stat: i64) {
 		STAT_TYPE::HP => {
 			last_tick.stats.hp = stat;
 		}
-		STAT_TYPE::DEF => {
+		STAT_TYPE::DEFENSE => {
 			last_tick.stats.def = stat;
 		}
-		STAT_TYPE::VIT => {
+		STAT_TYPE::VITALITY => {
 			last_tick.stats.vit = stat;
 		}
 		STAT_TYPE::CONDITION => {

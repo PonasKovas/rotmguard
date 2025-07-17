@@ -22,6 +22,8 @@ pub struct Settings {
 	pub dev_mode: Mutex<bool>,
 	/// How many log lines to save up to the event that triggered a log save
 	pub log_lines: usize,
+	/// Whether to attempt to automatically open damage monitor links in the browser
+	pub open_browser: bool,
 	/// Which client-side debuffs to disable
 	pub debuffs: Debuffs,
 	pub edit_assets: EditAssets,

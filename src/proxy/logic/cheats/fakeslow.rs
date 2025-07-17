@@ -1,10 +1,10 @@
 use super::antidebuffs;
 use crate::{
 	proxy::{
-		logic::packets::{ExtraObject, StatData},
 		Proxy,
+		logic::packets::{ExtraObject, StatData},
 	},
-	util::{static_notification, CONDITION_BITFLAG, GREEN, RED, STAT_TYPE},
+	util::{CONDITION_BITFLAG, GREEN, RED, STAT_TYPE, static_notification},
 };
 use either::Either;
 use std::iter::once;

@@ -1,7 +1,7 @@
 use crate::{
 	proxy::{
 		Proxy,
-		logic::cheats::{antipush, autonexus, con, fakeslow},
+		logic::cheats::{antipush, autonexus, con, damage_monitor, fakeslow},
 	},
 	util::{BLUE, GREEN, RED, View, create_notification, read_str, static_notification},
 };
@@ -29,6 +29,11 @@ pub async fn playertext(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> R
 		"/hi" | "/rotmguard" => {
 			let notification = static_notification!("hi :)", BLUE);
 			proxy.send_client(notification).await;
+
+			Ok(true)
+		}
+		"/dmg" => {
+			damage_monitor::generate_report(proxy).await;
 
 			Ok(true)
 		}
