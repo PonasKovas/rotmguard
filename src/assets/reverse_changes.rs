@@ -1,6 +1,6 @@
 use std::{
 	fs::File,
-	io::{self, Error, Read},
+	io::{self, Read},
 	path::{Path, PathBuf},
 };
 use tracing::{error, info, warn};
@@ -29,26 +29,6 @@ impl ReverseChangesGuard {
 		};
 
 		std::fs::write(assets_path, contents)?;
-
-		// Set the owner and group IDs to match with the parent directory instead of being root.
-		let parent_dir = assets_path.parent().unwrap_or(Path::new("."));
-		let (o_id, g_id) = match file_owner::owner_group(parent_dir) {
-			Ok(r) => r,
-			Err(e) => {
-				return Err(Error::other(format!(
-					"Couldn't get the owner of {parent_dir:?}: {e:?}"
-				)));
-			}
-		};
-		match file_owner::set_owner_group(assets_path, o_id, g_id) {
-			Ok(_) => {}
-			Err(e) => {
-				return Err(Error::other(format!(
-					"Couldn't set the owner of {path:?}: {e:?}",
-					path = assets_path,
-				)));
-			}
-		}
 
 		Ok(guard)
 	}

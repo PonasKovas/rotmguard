@@ -3,9 +3,9 @@ use assets::Assets;
 use config::Config;
 use damage_monitor_http_server::DamageMonitorHttp;
 use std::collections::HashMap;
-use std::fs;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
+use std::{env, fs};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::select;
 use tracing::{error, info};
@@ -39,8 +39,21 @@ struct FlushSkips {
 	total_time: AtomicU64,
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
+	if let Some(arg) = env::args().nth(1) {
+		if arg == iptables::IPTABLES_ACTOR_FLAG {
+			return iptables::iptables_actor();
+		}
+	}
+
+	tokio::runtime::Builder::new_multi_thread()
+		.enable_all()
+		.build()
+		.unwrap()
+		.block_on(async_main())
+}
+
+async fn async_main() -> Result<()> {
 	// Initialize config
 	let raw_config = fs::read_to_string(config::CONFIG_PATH).context("reading config file")?;
 	let config: Config = toml::from_str(&raw_config).context("parsing config file")?;
@@ -52,11 +65,11 @@ async fn main() -> Result<()> {
 		info!("Packet logging enabled");
 	}
 
+	// create an iptables rule to redirect all game traffic to our proxy
+	let _iptables_rule = iptables::IpTablesRules::create()?;
+
 	// Read the resource assets
 	let assets = assets::handle_assets(&config).context("reading assets")?;
-
-	// create an iptables rule to redirect all game traffic to our proxy
-	let _iptables_rule = iptables::IpTablesRule::create()?;
 
 	let damage_monitor_http = DamageMonitorHttp::new(&config).await?;
 
@@ -80,6 +93,8 @@ async fn main() -> Result<()> {
 
 async fn server(rotmguard: Arc<Rotmguard>) -> Result<()> {
 	let listener = TcpListener::bind("127.0.0.1:2051").await?;
+
+	info!("Ready");
 
 	loop {
 		if let Err(e) = accept_con(Arc::clone(&rotmguard), &listener).await {

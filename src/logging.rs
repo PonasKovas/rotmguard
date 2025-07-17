@@ -91,25 +91,11 @@ pub fn save_logs() {
 			if let Err(e) = create_dir_all("logs/") {
 				error!("couldn't create directory logs/. {e:?}");
 			}
-
-			// Set the owner and group IDs to match with the parent directory instead of being root.
-			let (o_id, g_id) =
-				file_owner::owner_group(".").expect("Couldnt get owner of current directory");
-			file_owner::set_owner_group("logs/", o_id, g_id)
-				.expect("Couldnt set the owner of logs/ directory.");
 		}
 
 		let path = format!("logs/{}.log", chrono::Local::now());
 		let mut log_file = match File::create(&path) {
-			Ok(file) => {
-				// Set the owner and group IDs to match with the parent directory instead of being root.
-				let (o_id, g_id) =
-					file_owner::owner_group("logs/").expect("Couldnt get owner of logs/ directory");
-				file_owner::set_owner_group(&path, o_id, g_id)
-					.expect("Couldnt set the owner of logs/ directory.");
-
-				file
-			}
+			Ok(file) => file,
 			Err(e) => {
 				error!("couldn't create log file: {e:?}");
 				return;

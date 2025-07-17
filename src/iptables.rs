@@ -1,59 +1,98 @@
 use anyhow::{Result, bail};
-use iptables::IPTables;
-use tracing::{error, info};
+use nix::{sys::signal::Signal, unistd::Pid};
+use std::{
+	env,
+	io::{Read, Write, stdout},
+	process::{Command, Stdio, exit},
+	thread::park,
+};
+use tracing::info;
 
-pub struct IpTablesRule {
-	iptables: IPTables,
-}
+// when this binary is run with this flag it will just add the iptables rules
+pub const IPTABLES_ACTOR_FLAG: &str = "--iptables";
+const OK_SIGNAL: &[u8] = b"ok";
 
-impl IpTablesRule {
-	pub fn create() -> Result<Self> {
-		let iptables = match iptables::new(false) {
-			Ok(t) => t,
-			Err(e) => {
-				bail!("Error using iptables: {}", e);
-			}
-		};
+pub fn iptables_actor() -> Result<()> {
+	fn run(command: &str) -> Result<()> {
+		let mut c = command.split(' ');
 
-		if let Err(e) = iptables
-			// Redirect all local traffic with port 2050 to our proxy 127.0.0.1:2051
-			.append(
-				"nat",
-				"OUTPUT",
-				"-p tcp --dport 2050 -j DNAT --to-destination 127.0.0.1:2051",
-			)
-			// but redirect all traffic with port 2051 back to 2050 so our proxy can connect to the real server
-			// instead of itself
-			.and(iptables.append(
-				"nat",
-				"OUTPUT",
-				"-p tcp --dport 2051 -j DNAT --to-destination :2050",
-			)) {
-			bail!("Error creating iptables rule: {}", e);
+		let status = Command::new(c.next().unwrap()).args(c).status()?;
+		if !status.success() {
+			bail!("Unsuccessful: {command:?}");
 		}
 
-		info!("IPTables rule created successfully.");
+		Ok(())
+	}
 
-		Ok(Self { iptables })
+	ctrlc::set_handler(|| {
+		cleanup();
+		exit(0);
+	})?;
+
+	run("iptables -t nat -A OUTPUT -p tcp --dport 2050 -j DNAT --to-destination 127.0.0.1:2051")?;
+	run("iptables -t nat -A OUTPUT -p tcp --dport 2051 -j DNAT --to-destination :2050")?;
+
+	fn cleanup() {
+		let _ = run(
+			"iptables -t nat -D OUTPUT -p tcp --dport 2050 -j DNAT --to-destination 127.0.0.1:2051",
+		);
+		let _ = run("iptables -t nat -D OUTPUT -p tcp --dport 2051 -j DNAT --to-destination :2050");
+	}
+
+	// ignore all errors to guarantee cleanup
+	{
+		let mut stdout = stdout().lock();
+		let _ = stdout.write_all(OK_SIGNAL);
+		let _ = stdout.flush();
+	}
+
+	park();
+
+	Ok(())
+}
+
+pub struct IpTablesRules {
+	child_pid: Pid,
+}
+
+impl IpTablesRules {
+	pub fn create() -> Result<Self> {
+		let exe = env::current_exe()?;
+		let mut child = Command::new("sudo")
+			.arg(exe)
+			.arg(IPTABLES_ACTOR_FLAG)
+			.stdout(Stdio::piped())
+			.spawn()?;
+
+		let mut child_stdout = child.stdout.take().unwrap();
+		let mut buf = [0u8; OK_SIGNAL.len()]; // buffer for "ok"
+		child_stdout.read_exact(&mut buf)?;
+
+		if buf == OK_SIGNAL {
+			info!("IPTables rule created successfully.");
+		} else {
+			// Somethings wrong
+			// wait for child to exit and forward it's stdout to my own
+			child.wait()?;
+
+			let mut stdout = stdout().lock();
+
+			stdout.write_all(&buf)?;
+			let mut remaining = Vec::new();
+			child_stdout.read_to_end(&mut remaining)?;
+			stdout.write_all(&remaining)?;
+
+			bail!("Error creating iptables rules");
+		}
+
+		Ok(Self {
+			child_pid: Pid::from_raw(child.id() as i32),
+		})
 	}
 }
 
-impl Drop for IpTablesRule {
+impl Drop for IpTablesRules {
 	fn drop(&mut self) {
-		match self
-			.iptables
-			.delete(
-				"nat",
-				"OUTPUT",
-				"-p tcp --dport 2050 -j DNAT --to-destination 127.0.0.1:2051",
-			)
-			.and(self.iptables.delete(
-				"nat",
-				"OUTPUT",
-				"-p tcp --dport 2051 -j DNAT --to-destination :2050",
-			)) {
-			Ok(_) => info!("Successfully removed iptables rule."),
-			Err(e) => error!("couldn't delete iptables rule: {e}"),
-		}
+		let _ = nix::sys::signal::kill(self.child_pid, Signal::SIGTERM);
 	}
 }
