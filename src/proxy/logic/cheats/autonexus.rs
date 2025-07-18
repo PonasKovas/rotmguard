@@ -99,6 +99,9 @@ async fn take_damage(proxy: &mut Proxy, mut damage: i64, armor_piercing: bool) {
 	if (conditions2 & CONDITION2_BITFLAG::CURSED) != 0 {
 		damage += damage / 4; // x 1.25
 	}
+	if (conditions2 & CONDITION2_BITFLAG::PETRIFIED) != 0 {
+		damage -= damage / 10; // x 0.9
+	}
 
 	take_damage_raw(proxy, damage).await;
 }

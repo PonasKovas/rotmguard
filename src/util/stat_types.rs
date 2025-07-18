@@ -162,6 +162,7 @@ pub mod CONDITION_BITFLAG {
 
 #[allow(dead_code, non_snake_case)]
 pub mod CONDITION2_BITFLAG {
+	pub const PETRIFIED: u64 = 0x8;
 	pub const CURSED: u64 = 0x40;
 	pub const EXPOSED: u64 = 0x20000;
 }
