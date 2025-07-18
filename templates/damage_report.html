@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ map_name }}</title>
-    <link rel="icon" type="image/x-icon" href="data:image/png;base64,{{ self::template_util::icon() }}">
+    <link rel="icon" type="image/x-icon" href="data:image/png;base64,{{ self::icon() }}">
 <style>
 :root {
     --c1: #36393B;
@@ -43,7 +43,8 @@ body {
     flex-shrink: 0;
     width: 300px;
     background-color: var(--c2);
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 .sidebar-panel .info {
@@ -54,6 +55,12 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    flex-shrink: 0;
+}
+
+.sidebar-panel .enemy-list {
+    flex-grow: 1;
+    overflow-y: auto;
 }
 
 .info .dungeon-name {
@@ -79,13 +86,27 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 10px;
+    padding: 0 15px;
     height: 30px;
     cursor: pointer;
     user-select: none;
     color: var(--c1);
     position: relative; /* For the underline pseudo-element */
     transition: background-color 200ms ease, color 200ms ease;
+    gap: 8px;
+}
+
+.enemy-tab .enemy-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    flex-grow: 0;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    image-rendering: pixelated;
 }
 
 .enemy-tab:hover {
@@ -151,10 +172,11 @@ body {
 .item-slot::before {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 200%;
+    height: 200%;
     border-radius: 50%;
     background: transparent;
 }
@@ -207,152 +229,105 @@ body {
     margin: 0;
 }
 
-.item-slot.item-id-staff::after {
-    background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAAAXNSR0IB2cksfwAAAARnQU1BAACxjwv8YQUAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAAZiS0dEAP8A/wD/oL2nkwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAGJJREFUWMPtlMEJACAMxKy4/8r1rQ9Fil7BZAEPE1oKgBZ7/aC7+3KQ2bCpZv9BBkZp6uZQ/P1AUzc33z0UcwevR79pDsXcwejdO20MxTSYrTkU06C6ORTToLo5FH83EEBNB2bGHD+25JYSAAAAAElFTkSuQmCC");
+{% for (enemy_id, sprite) in all_enemies %}
+.enemy-icon.enemy-id-{{ enemy_id }} {
+    background-image: url("data:image/png;base64,
+        {%- match sprite -%}
+        {% when Some(sprite) %}{{- sprite -}}
+        {% when None %}{{- self::undefined_sprite() -}}
+        {%- endmatch -%}
+    ");
 }
+{% endfor %}
+
+{% for (item_id, sprite) in all_items %}
+.item-slot.item-id-{{ item_id }}::after {
+    background-image: url("data:image/png;base64,
+        {%- match sprite -%}
+        {% when Some(sprite) %}{{- sprite -}}
+        {% when None %}{{- self::undefined_sprite() -}}
+        {%- endmatch -%}
+    ");
+}
+{% endfor %}
 
 /* Show the player list corresponding to the checked radio button */
-#enemy-tab-1:checked ~ .content-panel #player-list-1 {
+{% for enemy_tab in enemy_tabs %}
+#enemy-tab-{{ loop.index }}:checked ~ .content-panel #player-list-{{ loop.index }} {
     display: block;
 }
-#enemy-tab-2:checked ~ .content-panel #player-list-2 {
-    display: block;
-}
+{% endfor %}
 
 /* Style the active tab label */
-#enemy-tab-1:checked ~ .sidebar-panel label[for="enemy-tab-1"],
-#enemy-tab-2:checked ~ .sidebar-panel label[for="enemy-tab-2"] {
+{% for enemy_tab in enemy_tabs -%}
+#enemy-tab-{{ loop.index }}:checked ~ .sidebar-panel label[for="enemy-tab-{{ loop.index }}"] {%- if !loop.last %}, {% endif %}
+{%- endfor -%}
+{
     background-color: var(--c1);
     color: var(--c3);
 }
 
 /* Animate the underline for the active tab */
-#enemy-tab-1:checked ~ .sidebar-panel label[for="enemy-tab-1"]::after,
-#enemy-tab-2:checked ~ .sidebar-panel label[for="enemy-tab-2"]::after {
+{% for enemy_tab in enemy_tabs %}
+#enemy-tab-{{ loop.index }}:checked ~ .sidebar-panel label[for="enemy-tab-{{ loop.index }}"]::after {%- if !loop.last %},{% endif %}
+{%- endfor -%}
+{
     width: 100%;
 }
 </style>
 </head>
 <body>
     <div class="damage-window">
-        <input type="radio" name="enemy-tabs" id="enemy-tab-1" checked>
-        <input type="radio" name="enemy-tabs" id="enemy-tab-2">
+        {%- for enemy_tab in enemy_tabs %}
+        <input type="radio" name="enemy-tabs" id="enemy-tab-{{ loop.index }}" {% if loop.first %}checked{% endif %}>
+        {%- endfor %}
 
         <main class="content-panel">
-            <!-- Data for the first enemy tab -->
-            <div class="player-list" id="player-list-1">
-                <!-- Player Row (Self) -->
-                <div class="player-row is-self">
-                    <span class="player-place">1.</span>
-                    <span class="player-status"></span>
-                    <span class="player-name">Player</span>
-                    <span class="player-damage">250.0K</span>
-                    <span class="player-percent">25.00%</span>
+            {%- for enemy_tab in enemy_tabs %}
+            <div class="player-list" id="player-list-{{ loop.index }}">
+                {%- for player in enemy_tab.players %}
+                <div class="player-row {% if player.is_self %}is-self{% endif %}">
+                    <span class="player-place">{{ loop.index }}.</span>
+                    <span class="player-status">{{ player.status }}</span>
+                    <span class="player-name">{{ player.name }}</span>
+                    <span class="player-damage">{{ self::format_number(*player.damage) }}</span>
+                    <span class="player-percent">{{ player.damage_percent }}%</span>
                     <div class="player-items">
-                        <div class="item-slot enchant-1 item-id-staff">
+                    {%- for item in player.items -%}
+                    {% match item -%}
+                    {% when Some(item) %}
+                        <div class="item-slot enchant-{{ item.enchantments.len() }} item-id-{{ item.id }}">
                             <div class="tooltip">
-                                <p class="item-name">Bloodbath Blade</p>
-                                <p class="enchantment">Dexterity Bonus III</p>
+                                <p class="item-name">{{ item.name }}</p>
+                                {%- for enchantment in item.enchantments -%}
+                                <p class="enchantment">{{ enchantment }}</p>
+                                {%- endfor %}
                             </div>
                         </div>
-                        <div class="item-slot enchant-2 item-id-staff">
-                            <div class="tooltip">
-                                <p class="item-name">Helm of the Juggernaut</p>
-                                <p class="enchantment">Vitality Bonus I</p>
-                                <p class="enchantment">Defense Bonus II</p>
-                            </div>
-                        </div>
-                        <div class="item-slot item-id-staff"></div>
-                        <div class="item-slot enchant-3 item-id-staff">
-                            <div class="tooltip">
-                                <p class="item-name">Ring of Unbound Health</p>
-                                <p class="enchantment">Health Bonus I</p>
-                                <p class="enchantment">Health Bonus II</p>
-                                <p class="enchantment">Health Bonus III</p>
-                            </div>
-                        </div>
+                    {% when None %}
+                        <div class="item-slot"></div>
+                    {% endmatch -%}
+                    {% endfor -%}
                     </div>
                 </div>
-
-                <!-- Player Row (Other) -->
-                <div class="player-row">
-                    <span class="player-place">2.</span>
-                    <span class="player-status">🪦</span>
-                    <span class="player-name">Alduion</span>
-                    <span class="player-damage">123.5K</span>
-                    <span class="player-percent">12.35%</span>
-                    <div class="player-items">
-                        <div class="item-slot enchant-1 item-id-staff">
-                             <div class="tooltip">
-                                <p class="item-name">Staff of Extreme Prejudice</p>
-                                <p class="enchantment">Attack Bonus II</p>
-                            </div>
-                        </div>
-                        <div class="item-slot item-id-staff"></div>
-                        <div class="item-slot item-id-staff"></div>
-                        <div class="item-slot item-id-staff"></div>
-                    </div>
-                </div>
+                {% endfor -%}
             </div>
-
-            <!-- Data for the second enemy tab -->
-            <div class="player-list" id="player-list-2">
-                <!-- Player Row (Other) -->
-                <div class="player-row">
-                    <span class="player-place">1.</span>
-                    <span class="player-status">N</span>
-                    <span class="player-name">Otter</span>
-                    <span class="player-damage">50.0K</span>
-                    <span class="player-percent">50.00%</span>
-                     <div class="player-items">
-                        <div class="item-slot item-id-staff"></div>
-                        <div class="item-slot item-id-staff"></div>
-                        <div class="item-slot item-id-staff"></div>
-                        <div class="item-slot item-id-staff"></div>
-                    </div>
-                </div>
-
-                <!-- Player Row (Self) -->
-                <div class="player-row is-self">
-                    <span class="player-place">2.</span>
-                    <span class="player-status"></span>
-                    <span class="player-name">Player</span>
-                    <span class="player-damage">25.0K</span>
-                    <span class="player-percent">25.00%</span>
-                    <div class="player-items">
-                        <div class="item-slot enchant-4 item-id-staff">
-                            <div class="tooltip">
-                                <p class="item-name">A Very Enchanted Item</p>
-                                <p class="enchantment">Enchant 1</p>
-                                <p class="enchantment">Enchant 2</p>
-                                <p class="enchantment">Enchant 3</p>
-                                <p class="enchantment">Enchant 4</p>
-                            </div>
-                        </div>
-                        <div class="item-slot item-id-staff"></div>
-                        <div class="item-slot item-id-staff"></div>
-                        <div class="item-slot item-id-staff"></div>
-                    </div>
-                </div>
-            </div>
+            {% endfor -%}
         </main>
 
-        <!-- Sidebar Panel (Enemy List / Tabs) -->
         <aside class="sidebar-panel">
             <div class="info">
-                <p class="dungeon-name">Oryx's Sanctuary</span>
-                <p class="dungeon-time">at 2025-07-16 9:16:11</span>
+                <p class="dungeon-name">{{ map_name }}</span>
+                <p class="dungeon-time">at {{ self::time() }}</span>
             </div>
             <div class="enemy-list">
-                <!-- The 'for' attribute connects this label to the hidden radio input -->
-                <label for="enemy-tab-1" class="enemy-tab">
-                    <span class="enemy-name">Oryx the Mad God</span>
-                    <span class="enemy-hp">76.5M</span>
+                {%- for enemy_tab in enemy_tabs %}
+                <label for="enemy-tab-{{ loop.index }}" class="enemy-tab">
+                    <span class="enemy-icon enemy-id-{{ enemy_tab.object_id }}"></span>
+                    <span class="enemy-name">{{ enemy_tab.name }}</span>
+                    <span class="enemy-hp">{{ self::format_number(*enemy_tab.total_damage) }}</span>
                 </label>
-                <label for="enemy-tab-2" class="enemy-tab">
-                    <span class="enemy-name">Second enemy very very long name</span>
-                    <span class="enemy-hp">6.5M</span>
-                </label>
+                {% endfor -%}
             </div>
         </aside>
     </div>

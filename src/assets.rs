@@ -44,6 +44,7 @@ pub struct Assets {
 // mapping sprite id to actual sprite PNG
 pub type Spritesheet = BTreeMap<u32, Vec<u8>>;
 
+#[derive(Debug)]
 pub struct Object {
 	pub name: String,
 	/// whether the sprite is from normal spritesheets or animated spritesheets
@@ -75,6 +76,21 @@ pub struct ProjectileInfo {
 	pub inflicts_sick: bool,
 	pub inflicts_bleeding: bool,
 	pub inflicts_armor_broken: bool,
+}
+
+impl Assets {
+	pub fn try_get_obj_sprite(&self, object_id: u32) -> Option<&Vec<u8>> {
+		let obj = self.objects.get(&object_id)?;
+		let spritesheets = if obj.is_animated {
+			&self.animated_spritesheets
+		} else {
+			&self.spritesheets
+		};
+		let spritesheet = spritesheets.get(&obj.sprite.0)?;
+		let sprite = spritesheet.get(&obj.sprite.1)?;
+
+		Some(sprite)
+	}
 }
 
 #[derive(Default)]
@@ -359,12 +375,13 @@ impl RawAssets {
 		let spritesheetf = spritesheetf::root_as_sprite_sheet_root(self.spritesheetf.get(file))?;
 
 		for s in spritesheetf.sprites().unwrap() {
-			if ![2, 4].contains(&s.atlas_id()) {
-				continue;
-			}
 			let mut sprites = BTreeMap::new();
 
 			for s in s.sprites().unwrap() {
+				if ![2, 4].contains(&s.atlas_id()) {
+					continue;
+				}
+
 				sprites.insert(
 					s.index() as u32,
 					self.get_sprite(s.atlas_id(), *s.position().unwrap()),

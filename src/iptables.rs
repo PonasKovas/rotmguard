@@ -65,7 +65,7 @@ impl IpTablesRules {
 			.spawn()?;
 
 		let mut child_stdout = child.stdout.take().unwrap();
-		let mut buf = [0u8; OK_SIGNAL.len()]; // buffer for "ok"
+		let mut buf = [0u8; OK_SIGNAL.len()];
 		child_stdout.read_exact(&mut buf)?;
 
 		if buf == OK_SIGNAL {

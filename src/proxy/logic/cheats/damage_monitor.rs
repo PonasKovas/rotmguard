@@ -1,6 +1,5 @@
 use crate::{proxy::Proxy, util::STAT_TYPE};
 use anyhow::bail;
-use askama::Template;
 use base64::{Engine, engine::general_purpose::URL_SAFE};
 use bytes::Buf;
 use serde::Deserialize;
@@ -9,14 +8,12 @@ use std::collections::BTreeMap;
 use tracing::{error, warn};
 
 mod generate_report;
-mod template_util;
 
 pub use generate_report::generate_report;
 
 const TAKEN_DAMAGE_CRITERIA: i64 = 1000; // minimum damage an enemy must take to be shown/saved
 
-#[derive(Default, Template)]
-#[template(path = "damage_report.html")]
+#[derive(Default)]
 pub struct DamageMonitor {
 	map_name: String,
 	// mapping current server object ids to my own ids
@@ -30,17 +27,19 @@ pub struct DamageMonitor {
 #[derive(Default)]
 struct Enemy {
 	name: String,
+	object_type: u32,
 	player_damage: BTreeMap<usize, i64>,
 }
 
 #[derive(Default)]
 struct Player {
 	name: String,
+	is_self: bool,
 	status: PlayerStatus,
 	items: [PlayerItem; 4],
 }
 
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 struct PlayerItem {
 	item_id: Option<u32>,           // none if empty slot
 	enchantments: [Option<u16>; 4], // same
@@ -238,7 +237,13 @@ impl ObjectStatusProcessor {
 			if self.has_level {
 				// this is most certainly a player
 
-				let id = proxy.state.damage_monitor.players.insert(Player::default());
+				let mut player = Player::default();
+
+				if self.object_id == proxy.state.my_obj_id {
+					player.is_self = true;
+				}
+
+				let id = proxy.state.damage_monitor.players.insert(player);
 
 				proxy
 					.state
@@ -249,6 +254,7 @@ impl ObjectStatusProcessor {
 				// an enemy....
 
 				let mut enemy = Enemy::default();
+				enemy.object_type = object_type as u32;
 
 				// preferrably set the name from the assets
 				if let Some(obj_data) = proxy.rotmguard.assets.objects.get(&(object_type as u32)) {
