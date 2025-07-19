@@ -29,6 +29,7 @@ pub fn modify(
 	to_overwrite: Vec<OverwriteRegion>,
 ) -> Result<Option<ReverseChangesGuard>> {
 	if to_overwrite.is_empty() {
+		info!("No regions to be overwritten in resources.assets");
 		return Ok(None);
 	}
 
@@ -69,7 +70,13 @@ impl ReverseChangesGuard {
 		// its likely that the user updated rotmg and overwrote it
 		//
 		// in that case we dont want to do anything, just delete the backup if its still there
-		if metadata(&self.assets_path)?.modified().ok() != self.last_modified {
+		let current_metadata = metadata(&self.assets_path)?;
+		let changed = self
+			.last_modified
+			.map(|t1| current_metadata.modified().ok().map(|t2| t1 != t2))
+			.flatten()
+			.unwrap_or(false);
+		if changed {
 			// uh oh... file changed
 			warn!(
 				"🚨 resources.assets changed on disk while rotmguard was running. Leaving it as it is."
