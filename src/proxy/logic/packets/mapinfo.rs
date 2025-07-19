@@ -11,7 +11,7 @@ pub async fn mapinfo(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resu
 	let name = read_str(View(b, c))?;
 	let _display_name = read_str(View(b, c))?;
 	let _realm_name = read_str(View(b, c))?;
-	let _seed = View(b, c).try_get_u32()?;
+	let seed = View(b, c).try_get_u32()?;
 	let _background = View(b, c).try_get_u32()?; // ? this is not the color tho...
 	let _difficulty = View(b, c).try_get_f32()?;
 	let _allow_teleport = View(b, c).try_get_u8()? != 0;
@@ -27,6 +27,7 @@ pub async fn mapinfo(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resu
 	*c = b.len();
 
 	damage_monitor::set_map_name(proxy, name);
+	damage_monitor::set_rng_seed(proxy, seed);
 
 	Ok(false)
 }

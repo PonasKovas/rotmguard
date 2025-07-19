@@ -37,6 +37,10 @@ pub async fn handle_c2s_packet(proxy: &mut Proxy, mut packet_bytes: BytesMut) ->
 		PACKET_ID::C2S_GROUNDDAMAGE => {
 			packets::ground_damage(proxy, &mut packet_bytes, cursor).await?
 		}
+		PACKET_ID::C2S_PLAYERSHOOT => {
+			packets::playershoot(proxy, &mut packet_bytes, cursor).await?
+		}
+		PACKET_ID::C2S_ENEMYHIT => packets::enemyhit(proxy, &mut packet_bytes, cursor).await?,
 		_ => {
 			packet_parsed = false;
 			false
@@ -84,6 +88,9 @@ pub async fn handle_s2c_packet(proxy: &mut Proxy, mut packet_bytes: BytesMut) ->
 			save_logs();
 			packet_parsed = false;
 			false
+		}
+		PACKET_ID::S2C_SERVERPLAYERSHOOT => {
+			packets::serverplayershoot(proxy, &mut packet_bytes, cursor).await?
 		}
 		_ => {
 			packet_parsed = false;

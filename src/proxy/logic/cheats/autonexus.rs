@@ -10,7 +10,7 @@ use tracing::{error, info};
 mod aoes;
 mod ground;
 mod projectiles;
-mod ticks;
+pub mod ticks;
 
 pub use aoes::{aoe, aoeack};
 pub use ground::{ground_damage, new_tile};
@@ -24,7 +24,7 @@ pub use ticks::{
 pub struct Autonexus {
 	hp: f32,
 	last_damage_tick: u32, // tick id when was the last time some damage was taken
-	ticks: ticks::Ticks,
+	pub ticks: ticks::Ticks,
 	ground: ground::Ground,
 	projectiles: projectiles::Projectiles,
 	aoes: aoes::Aoes,

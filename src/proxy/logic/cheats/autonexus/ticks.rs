@@ -31,10 +31,12 @@ pub struct Tick {
 pub struct Stats {
 	pub hp: i64,
 	pub max_hp: i64,
+	pub atk: i64,
 	pub def: i64,
 	pub vit: i64,
 	pub conditions: u64,
 	pub conditions2: u64,
+	pub exalt_bonus_dmg: i64,
 }
 
 impl Default for Ticks {
@@ -71,6 +73,9 @@ pub async fn self_stat(proxy: &mut Proxy, stat_type: u8, stat: i64) {
 		STAT_TYPE::HP => {
 			last_tick.stats.hp = stat;
 		}
+		STAT_TYPE::ATTACK => {
+			last_tick.stats.atk = stat;
+		}
 		STAT_TYPE::DEFENSE => {
 			last_tick.stats.def = stat;
 		}
@@ -82,6 +87,9 @@ pub async fn self_stat(proxy: &mut Proxy, stat_type: u8, stat: i64) {
 		}
 		STAT_TYPE::CONDITION2 => {
 			last_tick.stats.conditions2 = stat as u64;
+		}
+		STAT_TYPE::EXALTATION_BONUS_DAMAGE => {
+			last_tick.stats.exalt_bonus_dmg = stat;
 		}
 		_ => {}
 	}

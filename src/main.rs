@@ -46,14 +46,6 @@ fn main() -> Result<()> {
 		}
 	}
 
-	tokio::runtime::Builder::new_multi_thread()
-		.enable_all()
-		.build()
-		.unwrap()
-		.block_on(async_main())
-}
-
-async fn async_main() -> Result<()> {
 	// Initialize config
 	let raw_config = fs::read_to_string(config::CONFIG_PATH).context("reading config file")?;
 	let config: Config = toml::from_str(&raw_config).context("parsing config file")?;
@@ -71,6 +63,14 @@ async fn async_main() -> Result<()> {
 	// Read the resource assets
 	let assets = assets::handle_assets(&config).context("reading assets")?;
 
+	tokio::runtime::Builder::new_multi_thread()
+		.enable_all()
+		.build()
+		.unwrap()
+		.block_on(async_main(config, assets))
+}
+
+async fn async_main(config: Config, assets: Assets) -> Result<()> {
 	let damage_monitor_http = DamageMonitorHttp::new(&config).await?;
 
 	let rotmguard = Arc::new(Rotmguard {

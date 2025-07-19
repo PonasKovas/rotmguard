@@ -142,6 +142,7 @@ pub mod STAT_TYPE {
 
 #[allow(dead_code, non_snake_case)]
 pub mod CONDITION_BITFLAG {
+	pub const WEAK: u64 = 0x4;
 	pub const SLOW: u64 = 0x8;
 	pub const SICK: u64 = 0x10;
 	pub const BLIND: u64 = 0x80;

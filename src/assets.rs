@@ -12,15 +12,8 @@ use std::{
 use tracing::{debug, info};
 use xml::process_xml;
 
-mod get_sprite;
-mod reverse_changes;
-#[allow(
-	unused_imports,
-	unsafe_op_in_unsafe_fn,
-	dead_code,
-	mismatched_lifetime_syntaxes
-)]
-mod spritesheetf;
+mod process;
+mod raw_parse;
 mod xml;
 
 const TEXT_ASSET: i32 = 49;
@@ -90,33 +83,6 @@ impl Assets {
 		let sprite = spritesheet.get(&obj.sprite.1)?;
 
 		Some(sprite)
-	}
-}
-
-#[derive(Default)]
-struct RawAssets {
-	spritesheetf: View,
-	characters: Image,
-	map_objects: Image,
-	// name, view
-	text_assets: Vec<(String, View)>,
-}
-
-#[derive(Default)]
-struct Image {
-	w: u32,
-	h: u32,
-	data: Vec<u8>,
-}
-
-#[derive(Default, Clone, Copy)]
-struct View {
-	pos: usize,
-	len: usize,
-}
-impl View {
-	fn get(self, file: &mut [u8]) -> &mut [u8] {
-		&mut file[self.pos..(self.pos + self.len)]
 	}
 }
 

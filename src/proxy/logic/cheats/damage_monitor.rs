@@ -1,19 +1,26 @@
-use crate::{proxy::Proxy, util::STAT_TYPE};
+use crate::{
+	assets::ProjectileInfo,
+	proxy::Proxy,
+	util::{CONDITION_BITFLAG, STAT_TYPE},
+};
 use anyhow::bail;
 use base64::{Engine, engine::general_purpose::URL_SAFE};
 use bytes::Buf;
+use lru::LruCache;
+use rng::Rng;
 use serde::Deserialize;
 use slab::Slab;
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, num::NonZeroUsize};
 use tracing::{error, warn};
 
 mod generate_report;
+mod rng;
 
 pub use generate_report::generate_report;
 
 const TAKEN_DAMAGE_CRITERIA: i64 = 1000; // minimum damage an enemy must take to be shown/saved
+const MY_SHOTS_CACHE_SIZE: usize = 5000; // number of fired shots by self-player to keep in cache at once
 
-#[derive(Default)]
 pub struct DamageMonitor {
 	map_name: String,
 	// mapping current server object ids to my own ids
@@ -22,6 +29,11 @@ pub struct DamageMonitor {
 
 	players: Slab<Player>,
 	enemies: Slab<Enemy>,
+
+	rng: Rng,
+	// (bullet_id, shooter_id) -> (damage, info)
+	// shooter_id may not necessarily be my own object id due to summons
+	my_shots: LruCache<(u16, u32), (i16, ProjectileInfo)>,
 }
 
 #[derive(Default)]
@@ -53,8 +65,25 @@ enum PlayerStatus {
 	Nexus,
 }
 
+impl Default for DamageMonitor {
+	fn default() -> Self {
+		Self {
+			map_name: Default::default(),
+			object_ids: Default::default(),
+			players: Default::default(),
+			enemies: Default::default(),
+			rng: Rng::new(0),
+			my_shots: LruCache::new(NonZeroUsize::new(MY_SHOTS_CACHE_SIZE).unwrap()),
+		}
+	}
+}
+
 pub fn set_map_name(proxy: &mut Proxy, name: &str) {
 	proxy.state.damage_monitor.map_name = name.to_owned();
+}
+
+pub fn set_rng_seed(proxy: &mut Proxy, seed: u32) {
+	proxy.state.damage_monitor.rng = Rng::new(seed);
 }
 
 pub fn remove_object(proxy: &mut Proxy, obj_id: u32) {
@@ -148,6 +177,57 @@ pub fn damage(proxy: &mut Proxy, target_obj_id: u32, damage_amount: u16, owner_i
 		.player_damage
 		.entry(shooter_id)
 		.or_default() += damage_amount as i64;
+}
+
+pub fn playershoot(proxy: &mut Proxy, bullet_id: u16, weapon_id: u32, mut projectile_type: u8) {
+	if projectile_type == (-1i8) as u8 {
+		projectile_type = 0;
+	}
+
+	let projectile = match proxy.rotmguard.assets.objects.get(&weapon_id) {
+		Some(obj) => match obj.projectiles.get(&projectile_type) {
+			Some(x) => *x,
+			None => {
+				error!("playershoot with unknown projectile id? ({weapon_id}, {projectile_type})");
+				return; // welp... nothing we can do here...
+			}
+		},
+		None => {
+			error!("playershoot with unknown weapon id ({weapon_id})");
+			return; // welp... nothing we can do here...
+		}
+	};
+
+	// calculate damage :)
+	let base_damage = match projectile.damage {
+		either::Either::Left(fixed) => fixed,
+		either::Either::Right((min, max)) => {
+			let rng = proxy.state.damage_monitor.rng.next();
+			min + (rng % (max - min) as u32) as i32
+		}
+	};
+	let multiplier = calculate_damage_multiplier(proxy);
+	let damage = (base_damage as f32 * multiplier) as i16;
+
+	proxy
+		.state
+		.damage_monitor
+		.my_shots
+		.push((bullet_id, proxy.state.my_obj_id), (damage, projectile));
+}
+
+pub fn enemyhit(proxy: &mut Proxy, bullet_id: u16, shooter_id: u32, target_id: u32) {
+	let &(dmg, projectile) = match proxy
+		.state
+		.damage_monitor
+		.my_shots
+		.get(&(bullet_id, shooter_id))
+	{
+		Some(x) => x,
+		None => return, // welp... nothing we can do here...
+	};
+
+	damage(proxy, target_id, dmg as u16, proxy.state.my_obj_id);
 }
 
 #[derive(Default)]
@@ -390,4 +470,12 @@ fn parse_enchantments(unique_data_str: &str) -> anyhow::Result<[[Option<u16>; 4]
 	}
 
 	Ok(enchantments)
+}
+
+fn calculate_damage_multiplier(proxy: &mut Proxy) -> f32 {
+	let tick = proxy.state.autonexus.ticks.current();
+
+	let weak = (tick.stats.conditions & CONDITION_BITFLAG::WEAK) != 0;
+
+	0.5
 }
