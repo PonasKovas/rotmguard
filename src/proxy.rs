@@ -2,6 +2,7 @@ use crate::{Rotmguard, packet_logger};
 use anyhow::Result;
 use bytes::Bytes;
 use futures::{StreamExt as _, stream::FuturesUnordered};
+use logic::State;
 use reader::Reader;
 use std::sync::Arc;
 use tokio::{
@@ -68,12 +69,13 @@ pub async fn run(rotmguard: Arc<Rotmguard>, client: TcpStream, server: TcpStream
 	));
 
 	// This task will be for reading packets and handling them
+	let state = State::new(&rotmguard)?;
 	let proxy = Proxy {
 		rotmguard,
 		client: c_send,
 		server: s_send,
 		writer_tasks: FuturesUnordered::from_iter([w1, w2]),
-		state: Default::default(),
+		state: state,
 	};
 
 	let s_read = Reader::new(s_read, RC4_KEY_S2C);

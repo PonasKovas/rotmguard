@@ -1,5 +1,8 @@
-use super::{Assets, Enchantment, Object, Tile, modify::OverwriteRegion};
-use crate::{assets::raw_parse::XmlAsset, config::Config};
+use super::{Assets, modify::OverwriteRegion};
+use crate::{
+	assets::{Enchantment, Object, Tile, raw_parse::XmlAsset},
+	config::Config,
+};
 use anyhow::{Context, Result};
 use rayon::prelude::*;
 use std::{borrow::Cow, collections::HashMap};
@@ -91,7 +94,7 @@ impl Processed {
 }
 
 // returns true if any modifications were made
-pub fn inner(config: &Config, processed: &mut Processed, xml: &mut Element) -> Result<bool> {
+fn inner(config: &Config, processed: &mut Processed, xml: &mut Element) -> Result<bool> {
 	match xml.name.as_str() {
 		"Objects" => objects::parse(config, &mut processed.objects, xml),
 		"GroundTypes" => tiles::parse(config, &mut processed.tiles, xml),
@@ -116,11 +119,11 @@ fn parse_id(id: &str) -> Result<u32> {
 	.with_context(|| format!("unexpected format: {id:?}"))
 }
 trait XMLUtility {
-	fn get_child_text(&self, child_name: impl AsRef<str>) -> Option<Cow<str>>;
+	fn get_child_text(&self, child_name: impl AsRef<str>) -> Option<Cow<'_, str>>;
 	fn child_elements(&mut self) -> impl Iterator<Item = &mut Self>;
 }
 impl XMLUtility for Element {
-	fn get_child_text(&self, child_name: impl AsRef<str>) -> Option<Cow<str>> {
+	fn get_child_text(&self, child_name: impl AsRef<str>) -> Option<Cow<'_, str>> {
 		self.get_child(child_name.as_ref())
 			.map(|e| e.get_text())
 			.flatten()

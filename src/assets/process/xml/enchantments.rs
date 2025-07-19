@@ -1,6 +1,6 @@
 use super::{XMLUtility, parse_id};
 use crate::{
-	assets::process::{Enchantment, EnchantmentEffect},
+	assets::{Enchantment, EnchantmentEffect},
 	config::Config,
 };
 use anyhow::{Context, Result};

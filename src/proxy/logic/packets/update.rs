@@ -34,7 +34,7 @@ pub async fn update(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resul
 		let y = View(b, c).try_get_i16()?;
 		let tile_type = View(b, c).try_get_u16()?;
 
-		autonexus::new_tile(proxy, x, y, tile_type);
+		autonexus::new_tile(proxy, x, y, tile_type)?;
 
 		if let Some(new_tile_id) = antipush::new_tile(proxy, x, y, tile_type) {
 			// replace last 2 bytes

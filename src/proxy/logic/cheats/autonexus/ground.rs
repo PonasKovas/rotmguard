@@ -1,22 +1,25 @@
 use super::take_damage_raw;
 use crate::proxy::Proxy;
+use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use std::collections::BTreeMap;
 
 #[derive(Default)]
 pub struct Ground {
-	hazardous_tiles: BTreeMap<(i16, i16), i64>, // position -> damage
+	hazardous_tiles: BTreeMap<(i16, i16), i16>, // position -> damage
 }
 
-pub fn new_tile(proxy: &mut Proxy, x: i16, y: i16, tile_type: u16) {
-	match proxy
+pub fn new_tile(proxy: &mut Proxy, x: i16, y: i16, tile_type: u16) -> Result<()> {
+	let tile = proxy
 		.rotmguard
 		.assets
-		.hazardous_tiles
+		.tiles
 		.get(&(tile_type as u32))
-	{
-		Some(&dmg) => {
+		.with_context(|| format!("Unknown tile type {tile_type}"))?;
+
+	match tile.damage {
+		Some(dmg) => {
 			proxy
 				.state
 				.autonexus
@@ -28,6 +31,8 @@ pub fn new_tile(proxy: &mut Proxy, x: i16, y: i16, tile_type: u16) {
 			proxy.state.autonexus.ground.hazardous_tiles.remove(&(x, y));
 		}
 	}
+
+	Ok(())
 }
 
 pub async fn ground_damage(proxy: &mut Proxy, x: i16, y: i16) -> Result<()> {
@@ -40,7 +45,7 @@ pub async fn ground_damage(proxy: &mut Proxy, x: i16, y: i16) -> Result<()> {
 		}
 	};
 
-	take_damage_raw(proxy, damage).await;
+	take_damage_raw(proxy, damage as i64).await;
 
 	Ok(())
 }

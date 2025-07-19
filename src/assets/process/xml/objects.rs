@@ -1,6 +1,6 @@
-use super::{super::Object, XMLUtility, parse_id};
+use super::{XMLUtility, parse_id};
 use crate::{
-	assets::process::{ProjectileInfo, SpriteId},
+	assets::{Object, ProjectileInfo, SpriteId},
 	config::Config,
 	util::{CONDITION_BITFLAG, CONDITION2_BITFLAG},
 };

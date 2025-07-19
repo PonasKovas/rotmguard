@@ -1,5 +1,6 @@
 use super::Proxy;
 use crate::{
+	Rotmguard,
 	logging::save_logs,
 	util::{PACKET_ID, View},
 };
@@ -13,7 +14,6 @@ use tracing::{info, warn};
 mod cheats;
 mod packets;
 
-#[derive(Default)]
 pub struct State {
 	my_obj_id: u32,
 	position: (f32, f32),
@@ -21,6 +21,19 @@ pub struct State {
 	fakeslow: FakeSlow,
 	autonexus: Autonexus,
 	damage_monitor: DamageMonitor,
+}
+
+impl State {
+	pub fn new(rotmguard: &Rotmguard) -> Result<Self> {
+		Ok(Self {
+			my_obj_id: 0,
+			position: (0., 0.),
+			antipush: AntiPush::new(rotmguard)?,
+			fakeslow: Default::default(),
+			autonexus: Default::default(),
+			damage_monitor: Default::default(),
+		})
+	}
 }
 
 pub async fn handle_c2s_packet(proxy: &mut Proxy, mut packet_bytes: BytesMut) -> Result<()> {

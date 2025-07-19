@@ -20,7 +20,7 @@ pub async fn serverplayershoot(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usiz
 	let _angle_between_bullets = View(b, c).try_get_f32().ok();
 
 	if summoner_id == proxy.state.my_obj_id {
-		damage_monitor::serverplayershoot(proxy, bullet_id, shooter_id, damage);
+		// damage_monitor::serverplayershoot(proxy, bullet_id, shooter_id, damage);
 	}
 
 	Ok(false)

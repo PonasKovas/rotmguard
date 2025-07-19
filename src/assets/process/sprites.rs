@@ -1,8 +1,11 @@
 //! process the spritesheetf data and prepare convenient PNG data for each sprite
 //! parallelised with rayon
 
-use super::{Sprites, Spritesheet, spritesheetf};
-use crate::assets::raw_parse::{RawAssets, Texture2D};
+use super::{Sprites, spritesheetf};
+use crate::assets::{
+	Spritesheet,
+	raw_parse::{RawAssets, Texture2D},
+};
 use anyhow::{Context, Result, bail};
 use rayon::prelude::*;
 use std::collections::{BTreeMap, HashMap};

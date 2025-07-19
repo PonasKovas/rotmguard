@@ -96,7 +96,7 @@ fn in_endian<ORDER: ByteOrder>(mut file: BufReader<File>, data_offset: u64) -> R
 
 	// Objects
 	let object_count = file.read_u32::<ORDER>()? as usize;
-	align_stream(&mut file);
+	align_stream(&mut file)?;
 	let mut objects = Vec::new();
 	struct Object {
 		pos: u64,
@@ -198,13 +198,13 @@ fn in_endian<ORDER: ByteOrder>(mut file: BufReader<File>, data_offset: u64) -> R
 				if !["mapObjects", "characters"].contains(&name.as_str()) {
 					continue;
 				}
-				align_stream(&mut file);
+				align_stream(&mut file)?;
 
 				// a bunch of slop...
 				let _forced_fallback_format = file.read_u32::<ORDER>()?;
 				let _downscale_fallback = file.read_u8()?;
 				let _alpha_channel_optional = file.read_u8()?;
-				align_stream(&mut file);
+				align_stream(&mut file)?;
 				let width = file.read_u32::<ORDER>()?;
 				let height = file.read_u32::<ORDER>()?;
 				let _complete_image_size = file.read_u32::<ORDER>()?;
@@ -218,7 +218,7 @@ fn in_endian<ORDER: ByteOrder>(mut file: BufReader<File>, data_offset: u64) -> R
 				let _is_preprocessed = file.read_u8()?;
 				let _ignore_master_texture_limit = file.read_u8()?;
 				let _streaming_mipmaps = file.read_u8()?;
-				align_stream(&mut file);
+				align_stream(&mut file)?;
 				let _streaming_mipmaps_priority = file.read_u32::<ORDER>()?;
 				let _image_count = file.read_u32::<ORDER>()?;
 				let _texture_dimension = file.read_u32::<ORDER>()?;
@@ -232,7 +232,7 @@ fn in_endian<ORDER: ByteOrder>(mut file: BufReader<File>, data_offset: u64) -> R
 				let _color_space = file.read_u32::<ORDER>()?;
 				let platform_blob_n = file.read_u32::<ORDER>()?;
 				file.seek_relative(platform_blob_n as i64)?;
-				align_stream(&mut file);
+				align_stream(&mut file)?;
 				let texture_data_size = file.read_u32::<ORDER>()? as usize;
 				let mut texture_data = vec![0u8; texture_data_size];
 				file.read_exact(&mut texture_data)?;

@@ -1,6 +1,5 @@
-use std::env;
-
 use anyhow::Result;
+use std::env;
 use tokio::{
 	fs::File,
 	io::{AsyncWriteExt, BufWriter},

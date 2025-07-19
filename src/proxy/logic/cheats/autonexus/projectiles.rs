@@ -1,9 +1,5 @@
 use super::take_damage;
-use crate::{
-	assets::ProjectileInfo,
-	proxy::Proxy,
-	util::{CONDITION_BITFLAG, CONDITION2_BITFLAG},
-};
+use crate::{assets::ProjectileInfo, proxy::Proxy};
 use anyhow::{Result, bail};
 use lru::LruCache;
 use std::{collections::BTreeMap, num::NonZeroUsize};
@@ -103,21 +99,8 @@ pub async fn player_hit(proxy: &mut Proxy, bullet_id: u16, owner_id: u32) -> Res
 
 	// immediatelly apply any status effects (conditions) if this bullet inflicts
 	proxy.state.autonexus.ticks.for_each(|tick| {
-		if projectile.inflicts_cursed {
-			tick.stats.conditions2 |= CONDITION2_BITFLAG::CURSED;
-		}
-		if projectile.inflicts_exposed {
-			tick.stats.conditions2 |= CONDITION2_BITFLAG::EXPOSED;
-		}
-		if projectile.inflicts_sick {
-			tick.stats.conditions |= CONDITION_BITFLAG::SICK;
-		}
-		if projectile.inflicts_bleeding {
-			tick.stats.conditions |= CONDITION_BITFLAG::BLEEDING;
-		}
-		if projectile.inflicts_armor_broken {
-			tick.stats.conditions |= CONDITION_BITFLAG::ARMOR_BROKEN;
-		}
+		tick.stats.conditions2 |= projectile.inflicts_condition2;
+		tick.stats.conditions |= projectile.inflicts_condition;
 	});
 
 	Ok(())

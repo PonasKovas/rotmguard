@@ -1,5 +1,5 @@
 use super::{XMLUtility, parse_id};
-use crate::{assets::process::Tile, config::Config};
+use crate::{assets::Tile, config::Config};
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use xmltree::Element;
@@ -29,6 +29,8 @@ fn parse_ground(
 	let ground_type_str = ground.attributes.get("type").context("type attr")?;
 	let ground_type = parse_id(ground_type_str)?;
 
+	let ground_id = ground.attributes.get("id").context("id attr")?;
+
 	let is_conveyor = ground.get_child("Push").is_some();
 	let damage = ground
 		.get_child_text("MaxDamage")
@@ -39,6 +41,7 @@ fn parse_ground(
 	tiles.insert(
 		ground_type,
 		Tile {
+			name: ground_id.to_owned(),
 			damage,
 			is_conveyor,
 		},
