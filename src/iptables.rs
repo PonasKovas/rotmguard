@@ -1,16 +1,18 @@
-use anyhow::{Result, bail};
-use nix::{sys::signal::Signal, unistd::Pid};
+use anyhow::{Context, Result, bail};
 use std::{
 	env,
-	io::{Read, Write, stdout},
-	process::{Command, Stdio, exit},
-	thread::park,
+	net::UdpSocket,
+	process::{Command, exit},
+	time::Duration,
 };
-use tracing::info;
+use tracing::{error, info};
 
 // when this binary is run with this flag it will just add the iptables rules
 pub const IPTABLES_ACTOR_FLAG: &str = "--iptables";
-const OK_SIGNAL: &[u8] = b"ok";
+
+const TIMEOUT: u64 = 30; // seconds
+const OK_SIGNAL: &[u8] = b"ok"; // 💀
+const STOP_SIGNAL: &[u8] = b"stop";
 
 pub fn iptables_actor() -> Result<()> {
 	fn run(command: &str) -> Result<()> {
@@ -24,10 +26,23 @@ pub fn iptables_actor() -> Result<()> {
 		Ok(())
 	}
 
+	let port: u16 = env::args().nth(2).context("udp port for status")?.parse()?;
+	let socket = UdpSocket::bind("127.0.0.1:0")?;
+	socket.set_read_timeout(None)?;
+	socket.connect(("127.0.0.1", port))?;
+
 	ctrlc::set_handler(|| {
 		cleanup();
 		exit(0);
 	})?;
+
+	struct Guard;
+	impl Drop for Guard {
+		fn drop(&mut self) {
+			cleanup();
+		}
+	}
+	let _guard = Guard;
 
 	run("iptables -t nat -A OUTPUT -p tcp --dport 2050 -j DNAT --to-destination 127.0.0.1:2051")?;
 	run("iptables -t nat -A OUTPUT -p tcp --dport 2051 -j DNAT --to-destination :2050")?;
@@ -39,60 +54,57 @@ pub fn iptables_actor() -> Result<()> {
 		let _ = run("iptables -t nat -D OUTPUT -p tcp --dport 2051 -j DNAT --to-destination :2050");
 	}
 
-	// ignore all errors to guarantee cleanup
-	{
-		let mut stdout = stdout().lock();
-		let _ = stdout.write_all(OK_SIGNAL);
-		let _ = stdout.flush();
-	}
+	socket.send(OK_SIGNAL)?;
 
-	park();
+	let mut buf = [0u8; STOP_SIGNAL.len()];
+	socket.recv(&mut buf)?;
+	if buf != STOP_SIGNAL {
+		bail!("invalid signal received. stopping");
+	}
 
 	Ok(())
 }
 
 pub struct IpTablesRules {
-	child_pid: Pid,
+	socket: UdpSocket,
 }
 
 impl IpTablesRules {
 	pub fn create() -> Result<Self> {
+		// for signaling OK status
+		let socket = UdpSocket::bind("127.0.0.1:0")?;
+		socket.set_read_timeout(Some(Duration::from_secs(TIMEOUT)))?;
+		let port = socket.local_addr()?.port();
+
 		let exe = env::current_exe()?;
-		let mut child = Command::new("sudo")
+		Command::new("sudo")
+			.arg("-b")
 			.arg(exe)
 			.arg(IPTABLES_ACTOR_FLAG)
-			.stdout(Stdio::piped())
+			.arg(format!("{port}"))
 			.spawn()?;
 
-		let mut child_stdout = child.stdout.take().unwrap();
 		let mut buf = [0u8; OK_SIGNAL.len()];
-		child_stdout.read_exact(&mut buf)?;
+		let (_, origin) = socket.recv_from(&mut buf)?;
+		socket.connect(origin)?;
 
 		if buf == OK_SIGNAL {
 			info!("IPTables rule created successfully.");
 		} else {
-			// Somethings wrong
-			// wait for child to exit and forward it's stdout to my own
-			child.wait()?;
+			error!("Received invalid signal from iptables actor");
 
-			let mut stdout = stdout().lock();
-
-			stdout.write_all(&buf)?;
-			let mut remaining = Vec::new();
-			child_stdout.read_to_end(&mut remaining)?;
-			stdout.write_all(&remaining)?;
+			socket.send(STOP_SIGNAL)?;
 
 			bail!("Error creating iptables rules");
 		}
 
-		Ok(Self {
-			child_pid: Pid::from_raw(child.id() as i32),
-		})
+		Ok(Self { socket })
 	}
 }
 
 impl Drop for IpTablesRules {
 	fn drop(&mut self) {
-		let _ = nix::sys::signal::kill(self.child_pid, Signal::SIGTERM);
+		info!("Cleaning up IP tables rules.");
+		let _ = self.socket.send(STOP_SIGNAL);
 	}
 }
