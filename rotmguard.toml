@@ -16,8 +16,6 @@ dev_mode = false
 # Whether to attempt to automatically open damage monitor links in the browser
 # most likely you want to leave this on
 open_browser = true
-# How many log lines to save up to the event that triggered a log save
-log_lines = 1000
 
 # True = debuff disabled
 [settings.debuffs]
