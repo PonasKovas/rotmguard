@@ -1,25 +1,32 @@
-use super::Proxy;
+use super::{Proxy, packets};
 use crate::{
 	Rotmguard,
 	util::{PACKET_ID, View},
 };
+use antipush::AntiPush;
 use anyhow::Result;
+use autonexus::Autonexus;
 use bytes::{Buf, BytesMut};
-use cheats::{
-	antipush::AntiPush, autonexus::Autonexus, damage_monitor::DamageMonitor, fakeslow::FakeSlow,
-};
+use damage_monitor::DamageMonitor;
+use fakeslow::FakeSlow;
 use tracing::{info, warn};
 
-mod cheats;
-mod packets;
+pub mod antidebuffs;
+pub mod antilag;
+pub mod antipush;
+pub mod autonexus;
+pub mod common;
+pub mod con;
+pub mod damage_monitor;
+pub mod fakeslow;
 
 pub struct State {
-	my_obj_id: u32,
-	position: (f32, f32),
-	antipush: AntiPush,
-	fakeslow: FakeSlow,
-	autonexus: Autonexus,
-	damage_monitor: DamageMonitor,
+	pub my_obj_id: u32,
+	pub position: (f32, f32),
+	pub antipush: AntiPush,
+	pub fakeslow: FakeSlow,
+	pub autonexus: Autonexus,
+	pub damage_monitor: DamageMonitor,
 }
 
 impl State {

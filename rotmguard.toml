@@ -11,6 +11,8 @@ assets_res = "/home/mykolas/.steam/root/steamapps/compatdata/200210/pfx/drive_c/
 autonexus_hp = 1
 # Enables damage monitoring, see stats with /dmg command
 damage_monitor = true
+# Reduces lag by blocking certain packets
+antilag = true
 # If true, will activate developer mode.
 dev_mode = false
 # Whether to attempt to automatically open damage monitor links in the browser

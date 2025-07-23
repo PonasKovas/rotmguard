@@ -1,10 +1,8 @@
 use crate::{
 	proxy::{
 		Proxy,
-		logic::{
-			cheats::{antidebuffs, antipush, autonexus, damage_monitor, fakeslow},
-			packets::common::parse_object_data,
-		},
+		logic::{antidebuffs, antipush, autonexus, damage_monitor, fakeslow},
+		packets::common::parse_object_data,
 	},
 	util::{
 		STAT_TYPE, View, read_compressed_int, size_as_compressed_int, write_compressed_int,

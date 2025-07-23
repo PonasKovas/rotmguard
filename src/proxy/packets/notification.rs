@@ -1,7 +1,7 @@
 use crate::{
 	proxy::{
 		Proxy,
-		logic::cheats::{autonexus, damage_monitor},
+		logic::{autonexus, damage_monitor},
 	},
 	util::{View, read_str},
 };

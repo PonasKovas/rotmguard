@@ -1,7 +1,7 @@
 use crate::{
 	proxy::{
 		Proxy,
-		logic::cheats::{antipush, autonexus, con, damage_monitor, fakeslow},
+		logic::{antipush, autonexus, con, damage_monitor, fakeslow},
 	},
 	util::{BLUE, GREEN, RED, View, create_notification, read_str, static_notification},
 };
@@ -96,6 +96,37 @@ pub async fn playertext(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> R
 		}
 		"/slow" => {
 			fakeslow::toggle(proxy).await;
+
+			Ok(true)
+		}
+		"/antilag" => {
+			// let state = {
+			// 	let mut antilag = proxy.rotmguard.config.settings.antilag.lock().unwrap();
+			// 	*antilag = !*antilag;
+			// 	*antilag
+			// };
+
+			if let Some(arg) = args.next() {
+				match arg.parse() {
+					Ok(bitflag) => {
+						*crate::proxy::logic::antilag::BLOCK_TYPE.lock().unwrap() = bitflag;
+						proxy.send_client(static_notification!("ok", GREEN)).await;
+					}
+					Err(_) => {
+						proxy
+							.send_client(static_notification!("couldnt parse bitflag", RED))
+							.await;
+					}
+				}
+			}
+
+			// let notification = if state {
+			// 	static_notification!("antilag on", GREEN)
+			// } else {
+			// 	static_notification!("antilag off", RED)
+			// };
+
+			// proxy.send_client(notification).await;
 
 			Ok(true)
 		}

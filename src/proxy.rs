@@ -14,6 +14,7 @@ use tokio::{
 use tracing::instrument;
 
 mod logic;
+mod packets;
 mod reader;
 mod writer;
 

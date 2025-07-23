@@ -1,5 +1,5 @@
 use crate::{
-	proxy::{Proxy, logic::cheats::damage_monitor},
+	proxy::{Proxy, logic::damage_monitor},
 	util::View,
 };
 use anyhow::Result;

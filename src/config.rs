@@ -18,6 +18,8 @@ pub struct Settings {
 	pub autonexus_hp: Mutex<i32>,
 	/// Enables damage monitoring, see stats with /dmg command
 	pub damage_monitor: bool,
+	/// Reduces lag by blocking certain packets
+	pub antilag: Mutex<bool>,
 	/// If true, will activate developer mode.
 	pub dev_mode: Mutex<bool>,
 	/// Whether to attempt to automatically open damage monitor links in the browser
