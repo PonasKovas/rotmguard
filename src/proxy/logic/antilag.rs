@@ -13,7 +13,9 @@ pub fn should_block_damage(
 	// (we wanna see our own damage!!)
 
 	if *proxy.rotmguard.config.settings.antilag.lock().unwrap() {
-		if bullet_owner_obj_id == proxy.state.my_obj_id || target_obj_id == proxy.state.my_obj_id {
+		let self_id = proxy.state.common.objects.self_id;
+
+		if bullet_owner_obj_id == self_id || target_obj_id == self_id {
 			return false;
 		} else {
 			return true;
@@ -30,5 +32,6 @@ pub fn should_block_object_notification(
 ) -> bool {
 	// block if antilag enabled and if the notification is not on me
 
-	*proxy.rotmguard.config.settings.antilag.lock().unwrap() && obj_id != proxy.state.my_obj_id
+	let self_id = proxy.state.common.objects.self_id;
+	*proxy.rotmguard.config.settings.antilag.lock().unwrap() && obj_id != self_id
 }

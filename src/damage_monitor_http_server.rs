@@ -23,7 +23,7 @@ struct Inner {
 
 impl DamageMonitorHttp {
 	pub async fn new(config: &Config) -> Result<Self> {
-		if !config.settings.damage_monitor {
+		if !config.settings.damage_monitor.enabled {
 			return Ok(Self::default());
 		}
 

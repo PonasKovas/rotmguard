@@ -7,7 +7,8 @@ use antipush::AntiPush;
 use anyhow::Result;
 use autonexus::Autonexus;
 use bytes::{Buf, BytesMut};
-use damage_monitor::DamageMonitor;
+use common::Common;
+// use damage_monitor::DamageMonitor;
 use fakeslow::FakeSlow;
 use tracing::{info, warn};
 
@@ -17,27 +18,25 @@ pub mod antipush;
 pub mod autonexus;
 pub mod common;
 pub mod con;
-pub mod damage_monitor;
+// pub mod damage_monitor;
 pub mod fakeslow;
 
 pub struct State {
-	pub my_obj_id: u32,
-	pub position: (f32, f32),
+	pub common: Common,
 	pub antipush: AntiPush,
 	pub fakeslow: FakeSlow,
 	pub autonexus: Autonexus,
-	pub damage_monitor: DamageMonitor,
+	// pub damage_monitor: DamageMonitor,
 }
 
 impl State {
 	pub fn new(rotmguard: &Rotmguard) -> Result<Self> {
 		Ok(Self {
-			my_obj_id: 0,
-			position: (0., 0.),
+			common: Common::default(),
 			antipush: AntiPush::new(rotmguard)?,
 			fakeslow: Default::default(),
 			autonexus: Default::default(),
-			damage_monitor: Default::default(),
+			// damage_monitor: Default::default(),
 		})
 	}
 }

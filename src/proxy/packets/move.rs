@@ -6,8 +6,8 @@ use anyhow::Result;
 use bytes::{Buf, BytesMut};
 
 pub async fn r#move(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Result<bool> {
-	let _tick_id = View(b, c).try_get_u32()?;
-	let _time = View(b, c).try_get_u32()?;
+	let tick_id = View(b, c).try_get_u32()?;
+	let time = View(b, c).try_get_u32()?;
 	let move_records = View(b, c).try_get_u16()?;
 
 	let mut last_pos = (0.0, 0.0);
@@ -20,9 +20,9 @@ pub async fn r#move(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resul
 		last_pos = (pos_x, pos_y);
 	}
 
-	proxy.state.position = last_pos;
+	proxy.state.common.my_position = last_pos;
 
-	autonexus::client_tick_acknowledge(proxy).await;
+	autonexus::client_tick_ack(proxy, tick_id, time).await;
 
 	Ok(false)
 }

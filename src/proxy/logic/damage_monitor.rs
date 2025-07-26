@@ -186,7 +186,7 @@ pub fn playershoot(proxy: &mut Proxy, bullet_id: u16, weapon_id: u32, mut projec
 
 	let projectile = match proxy.rotmguard.assets.objects.get(&weapon_id) {
 		Some(obj) => match obj.projectiles.get(&projectile_type) {
-			Some(x) => *x,
+			Some(x) => x,
 			None => {
 				error!("playershoot with unknown projectile id? ({weapon_id}, {projectile_type})");
 				return; // welp... nothing we can do here...
@@ -209,11 +209,10 @@ pub fn playershoot(proxy: &mut Proxy, bullet_id: u16, weapon_id: u32, mut projec
 	let multiplier = calculate_damage_multiplier(proxy);
 	let damage = (base_damage as f32 * multiplier) as i16;
 
-	proxy
-		.state
-		.damage_monitor
-		.my_shots
-		.push((bullet_id, proxy.state.my_obj_id), (damage, projectile));
+	proxy.state.damage_monitor.my_shots.push(
+		(bullet_id, proxy.state.common.objects.self_id),
+		(damage, projectile.clone()), // todo NOT GOOT CLONE
+	);
 }
 
 pub fn enemyhit(proxy: &mut Proxy, bullet_id: u16, shooter_id: u32, target_id: u32) {
@@ -227,7 +226,12 @@ pub fn enemyhit(proxy: &mut Proxy, bullet_id: u16, shooter_id: u32, target_id: u
 		None => return, // welp... nothing we can do here...
 	};
 
-	damage(proxy, target_id, dmg as u16, proxy.state.my_obj_id);
+	damage(
+		proxy,
+		target_id,
+		dmg as u16,
+		proxy.state.common.objects.self_id,
+	);
 }
 
 #[derive(Default)]
@@ -319,7 +323,7 @@ impl ObjectStatusProcessor {
 
 				let mut player = Player::default();
 
-				if self.object_id == proxy.state.my_obj_id {
+				if self.object_id == proxy.state.common.objects.self_id {
 					player.is_self = true;
 				}
 

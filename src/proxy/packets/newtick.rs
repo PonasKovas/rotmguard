@@ -1,7 +1,7 @@
 use crate::{
 	proxy::{
 		Proxy,
-		logic::{antidebuffs, autonexus, damage_monitor, fakeslow},
+		logic::{antidebuffs, autonexus, common, fakeslow},
 		packets::common::parse_object_data,
 	},
 	util::{
@@ -36,25 +36,24 @@ pub async fn newtick(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resu
 	let _real_time_ms = View(b, c).try_get_u32()?;
 	let _last_real_time_ms = View(b, c).try_get_u16()?;
 
-	autonexus::new_tick_start(proxy, tick_id, tick_time);
+	proxy.state.common.server_tick_id = tick_id;
 
 	let statuses_n_pos = *c;
 	let statuses_n = View(b, c).try_get_u16()?;
 	for _ in 0..statuses_n {
-		let mut dmg_monitor_processor;
+		// let mut dmg_monitor_processor;
 
 		parse_object_data!(b, c;
 			object(object_id, _pos_x, _pos_y) => {
-				dmg_monitor_processor = damage_monitor::ObjectStatusProcessor::update(object_id);
+				// dmg_monitor_processor = damage_monitor::ObjectStatusProcessor::update(object_id);
 			};
 			int_stat(stat_type, stat) => {
-				dmg_monitor_processor.add_int_stat(stat_type, stat);
+				common::object_int_stat(proxy, object_id, stat_type, stat);
+				// dmg_monitor_processor.add_int_stat(stat_type, stat);
 
 				// if status about self and is condition stat
-				if object_id == proxy.state.my_obj_id {
+				if object_id == proxy.state.common.objects.self_id {
 					let original_stat_size = size_as_compressed_int(stat);
-
-					autonexus::self_stat(proxy, stat_type, stat).await;
 
 					if stat_type == STAT_TYPE::CONDITION {
 						let mut new_stat = stat;
@@ -72,11 +71,12 @@ pub async fn newtick(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resu
 				}
 			};
 			str_stat(stat_type, stat) => {
-				dmg_monitor_processor.add_str_stat(stat_type, stat);
+				common::object_str_stat(proxy, object_id, stat_type, stat);
+				// dmg_monitor_processor.add_str_stat(stat_type, stat);
 			};
 		);
 
-		dmg_monitor_processor.finish(proxy);
+		// dmg_monitor_processor.finish(proxy);
 	}
 
 	if View(b, c).has_remaining() {
@@ -95,7 +95,7 @@ pub async fn newtick(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resu
 	// move the cursor to the end to avoid triggering the warning later
 	*c = b.len();
 
-	autonexus::new_tick_finish(proxy).await;
+	autonexus::new_tick(proxy, tick_id, tick_time).await;
 
 	Ok(false)
 }

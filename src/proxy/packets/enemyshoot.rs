@@ -1,5 +1,5 @@
 use crate::{
-	proxy::{Proxy, logic::autonexus},
+	proxy::{Proxy, logic::common},
 	util::View,
 };
 use anyhow::Result;
@@ -20,7 +20,7 @@ pub async fn enemyshoot(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> R
 		(1, 0.0)
 	};
 
-	autonexus::new_bullet(proxy, bullet_id, owner_id, bullet_type, damage, numshots).await?;
+	common::enemyshoot(proxy, bullet_id, owner_id, bullet_type, damage, numshots)?;
 
 	Ok(false)
 }

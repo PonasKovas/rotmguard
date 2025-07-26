@@ -1,5 +1,5 @@
 use crate::{
-	proxy::{Proxy, logic::damage_monitor},
+	proxy::{Proxy, logic::common},
 	util::View,
 };
 use anyhow::Result;
@@ -19,7 +19,7 @@ pub async fn playershoot(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> 
 	let _player_pos_x = View(b, c).try_get_f32()?;
 	let _player_pos_y = View(b, c).try_get_f32()?;
 
-	damage_monitor::playershoot(proxy, bullet_id, weapon_id as u32, projectile_type);
+	common::playershoot(proxy, bullet_id, weapon_id as u32, projectile_type);
 
 	Ok(false)
 }

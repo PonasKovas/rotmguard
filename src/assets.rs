@@ -19,6 +19,7 @@ pub struct Assets {
 	reverse_changes_guard: Option<ReverseChangesGuard>,
 }
 
+#[derive(Debug)]
 pub struct Sprites {
 	pub animated_spritesheets: HashMap<String, Spritesheet>,
 	pub spritesheets: HashMap<String, Spritesheet>,
@@ -34,33 +35,47 @@ pub struct Object {
 	pub projectiles: BTreeMap<u8, ProjectileInfo>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct ProjectileInfo {
 	// either precise damage or a range
 	pub damage: Either<i32, (i32, i32)>,
 	pub armor_piercing: bool,
-	// bitflags
-	pub inflicts_condition: u64,
-	pub inflicts_condition2: u64,
+	pub inflicts: Vec<ProjectileCondition>,
 }
 
+#[derive(Debug, Clone, PartialEq, PartialOrd, Default)]
+pub struct ProjectileCondition {
+	// bitflags
+	pub condition: u64,
+	pub condition2: u64,
+	// duration in seconds
+	pub duration: f32,
+}
+
+#[derive(Debug)]
 pub struct SpriteId {
 	pub is_animated: bool,
 	pub spritesheet: String,
 	pub index: u32,
 }
 
+#[derive(Debug)]
 pub struct Enchantment {
 	pub name: String,
 	pub effects: Vec<EnchantmentEffect>,
 }
 
+#[derive(Debug)]
 pub enum EnchantmentEffect {
 	FlatLifeRegen(f32),
 	PercentageLifeRegen(f32),
+	MinDamageMult(f32),
+	MaxDamageMult(f32),
+	SelfDamageMult(f32),
 	Other, // not particularly interested in the gazillion other enchantments
 }
 
+#[derive(Debug)]
 pub struct Tile {
 	pub name: String,
 	pub damage: Option<i16>,

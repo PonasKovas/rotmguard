@@ -1,6 +1,6 @@
 use super::{XMLUtility, parse_id};
 use crate::{
-	assets::{Object, ProjectileInfo, SpriteId},
+	assets::{Object, ProjectileCondition, ProjectileInfo, SpriteId},
 	config::Config,
 	util::{CONDITION_BITFLAG, CONDITION2_BITFLAG},
 };
@@ -123,8 +123,7 @@ fn parse_projectile(
 	};
 
 	let mut armor_piercing = false;
-	let mut inflicts_condition = 0;
-	let mut inflicts_condition2 = 0;
+	let mut inflicts = Vec::new();
 
 	// iterating using indexes instead of directly, because we will modify as we go (removing debuffs)
 	// so its also important to start from the end
@@ -139,36 +138,24 @@ fn parse_projectile(
 				armor_piercing = true;
 			}
 			"ConditionEffect" => {
-				let condition = &*projectile_parameter.get_text().with_context(|| {
+				let condition_name = &*projectile_parameter.get_text().with_context(|| {
 					format!("parameter {projectile_parameter_i} ConditionEffect text")
 				})?;
-
-				match condition {
-					"Curse" => {
-						inflicts_condition2 |= CONDITION2_BITFLAG::CURSED;
-					}
-					"Exposed" => {
-						inflicts_condition2 |= CONDITION2_BITFLAG::EXPOSED;
-					}
-					"Sick" => {
-						inflicts_condition |= CONDITION_BITFLAG::SICK;
-					}
-					"Bleeding" => {
-						inflicts_condition |= CONDITION_BITFLAG::BLEEDING;
-					}
-					"Armor Broken" => {
-						inflicts_condition |= CONDITION_BITFLAG::ARMOR_BROKEN;
-					}
-					"Weak" => {
-						inflicts_condition |= CONDITION_BITFLAG::WEAK;
-					}
-					_ => {} // may want to handle more later
-				}
+				let duration = match projectile_parameter.attributes.get("duration") {
+					Some(d) => d,
+					// bruh
+					None => match projectile_parameter.attributes.get("effect") {
+						Some(d) => d,
+						None => bail!(
+							"parameter {projectile_parameter_i} neither duration nor effect param found"
+						),
+					},
+				};
 
 				// Client-side debuffs for force antidebuff
 				if config.settings.edit_assets.force_debuffs {
 					let debuffs = &config.settings.debuffs;
-					let c = condition;
+					let c = condition_name;
 					if (c == "Blind" && debuffs.blind)
 						|| (c == "Hallucinating" && debuffs.hallucinating)
 						|| (c == "Drunk" && debuffs.drunk)
@@ -178,8 +165,38 @@ fn parse_projectile(
 					{
 						projectile.children.remove(projectile_parameter_i);
 						modified = true;
+						continue;
 					}
 				}
+
+				let mut condition = ProjectileCondition::default();
+				condition.duration = duration
+					.parse()
+					.with_context(|| format!("parameter {projectile_parameter_i} duration"))?;
+
+				match condition_name {
+					"Curse" => {
+						condition.condition2 |= CONDITION2_BITFLAG::CURSED;
+					}
+					"Exposed" => {
+						condition.condition2 |= CONDITION2_BITFLAG::EXPOSED;
+					}
+					"Sick" => {
+						condition.condition |= CONDITION_BITFLAG::SICK;
+					}
+					"Bleeding" => {
+						condition.condition |= CONDITION_BITFLAG::BLEEDING;
+					}
+					"Armor Broken" => {
+						condition.condition |= CONDITION_BITFLAG::ARMOR_BROKEN;
+					}
+					"Weak" => {
+						condition.condition |= CONDITION_BITFLAG::WEAK;
+					}
+					_ => {} // may want to handle more later
+				}
+
+				inflicts.push(condition);
 			}
 			_ => {}
 		}
@@ -191,8 +208,7 @@ fn parse_projectile(
 		ProjectileInfo {
 			damage,
 			armor_piercing,
-			inflicts_condition,
-			inflicts_condition2,
+			inflicts,
 		},
 	))
 }

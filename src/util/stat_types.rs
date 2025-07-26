@@ -146,24 +146,25 @@ pub mod CONDITION_BITFLAG {
 	pub const SLOW: u64 = 0x8;
 	pub const SICK: u64 = 0x10;
 	pub const BLIND: u64 = 0x80;
-	pub const HALLUCINATING: u64 = 0x100;
-	pub const DRUNK: u64 = 0x200;
-	pub const CONFUSED: u64 = 0x400;
-	pub const BLEEDING: u64 = 0x8000;
-	pub const HEALING: u64 = 0x20000;
-	pub const IN_COMBAT: u64 = 0x100000;
-	pub const INVINCIBLE: u64 = 0x800000;
-	pub const INVULNERABLE: u64 = 0x1000000;
-	pub const ARMORED: u64 = 0x2000000;
-	pub const ARMOR_BROKEN: u64 = 0x4000000;
-	pub const HEXED: u64 = 0x8000000;
-	pub const UNSTABLE: u64 = 0x20000000;
-	pub const DARKNESS: u64 = 0x40000000;
+	pub const HALLUCINATING: u64 = 0x1_00;
+	pub const DRUNK: u64 = 0x2_00;
+	pub const CONFUSED: u64 = 0x4_00;
+	pub const BLEEDING: u64 = 0x80_00;
+	pub const HEALING: u64 = 0x2_00_00;
+	pub const DAMAGING: u64 = 0x4_00_00;
+	pub const IN_COMBAT: u64 = 0x10_00_00;
+	pub const INVINCIBLE: u64 = 0x80_00_00;
+	pub const INVULNERABLE: u64 = 0x1_00_00_00;
+	pub const ARMORED: u64 = 0x2_00_00_00;
+	pub const ARMOR_BROKEN: u64 = 0x4_00_00_00;
+	pub const HEXED: u64 = 0x8_00_00_00;
+	pub const UNSTABLE: u64 = 0x20_00_00_00;
+	pub const DARKNESS: u64 = 0x40_00_00_00;
 }
 
 #[allow(dead_code, non_snake_case)]
 pub mod CONDITION2_BITFLAG {
 	pub const PETRIFIED: u64 = 0x8;
 	pub const CURSED: u64 = 0x40;
-	pub const EXPOSED: u64 = 0x20000;
+	pub const EXPOSED: u64 = 0x2_00_00;
 }

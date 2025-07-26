@@ -16,17 +16,14 @@ pub struct Config {
 pub struct Settings {
 	/// HP at which to autonexus. Recommended value 20
 	pub autonexus_hp: Mutex<i32>,
-	/// Enables damage monitoring, see stats with /dmg command
-	pub damage_monitor: bool,
 	/// Reduces lag by blocking certain packets
 	pub antilag: Mutex<bool>,
 	/// If true, will activate developer mode.
 	pub dev_mode: Mutex<bool>,
-	/// Whether to attempt to automatically open damage monitor links in the browser
-	pub open_browser: bool,
 	/// Which client-side debuffs to disable
 	pub debuffs: Debuffs,
 	pub edit_assets: EditAssets,
+	pub damage_monitor: DamageMonitorConfig,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
@@ -59,4 +56,14 @@ pub struct EditAssets {
 	pub enabled: bool,
 	/// If true, will remove the client-side debuffs completely
 	pub force_debuffs: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub struct DamageMonitorConfig {
+	/// Enables damage monitoring, see stats with /dmg command
+	pub enabled: bool,
+	/// How many previous dungeons stats to keep in memory at once. 0 means only keep current dungeon
+	pub keep_memory: u32,
+	/// Whether to attempt to automatically open damage monitor links in the browser
+	pub open_browser: bool,
 }

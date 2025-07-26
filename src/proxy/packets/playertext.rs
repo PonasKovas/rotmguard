@@ -1,7 +1,7 @@
 use crate::{
 	proxy::{
 		Proxy,
-		logic::{antipush, autonexus, con, damage_monitor, fakeslow},
+		logic::{antipush, autonexus, con, fakeslow},
 	},
 	util::{BLUE, GREEN, RED, View, read_str, static_notification},
 };
@@ -21,7 +21,7 @@ pub async fn playertext(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> R
 		return Ok(false);
 	}
 
-	let mut args = text.split(' ');
+	let mut args = text.split(' ').map(|s| s.trim()).filter(|s| !s.is_empty());
 
 	let command = args.next().unwrap();
 	match command {
@@ -32,7 +32,7 @@ pub async fn playertext(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> R
 			Ok(true)
 		}
 		"/dmg" => {
-			damage_monitor::generate_report(proxy).await;
+			// damage_monitor::generate_report(proxy).await;
 
 			Ok(true)
 		}

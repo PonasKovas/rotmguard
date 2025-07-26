@@ -1,5 +1,5 @@
 use crate::{
-	proxy::{Proxy, logic::damage_monitor},
+	proxy::{Proxy, logic::common},
 	util::View,
 };
 use anyhow::Result;
@@ -19,9 +19,15 @@ pub async fn serverplayershoot(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usiz
 	let bullet_count = View(b, c).try_get_u8().ok();
 	let _angle_between_bullets = View(b, c).try_get_f32().ok();
 
-	if summoner_id == proxy.state.my_obj_id {
-		// damage_monitor::serverplayershoot(proxy, bullet_id, shooter_id, damage);
-	}
+	common::serverplayershoot(
+		proxy,
+		bullet_id,
+		shooter_id,
+		summoner_id,
+		damage,
+		bullet_type,
+		bullet_count,
+	);
 
 	Ok(false)
 }

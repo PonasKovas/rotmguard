@@ -57,26 +57,50 @@ fn parse_enchantment(
 }
 
 fn parse_mutator(_config: &Config, mutator: &mut Element) -> Result<EnchantmentEffect> {
-	let mutator_type = mutator.get_text().context("Mutator text")?;
-
+	let mutator_name = mutator.name.as_str();
+	let text = mutator.get_text().context("Mutator text")?;
 	let stat = mutator.attributes.get("stat").context("stat attr");
 	let amount = mutator
 		.attributes
 		.get("amount")
 		.map(|x| x.parse::<f32>())
 		.context("amount attr");
+	let mult = mutator
+		.attributes
+		.get("mult")
+		.map(|x| x.parse::<f32>())
+		.context("mult attr");
 
-	let effect = match &*mutator_type {
-		"FlatRegen" => match &**stat? {
-			"HP" => EnchantmentEffect::FlatLifeRegen(amount??),
-			_ => EnchantmentEffect::Other,
+	let mut effect = EnchantmentEffect::Other;
+	match mutator_name {
+		"ActivateOnEquip" => match &*text {
+			"FlatRegen" => match &**stat? {
+				"HP" => {
+					effect = EnchantmentEffect::FlatLifeRegen(amount??);
+				}
+				_ => {}
+			},
+			"PercentageRegen" => match &**stat? {
+				"HP" => {
+					effect = EnchantmentEffect::PercentageLifeRegen(amount??);
+				}
+				_ => {}
+			},
+			"DamageMultSelf" => {
+				effect = EnchantmentEffect::SelfDamageMult(mult??);
+			}
+			_ => {}
 		},
-		"PercentageRegen" => match &**stat? {
-			"HP" => EnchantmentEffect::PercentageLifeRegen(amount??),
-			_ => EnchantmentEffect::Other,
-		},
-		_ => EnchantmentEffect::Other,
-	};
+		"MultiplyMinDamage" => {
+			effect =
+				EnchantmentEffect::MinDamageMult(text.parse::<f32>().context("MultiplyMinDamage")?);
+		}
+		"MultiplyMaxDamage" => {
+			effect =
+				EnchantmentEffect::MaxDamageMult(text.parse::<f32>().context("MultiplyMaxDamage")?);
+		}
+		_ => {}
+	}
 
 	Ok(effect)
 }

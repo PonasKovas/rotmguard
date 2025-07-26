@@ -1,7 +1,7 @@
 use crate::{
 	proxy::{
 		Proxy,
-		logic::{antidebuffs, antipush, autonexus, damage_monitor, fakeslow},
+		logic::{antidebuffs, antipush, autonexus, common, fakeslow},
 		packets::common::parse_object_data,
 	},
 	util::{
@@ -93,8 +93,8 @@ pub async fn update(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resul
 	for _ in 0..to_remove_n {
 		let object_id = read_compressed_int(View(b, c))? as u32;
 
-		autonexus::remove_object(proxy, object_id);
-		damage_monitor::remove_object(proxy, object_id);
+		// damage_monitor::remove_object(proxy, object_id);
+		common::remove_object(proxy, object_id);
 	}
 	let end_cursor = *c;
 
@@ -107,22 +107,20 @@ pub async fn update(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resul
 	for _ in 0..objects_n {
 		let object_type = View(b, c).try_get_u16()?;
 
-		let mut dmg_monitor_processor;
+		// let mut dmg_monitor_processor;
 		parse_object_data!(b, c;
 			object(object_id, _pos_x, _pos_y) => {
-				dmg_monitor_processor = damage_monitor::ObjectStatusProcessor::new(object_id, object_type);
+				// dmg_monitor_processor = damage_monitor::ObjectStatusProcessor::new(object_id, object_type);
 
-				autonexus::add_object(proxy, object_id, object_type);
+				common::add_object(proxy, object_id, object_type);
 			};
 			int_stat(stat_type, stat) => {
-				dmg_monitor_processor.add_int_stat(stat_type, stat);
+				common::object_int_stat(proxy, object_id, stat_type, stat);
+				// dmg_monitor_processor.add_int_stat(stat_type, stat);
 
-				if object_id == proxy.state.my_obj_id {
+				if object_id == proxy.state.common.objects.self_id {
 					let mut new_stat = stat;
 					let original_stat_size = size_as_compressed_int(stat);
-
-					autonexus::initial_self_stat(proxy, stat_type, &mut new_stat);
-					autonexus::self_stat(proxy, stat_type, stat).await;
 
 					if stat_type == STAT_TYPE::CONDITION {
 						antidebuffs::self_condition_stat(proxy, &mut new_stat);
@@ -139,11 +137,12 @@ pub async fn update(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resul
 				}
 			};
 			str_stat(stat_type, stat) => {
-				dmg_monitor_processor.add_str_stat(stat_type, stat);
+				// dmg_monitor_processor.add_str_stat(stat_type, stat);
+				common::object_str_stat(proxy, object_id, stat_type, stat);
 			};
 		);
 
-		dmg_monitor_processor.finish(proxy);
+		// dmg_monitor_processor.finish(proxy);
 	}
 
 	*c = end_cursor;

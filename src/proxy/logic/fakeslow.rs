@@ -67,7 +67,7 @@ pub fn extra_object_status(
 	}
 
 	Some(ExtraObject {
-		obj_id: proxy.state.my_obj_id,
+		obj_id: proxy.state.common.objects.self_id,
 		pos_x: 0.0, // literally doesnt matter
 		pos_y: 0.0,
 		stats: once(StatData {

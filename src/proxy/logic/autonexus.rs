@@ -1,33 +1,43 @@
 use crate::{
-	proxy::Proxy,
+	proxy::{
+		Proxy,
+		packets::{ExtraObject, StatData},
+	},
 	util::{
 		BLUE, CONDITION_BITFLAG, CONDITION2_BITFLAG, GREEN, RED, STAT_TYPE, create_escape,
 		create_notification,
 	},
 };
+use either::Either;
 use tracing::{error, info};
 
 mod aoes;
 mod ground;
+mod heals;
+mod passive;
 mod projectiles;
-pub mod ticks;
 
 pub use aoes::{aoe, aoeack};
 pub use ground::{ground_damage, new_tile};
-pub use projectiles::{add_object, new_bullet, player_hit, remove_object};
-pub use ticks::{
-	client_tick_acknowledge, extra_object_status, new_tick_finish, new_tick_start,
-	object_notification, self_stat,
-};
+pub use heals::object_notification;
+pub use passive::new_tick;
+pub use projectiles::player_hit;
 
 #[derive(Default)]
 pub struct Autonexus {
 	hp: f32,
-	last_damage_tick: u32, // tick id when was the last time some damage was taken
-	pub ticks: ticks::Ticks,
+	// tick id after (client acknowledging) which it is assumed to be safe to sync HP with the server
+	tick_to_sync_after: u32,
+	inflicted_conditions: Vec<InflictedCondition>,
 	ground: ground::Ground,
-	projectiles: projectiles::Projectiles,
 	aoes: aoes::Aoes,
+}
+
+struct InflictedCondition {
+	condition: u64,
+	condition2: u64,
+	// in milliseconds
+	expires_in: u32,
 }
 
 pub async fn command(proxy: &mut Proxy, mut args: impl Iterator<Item = &str>) {
@@ -62,18 +72,72 @@ pub async fn command(proxy: &mut Proxy, mut args: impl Iterator<Item = &str>) {
 	proxy.send_client(notification).await;
 }
 
-// only in Update packet when self object is initially added
-pub fn initial_self_stat(proxy: &mut Proxy, stat_type: u8, stat: &mut i64) {
-	if stat_type == STAT_TYPE::HP {
-		proxy.state.autonexus.hp = *stat as f32;
+pub async fn client_tick_ack(proxy: &mut Proxy, tick_id: u32, tick_time: u32) {
+	// clean up any inflicted conditions
+	for i in (0..proxy.state.autonexus.inflicted_conditions.len()).rev() {
+		let cond = &mut proxy.state.autonexus.inflicted_conditions[i];
+
+		match cond.expires_in.checked_sub(tick_time) {
+			Some(remaining) => {
+				cond.expires_in = remaining;
+			}
+			None => {
+				proxy.state.autonexus.inflicted_conditions.remove(i);
+			}
+		}
 	}
+
+	// sync hp if safe to do so
+	let stats = proxy.state.common.objects.get_self().stats;
+	let hp_delta = stats.hp - proxy.state.autonexus.hp.round() as i64;
+	let safe_to_sync = tick_id > proxy.state.autonexus.tick_to_sync_after;
+	if safe_to_sync && hp_delta != 0 {
+		if devmode(proxy) {
+			proxy
+				.send_client(create_notification(
+					&format!("SAFESYNC {hp_delta}"),
+					0xff44ff,
+				))
+				.await;
+		}
+
+		proxy.state.autonexus.hp = stats.hp as f32;
+	}
+}
+
+// if devmode enabled will replace the fame bar with simulated hp
+pub fn extra_object_status(
+	proxy: &mut Proxy,
+) -> impl Iterator<Item = ExtraObject<impl Iterator<Item = StatData<'_>> + ExactSizeIterator>> {
+	if !devmode(proxy) {
+		return None.into_iter();
+	}
+
+	Some(ExtraObject {
+		obj_id: proxy.state.common.objects.self_id,
+		pos_x: 0.0,
+		pos_y: 0.0,
+		stats: [
+			StatData {
+				stat_type: STAT_TYPE::CURRENT_FAME,
+				data: Either::Right(proxy.state.autonexus.hp as i64),
+				secondary: -1,
+			},
+			StatData {
+				stat_type: STAT_TYPE::CLASS_QUEST_FAME,
+				data: Either::Right(proxy.state.common.objects.get_self().stats.max_hp),
+				secondary: -1,
+			},
+		]
+		.into_iter(),
+	})
+	.into_iter()
 }
 
 // calculates and applies the real damage, taking into account status effects and everything
 async fn take_damage(proxy: &mut Proxy, mut damage: i64, armor_piercing: bool) {
-	let tick = proxy.state.autonexus.ticks.current();
-	let conditions = tick.stats.conditions;
-	let conditions2 = tick.stats.conditions2;
+	let stats = proxy.state.common.objects.get_self().stats;
+	let (conditions, conditions2) = get_conditions(proxy);
 
 	if (conditions & CONDITION_BITFLAG::INVULNERABLE) != 0 {
 		return;
@@ -81,7 +145,7 @@ async fn take_damage(proxy: &mut Proxy, mut damage: i64, armor_piercing: bool) {
 
 	// calculate damage
 	if !armor_piercing && (conditions & CONDITION_BITFLAG::ARMOR_BROKEN) == 0 {
-		let mut def = tick.stats.def;
+		let mut def = stats.def;
 		if (conditions & CONDITION_BITFLAG::ARMORED) != 0 {
 			def += def / 2; // x1.5
 		}
@@ -108,13 +172,14 @@ async fn take_damage(proxy: &mut Proxy, mut damage: i64, armor_piercing: bool) {
 
 // just applies already calculated raw damage
 async fn take_damage_raw(proxy: &mut Proxy, dmg: i64) {
-	let condition = proxy.state.autonexus.ticks.current().stats.conditions;
+	let (condition, _cond2) = get_conditions(proxy);
 	if (condition & CONDITION_BITFLAG::INVINCIBLE) != 0 {
 		return; // player is invincible, no damage can be taken
 	}
 
 	proxy.state.autonexus.hp -= dmg as f32;
-	proxy.state.autonexus.last_damage_tick = proxy.state.autonexus.ticks.current().id;
+	// safe to sync HP only after client acknowledges 10 ticks after current server tick
+	proxy.state.autonexus.tick_to_sync_after = proxy.state.common.server_tick_id + 10;
 
 	let threshold = *proxy.rotmguard.config.settings.autonexus_hp.lock().unwrap();
 	if proxy.state.autonexus.hp < threshold as f32 {
@@ -131,4 +196,18 @@ async fn take_damage_raw(proxy: &mut Proxy, dmg: i64) {
 
 fn devmode(proxy: &mut Proxy) -> bool {
 	*proxy.rotmguard.config.settings.dev_mode.lock().unwrap()
+}
+
+// gets the self player conditions, taking into account also conditions that were inflicted
+// by bullets and maybe not necessarily reflected in the server-provided conditions YET
+fn get_conditions(proxy: &mut Proxy) -> (u64, u64) {
+	let mut cond = proxy.state.common.objects.get_self().stats.conditions;
+	let mut cond2 = proxy.state.common.objects.get_self().stats.conditions2;
+
+	for c in &proxy.state.autonexus.inflicted_conditions {
+		cond |= c.condition;
+		cond2 |= c.condition2;
+	}
+
+	(cond, cond2)
 }
