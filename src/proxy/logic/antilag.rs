@@ -3,20 +3,23 @@
 
 use crate::proxy::Proxy;
 
-// for development purpoes
-pub static BLOCK_TYPE: std::sync::Mutex<u8> = std::sync::Mutex::new(0);
-
-pub fn should_block_damage(proxy: &mut Proxy, bullet_owner_obj_id: u32) -> bool {
-	if *BLOCK_TYPE.lock().unwrap() & 1 == 0 {
-		return false;
-	}
-
-	// block if antilag enabled and if the damage was not caused by me
+pub fn should_block_damage(
+	proxy: &mut Proxy,
+	target_obj_id: u32,
+	bullet_owner_obj_id: u32,
+) -> bool {
+	// block if antilag enabled and if the damage was not caused by me or to me
 
 	// (we wanna see our own damage!!)
 
-	*proxy.rotmguard.config.settings.antilag.lock().unwrap()
-		&& bullet_owner_obj_id != proxy.state.my_obj_id
+	if *proxy.rotmguard.config.settings.antilag.lock().unwrap() {
+		if bullet_owner_obj_id == proxy.state.my_obj_id || target_obj_id == proxy.state.my_obj_id {
+			return false;
+		} else {
+			return true;
+		}
+	}
+	false
 }
 
 pub fn should_block_object_notification(
@@ -25,10 +28,6 @@ pub fn should_block_object_notification(
 	_color: u32,
 	_message: &str,
 ) -> bool {
-	if *BLOCK_TYPE.lock().unwrap() & 2 == 0 {
-		return false;
-	}
-
 	// block if antilag enabled and if the notification is not on me
 
 	*proxy.rotmguard.config.settings.antilag.lock().unwrap() && obj_id != proxy.state.my_obj_id

@@ -1,4 +1,4 @@
-use crate::{Rotmguard, packet_logger};
+use crate::{Direction, Rotmguard, packet_logger};
 use anyhow::Result;
 use bytes::Bytes;
 use futures::{StreamExt as _, stream::FuturesUnordered};
@@ -61,12 +61,14 @@ pub async fn run(rotmguard: Arc<Rotmguard>, client: TcpStream, server: TcpStream
 		s_write,
 		s_recv,
 		RC4_KEY_C2S,
+		Direction::C2S,
 	));
 	let w2 = tokio::spawn(writer::task(
 		Arc::clone(&rotmguard),
 		c_write,
 		c_recv,
 		RC4_KEY_S2C,
+		Direction::S2C,
 	));
 
 	// This task will be for reading packets and handling them
@@ -104,7 +106,7 @@ impl Proxy {
 					res?;
 
 					while let Some(packet) = c_read.try_get_packet()? {
-						packet_logger.add(packet_logger::Direction::C2S, &packet).await?;
+						packet_logger.add(Direction::C2S, &packet).await?;
 
 						logic::handle_c2s_packet(&mut self, packet).await?;
 					}
@@ -113,7 +115,7 @@ impl Proxy {
 					res?;
 
 					while let Some(packet) = s_read.try_get_packet()? {
-						packet_logger.add(packet_logger::Direction::S2C, &packet).await?;
+						packet_logger.add(Direction::S2C, &packet).await?;
 
 
 						logic::handle_s2c_packet(&mut self, packet).await?;

@@ -3,10 +3,11 @@ use crate::{Rotmguard, rc4::Rc4};
 use anyhow::Result;
 use bytes::Bytes;
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
 use std::time::Instant;
 use tokio::{io::AsyncWriteExt as _, net::tcp::OwnedWriteHalf, sync::mpsc::Receiver};
 use tracing::{error, warn};
+
+use super::Direction;
 
 // BufWriter buffer size
 const BUFFER_SIZE: usize = 8 * 1024;
@@ -27,6 +28,7 @@ pub async fn task(
 	stream: OwnedWriteHalf,
 	channel: Receiver<Bytes>,
 	rc4_key: &[u8; 13],
+	direction: Direction,
 ) {
 	let writer = Writer {
 		stream,
@@ -35,7 +37,7 @@ pub async fn task(
 		channel,
 	};
 
-	if let Err(e) = writer.run(rotmguard).await {
+	if let Err(e) = writer.run(rotmguard, direction).await {
 		error!("Writer task: {e:?}");
 	}
 }
@@ -51,7 +53,7 @@ struct Writer {
 }
 
 impl Writer {
-	async fn run(mut self, rotmguard: Arc<Rotmguard>) -> Result<()> {
+	async fn run(mut self, rotmguard: Arc<Rotmguard>, direction: Direction) -> Result<()> {
 		let mut unflushed_packet_ids = Vec::with_capacity(128);
 		let mut last_flush = Instant::now();
 
@@ -78,10 +80,6 @@ impl Writer {
 			};
 
 			unflushed_packet_ids.push(bytes[0]);
-			rotmguard
-				.flush_skips
-				.total_packets
-				.fetch_add(1, Ordering::Relaxed);
 
 			// packet len
 			self.write(&u32::to_be_bytes(bytes.len() as u32 + 4), false) // includes itself so +4
@@ -93,21 +91,16 @@ impl Writer {
 			// packet itself (ciphered)
 			self.write(&bytes[1..], true).await?;
 
+			let elapsed = last_flush.elapsed();
+			last_flush = Instant::now();
 			if !LOW_PRIORITY_PACKETS.contains(&bytes[0]) {
 				self.flush().await?;
 
 				unflushed_packet_ids.clear();
 
-				let elapsed = last_flush.elapsed().as_micros() as u64;
-				last_flush = Instant::now();
-				rotmguard
-					.flush_skips
-					.flushes
-					.fetch_add(1, Ordering::Relaxed);
-				rotmguard
-					.flush_skips
-					.total_time
-					.fetch_add(elapsed, Ordering::Relaxed);
+				rotmguard.flush_skips.add_packet(direction, elapsed, true);
+			} else {
+				rotmguard.flush_skips.add_packet(direction, elapsed, false);
 			}
 		}
 		Ok(())

@@ -2,9 +2,9 @@ use anyhow::{Context, Result};
 use assets::Assets;
 use config::Config;
 use damage_monitor_http_server::DamageMonitorHttp;
+use flushskip_stats::FlushSkips;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::atomic::AtomicU64;
 use std::{env, fs};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::select;
@@ -14,6 +14,7 @@ mod assets;
 mod config;
 mod damage_monitor_http_server;
 mod fetch_server_list;
+mod flushskip_stats;
 mod iptables;
 mod logging;
 mod packet_logger;
@@ -29,14 +30,11 @@ struct Rotmguard {
 	damage_monitor_http: DamageMonitorHttp,
 }
 
-#[derive(Default)]
-struct FlushSkips {
-	// total packets forwarded/sent
-	total_packets: AtomicU64,
-	// total IO flushes on the stream
-	flushes: AtomicU64,
-	// total summed spaces between flushes
-	total_time: AtomicU64,
+// used in many places..
+#[derive(Copy, Clone)]
+enum Direction {
+	C2S,
+	S2C,
 }
 
 fn main() -> Result<()> {

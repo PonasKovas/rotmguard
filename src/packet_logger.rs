@@ -1,3 +1,4 @@
+use crate::Direction;
 use anyhow::Result;
 use std::env;
 use tokio::{
@@ -12,11 +13,6 @@ pub enum PacketLogger {
 		log: BufWriter<File>,
 		start_time: Instant,
 	},
-}
-
-pub enum Direction {
-	C2S,
-	S2C,
 }
 
 pub fn enabled() -> bool {

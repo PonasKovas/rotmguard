@@ -3,11 +3,10 @@ use crate::{
 		Proxy,
 		logic::{antipush, autonexus, con, damage_monitor, fakeslow},
 	},
-	util::{BLUE, GREEN, RED, View, create_notification, read_str, static_notification},
+	util::{BLUE, GREEN, RED, View, read_str, static_notification},
 };
 use anyhow::Result;
 use bytes::BytesMut;
-use std::sync::atomic::Ordering;
 
 pub async fn playertext(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Result<bool> {
 	// The packet is used to handle commands
@@ -53,32 +52,6 @@ pub async fn playertext(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> R
 
 			Ok(true)
 		}
-		"/flushskips" => {
-			let total = proxy
-				.rotmguard
-				.flush_skips
-				.total_packets
-				.load(Ordering::Relaxed);
-			let flushes = proxy.rotmguard.flush_skips.flushes.load(Ordering::Relaxed);
-			let total_time = proxy
-				.rotmguard
-				.flush_skips
-				.total_time
-				.load(Ordering::Relaxed);
-
-			let percent_flushed = 100.0 * flushes as f32 / total as f32;
-			let avg_delay = total_time as f32 / total as f32;
-			proxy
-				.send_client(create_notification(
-					&format!(
-						"Total packets: {total}. Flushed: {percent_flushed:.2}%. Avg delay: {avg_delay:.2}us"
-					),
-					BLUE,
-				))
-				.await;
-
-			Ok(true)
-		}
 		"/autonexus" => {
 			autonexus::command(proxy, args).await;
 
@@ -100,33 +73,19 @@ pub async fn playertext(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> R
 			Ok(true)
 		}
 		"/antilag" => {
-			// let state = {
-			// 	let mut antilag = proxy.rotmguard.config.settings.antilag.lock().unwrap();
-			// 	*antilag = !*antilag;
-			// 	*antilag
-			// };
+			let state = {
+				let mut antilag = proxy.rotmguard.config.settings.antilag.lock().unwrap();
+				*antilag = !*antilag;
+				*antilag
+			};
 
-			if let Some(arg) = args.next() {
-				match arg.parse() {
-					Ok(bitflag) => {
-						*crate::proxy::logic::antilag::BLOCK_TYPE.lock().unwrap() = bitflag;
-						proxy.send_client(static_notification!("ok", GREEN)).await;
-					}
-					Err(_) => {
-						proxy
-							.send_client(static_notification!("couldnt parse bitflag", RED))
-							.await;
-					}
-				}
-			}
+			let notification = if state {
+				static_notification!("antilag on", GREEN)
+			} else {
+				static_notification!("antilag off", RED)
+			};
 
-			// let notification = if state {
-			// 	static_notification!("antilag on", GREEN)
-			// } else {
-			// 	static_notification!("antilag off", RED)
-			// };
-
-			// proxy.send_client(notification).await;
+			proxy.send_client(notification).await;
 
 			Ok(true)
 		}

@@ -1,7 +1,7 @@
 use crate::{
 	proxy::{
 		Proxy,
-		logic::{autonexus, damage_monitor},
+		logic::{antilag::should_block_object_notification, autonexus, damage_monitor},
 	},
 	util::{View, read_str},
 };
@@ -12,6 +12,7 @@ pub async fn notification(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) ->
 	let notification_type = View(b, c).try_get_u8()?;
 	let _extra = View(b, c).try_get_u8()?;
 
+	let mut should_block = false;
 	match notification_type {
 		6 => {
 			// Object text
@@ -20,6 +21,8 @@ pub async fn notification(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) ->
 			let color = View(b, c).try_get_u32()?;
 
 			autonexus::object_notification(proxy, message, object_id, color).await;
+
+			should_block = should_block_object_notification(proxy, object_id, color, message);
 		}
 		7 => {
 			// Player Death
@@ -33,5 +36,5 @@ pub async fn notification(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) ->
 		}
 	}
 
-	Ok(false)
+	Ok(should_block)
 }
