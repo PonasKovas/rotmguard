@@ -1,3 +1,5 @@
+use tracing::error;
+
 use super::{devmode, get_conditions};
 use crate::{
 	proxy::Proxy,
@@ -28,6 +30,36 @@ pub async fn new_tick(proxy: &mut Proxy, _id: u32, time: u32) {
 			// and the cleanest (least decimal places) slope that can be paired with it
 			// happens to be 0.2407. so here we are.
 			let mut regen_amount = time_seconds * (2.0 + 0.2407 * vit);
+
+			// If any equipped items enchanted with extra life regen, add it
+			for item in &proxy.state.common.objects.get_self().equipped_items {
+				if let Some(item) = item {
+					for enchantment in &item.enchantments {
+						match proxy.rotmguard.assets.enchantments.get(enchantment) {
+							Some(enchantment) => {
+								for effect in &enchantment.effects {
+									match effect {
+										crate::assets::EnchantmentEffect::FlatLifeRegen(x) => {
+											regen_amount += time_seconds * x;
+										}
+										crate::assets::EnchantmentEffect::PercentageLifeRegen(
+											x,
+										) => {
+											regen_amount +=
+												time_seconds * (stats.max_hp as f32 * x);
+										}
+										_ => {}
+									}
+								}
+							}
+							None => {
+								error!("Unknown enchantment id {enchantment}");
+							}
+						};
+					}
+				}
+			}
+
 			if (stats.conditions & CONDITION_BITFLAG::IN_COMBAT) != 0 {
 				regen_amount /= 2.0;
 			}

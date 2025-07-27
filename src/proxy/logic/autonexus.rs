@@ -167,6 +167,29 @@ async fn take_damage(proxy: &mut Proxy, mut damage: i64, armor_piercing: bool) {
 		damage -= damage / 10; // x 0.9
 	}
 
+	// If any equipped items enchanted with damage resistance
+	for item in &proxy.state.common.objects.get_self().equipped_items {
+		if let Some(item) = item {
+			for enchantment in &item.enchantments {
+				match proxy.rotmguard.assets.enchantments.get(enchantment) {
+					Some(enchantment) => {
+						for effect in &enchantment.effects {
+							match effect {
+								crate::assets::EnchantmentEffect::SelfDamageMult(x) => {
+									damage = (damage as f32 * x).ceil() as i64; // ceil just to be safe, idk really
+								}
+								_ => {}
+							}
+						}
+					}
+					None => {
+						error!("Unknown enchantment id {enchantment}");
+					}
+				};
+			}
+		}
+	}
+
 	take_damage_raw(proxy, damage).await;
 }
 
