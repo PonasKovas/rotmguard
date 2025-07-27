@@ -1,7 +1,6 @@
 use crate::config::Config;
 use anyhow::{Context, bail};
 use either::Either;
-use nix::NixPath;
 use process::ReverseChangesGuard;
 use raw_parse::RawAssets;
 use std::collections::{BTreeMap, HashMap};
@@ -98,7 +97,7 @@ impl Assets {
 }
 
 pub fn handle_assets(config: &Config) -> anyhow::Result<Assets> {
-	if config.assets_res.is_empty() {
+	if config.assets_res.as_os_str().is_empty() {
 		bail!("assets_res not set. Please edit your rotmguard.toml!",);
 	}
 

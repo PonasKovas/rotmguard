@@ -1515,7 +1515,6 @@ dependencies = [
  "rayon",
  "reqwest",
  "serde",
- "slab",
  "tokio",
  "toml",
  "tracing",

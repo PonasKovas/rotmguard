@@ -41,15 +41,10 @@ pub async fn newtick(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resu
 	let statuses_n_pos = *c;
 	let statuses_n = View(b, c).try_get_u16()?;
 	for _ in 0..statuses_n {
-		// let mut dmg_monitor_processor;
-
 		parse_object_data!(b, c;
-			object(object_id, _pos_x, _pos_y) => {
-				// dmg_monitor_processor = damage_monitor::ObjectStatusProcessor::update(object_id);
-			};
+			object(object_id, _pos_x, _pos_y) => {};
 			int_stat(stat_type, stat) => {
 				common::object_int_stat(proxy, object_id, stat_type, stat);
-				// dmg_monitor_processor.add_int_stat(stat_type, stat);
 
 				// if status about self and is condition stat
 				if object_id == proxy.state.common.objects.self_id {
@@ -72,11 +67,8 @@ pub async fn newtick(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resu
 			};
 			str_stat(stat_type, stat) => {
 				common::object_str_stat(proxy, object_id, stat_type, stat);
-				// dmg_monitor_processor.add_str_stat(stat_type, stat);
 			};
 		);
-
-		// dmg_monitor_processor.finish(proxy);
 	}
 
 	if View(b, c).has_remaining() {

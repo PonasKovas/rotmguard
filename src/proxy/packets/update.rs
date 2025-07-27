@@ -107,16 +107,12 @@ pub async fn update(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resul
 	for _ in 0..objects_n {
 		let object_type = View(b, c).try_get_u16()?;
 
-		// let mut dmg_monitor_processor;
 		parse_object_data!(b, c;
 			object(object_id, _pos_x, _pos_y) => {
-				// dmg_monitor_processor = damage_monitor::ObjectStatusProcessor::new(object_id, object_type);
-
 				common::add_object(proxy, object_id, object_type);
 			};
 			int_stat(stat_type, stat) => {
 				common::object_int_stat(proxy, object_id, stat_type, stat);
-				// dmg_monitor_processor.add_int_stat(stat_type, stat);
 
 				if object_id == proxy.state.common.objects.self_id {
 					let mut new_stat = stat;
@@ -137,12 +133,9 @@ pub async fn update(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resul
 				}
 			};
 			str_stat(stat_type, stat) => {
-				// dmg_monitor_processor.add_str_stat(stat_type, stat);
 				common::object_str_stat(proxy, object_id, stat_type, stat);
 			};
 		);
-
-		// dmg_monitor_processor.finish(proxy);
 	}
 
 	*c = end_cursor;

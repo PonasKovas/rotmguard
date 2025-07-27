@@ -23,7 +23,6 @@ xmltree = "0.10.3"
 flatbuffers = "25.2.10"
 png = "0.17.16"
 base64 = "0.22.1"
-slab = "0.4.10"
 hyper = { version = "1.6.0", features = ["server", "http1"] }
 hyper-util = { version = "0.1.15", features = ["tokio"] }
 webbrowser = "1.0.5"
@@ -31,6 +30,3 @@ askama = "0.14.0"
 ctrlc = { version = "3.4.7", features = ["termination"] }
 rayon = "1.10.0"
 arrayvec = "0.7.6"
-
-[profile.release]
-debug = true
