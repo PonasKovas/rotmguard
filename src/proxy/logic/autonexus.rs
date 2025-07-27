@@ -172,9 +172,9 @@ async fn take_damage(proxy: &mut Proxy, mut damage: i64, armor_piercing: bool) {
 
 // just applies already calculated raw damage
 async fn take_damage_raw(proxy: &mut Proxy, dmg: i64) {
-	let (condition, _cond2) = get_conditions(proxy);
-	if (condition & CONDITION_BITFLAG::INVINCIBLE) != 0 {
-		return; // player is invincible, no damage can be taken
+	let (condition, _condition2) = get_conditions(proxy);
+	if (condition & (CONDITION_BITFLAG::INVINCIBLE | CONDITION_BITFLAG::STASIS)) != 0 {
+		return; // player is invincible/stasis, no damage can be taken
 	}
 
 	proxy.state.autonexus.hp -= dmg as f32;

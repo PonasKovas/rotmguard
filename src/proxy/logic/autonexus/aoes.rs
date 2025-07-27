@@ -1,5 +1,8 @@
 use super::{InflictedCondition, take_damage};
-use crate::{proxy::Proxy, util::CONDITION_BITFLAG};
+use crate::{
+	proxy::{Proxy, packets::AoeEffect},
+	util::{CONDITION_BITFLAG, CONDITION2_BITFLAG},
+};
 use anyhow::{Context, Result};
 use std::collections::VecDeque;
 
@@ -13,6 +16,7 @@ struct Aoe {
 	radius: f32,
 	damage: u16,
 	inflicts_condition: u64,
+	inflicts_condition2: u64,
 	inflicts_duration: f32, // seconds
 	armor_piercing: bool,
 }
@@ -23,7 +27,7 @@ pub async fn aoe(
 	pos_y: f32,
 	radius: f32,
 	damage: u16,
-	effect: u8,
+	effect: AoeEffect,
 	duration: f32,
 	armor_piercing: bool,
 ) {
@@ -32,8 +36,17 @@ pub async fn aoe(
 		radius,
 		damage,
 		inflicts_condition: match effect {
-			5 => CONDITION_BITFLAG::SICK,
-			16 => CONDITION_BITFLAG::BLEEDING,
+			AoeEffect::Sick => CONDITION_BITFLAG::SICK,
+			AoeEffect::Bleeding => CONDITION_BITFLAG::BLEEDING,
+			AoeEffect::Weak => CONDITION_BITFLAG::WEAK,
+			AoeEffect::ArmorBroken => CONDITION_BITFLAG::ARMOR_BROKEN,
+			AoeEffect::Stasis => CONDITION_BITFLAG::STASIS,
+			_ => 0,
+		},
+		inflicts_condition2: match effect {
+			AoeEffect::Petrify => CONDITION2_BITFLAG::PETRIFIED,
+			AoeEffect::Curse => CONDITION2_BITFLAG::CURSED,
+			AoeEffect::Exposed => CONDITION2_BITFLAG::EXPOSED,
 			_ => 0,
 		},
 		inflicts_duration: duration,
@@ -70,7 +83,7 @@ pub async fn aoeack(proxy: &mut Proxy, pos_x: f32, pos_y: f32) -> Result<()> {
 			.inflicted_conditions
 			.push(InflictedCondition {
 				condition: aoe.inflicts_condition,
-				condition2: 0,
+				condition2: aoe.inflicts_condition2,
 				expires_in: (aoe.inflicts_duration * 1000.0) as u32,
 			});
 	}

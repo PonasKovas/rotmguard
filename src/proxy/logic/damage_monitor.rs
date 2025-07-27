@@ -269,9 +269,11 @@ pub async fn enemyhit(proxy: &mut Proxy, bullet_id: u16, shooter_id: u32, target
 
 	let mut total_damage = bullet.damage;
 
-	// no damage if enemy invincible or invulnerable
+	// no damage if enemy invincible or invulnerable or stasis
 	if (target_obj.stats.conditions
-		& (CONDITION_BITFLAG::INVULNERABLE | CONDITION_BITFLAG::INVINCIBLE))
+		& (CONDITION_BITFLAG::INVULNERABLE
+			| CONDITION_BITFLAG::INVINCIBLE
+			| CONDITION_BITFLAG::STASIS))
 		!= 0
 	{
 		total_damage = 0;

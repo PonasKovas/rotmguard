@@ -16,7 +16,7 @@ mod playertext;
 mod serverplayershoot;
 mod update;
 
-pub use aoe::aoe;
+pub use aoe::{AoeEffect, aoe};
 pub use aoeack::aoeack;
 pub use create_success::create_success;
 pub use damage::damage;

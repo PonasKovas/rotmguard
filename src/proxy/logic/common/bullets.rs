@@ -162,7 +162,7 @@ pub fn playershoot(proxy: &mut Proxy, bullet_id: u16, weapon_id: u32, mut projec
 	let base_damage = {
 		let rng = proxy.state.common.bullets.rng.next();
 
-		min + (rng % (max - min) as u32) as i32
+		min + (rng % max.saturating_sub(min) as u32) as i32
 	};
 	let multiplier = calculate_damage_multiplier(proxy, proxy.state.common.objects.self_id);
 	let damage = (base_damage as f32 * multiplier) as i16;

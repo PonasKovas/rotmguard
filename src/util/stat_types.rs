@@ -153,6 +153,7 @@ pub mod CONDITION_BITFLAG {
 	pub const HEALING: u64 = 0x2_00_00;
 	pub const DAMAGING: u64 = 0x4_00_00;
 	pub const IN_COMBAT: u64 = 0x10_00_00;
+	pub const STASIS: u64 = 0x20_00_00;
 	pub const INVINCIBLE: u64 = 0x80_00_00;
 	pub const INVULNERABLE: u64 = 0x1_00_00_00;
 	pub const ARMORED: u64 = 0x2_00_00_00;
