@@ -66,7 +66,11 @@ impl DamageMonitorHttp {
 			return Ok(Self::Disabled);
 		}
 
-		let listener = TcpListener::bind("0.0.0.0:0").await?;
+		let listener = TcpListener::bind((
+			config.settings.damage_monitor.bind_address,
+			config.settings.damage_monitor.bind_port,
+		))
+		.await?;
 		let addr = listener.local_addr()?;
 
 		info!("Damage monitor http server bound on {addr}");
