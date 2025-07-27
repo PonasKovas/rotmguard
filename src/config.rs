@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::{path::PathBuf, sync::Mutex};
+use std::{net::IpAddr, path::PathBuf, sync::Mutex};
 
 pub const CONFIG_PATH: &str = "rotmguard.toml";
 
@@ -66,4 +66,8 @@ pub struct DamageMonitorConfig {
 	pub keep_memory: u32,
 	/// Whether to attempt to automatically open damage monitor links in the browser
 	pub open_browser: bool,
+	/// What address to bind to, 0.0.0.0 for all
+	pub bind_address: IpAddr,
+	/// What port to bind to, 0 for any
+	pub bind_port: u16,
 }

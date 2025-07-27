@@ -65,14 +65,21 @@ impl Bullet {
 	}
 }
 
+pub fn set_rng_seed(proxy: &mut Proxy, seed: u32) {
+	proxy.state.common.bullets.rng = Rng::new(seed);
+}
+
 pub fn enemyshoot(
 	proxy: &mut Proxy,
 	bullet_id: u16,
 	owner_id: u32,
-	bullet_type: u8,
+	mut bullet_type: u8,
 	damage: i16,
 	numshots: u8,
 ) -> Result<()> {
+	if bullet_type as i8 == -1 {
+		bullet_type = 0;
+	}
 	let object_type = match proxy.state.common.objects.get(owner_id) {
 		Some(obj) => obj.type_id as u32,
 		// this happens all the time, server sends info about bullets that are not even in visible range

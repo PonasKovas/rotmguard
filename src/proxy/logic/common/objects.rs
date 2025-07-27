@@ -10,7 +10,7 @@ use tracing::error;
 pub struct Objects {
 	pub self_id: u32,
 	unique_id_incr: u64,
-	objects: BTreeMap<u32, Object>,
+	pub objects: BTreeMap<u32, Object>,
 }
 
 #[derive(Default)]
@@ -35,7 +35,7 @@ pub struct Stats {
 	pub exalt_bonus_dmg: i64,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Item {
 	pub id: u32,
 	pub enchantments: ArrayVec<u32, 4>,

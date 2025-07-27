@@ -1,7 +1,7 @@
 use crate::{
 	proxy::{
 		Proxy,
-		logic::{antipush, autonexus, con, fakeslow},
+		logic::{antipush, autonexus, con, damage_monitor, fakeslow},
 	},
 	util::{BLUE, GREEN, RED, View, read_str, static_notification},
 };
@@ -32,7 +32,7 @@ pub async fn playertext(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> R
 			Ok(true)
 		}
 		"/dmg" => {
-			// damage_monitor::generate_report(proxy).await;
+			damage_monitor::command(proxy, args).await;
 
 			Ok(true)
 		}

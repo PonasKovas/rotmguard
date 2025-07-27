@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ map_name }}</title>
-    <link rel="icon" type="image/x-icon" href="data:image/png;base64,{{ self::icon() }}">
+    <link rel="icon" type="image/x-icon" href="data:image/png;base64,{{ self::report_util::icon() }}">
 <style>
 :root {
     --c1: #36393B;
@@ -234,7 +234,7 @@ body {
     background-image: url("data:image/png;base64,
         {%- match sprite -%}
         {% when Some(sprite) %}{{- sprite -}}
-        {% when None %}{{- self::undefined_sprite() -}}
+        {% when None %}{{- self::report_util::undefined_sprite() -}}
         {%- endmatch -%}
     ");
 }
@@ -245,7 +245,7 @@ body {
     background-image: url("data:image/png;base64,
         {%- match sprite -%}
         {% when Some(sprite) %}{{- sprite -}}
-        {% when None %}{{- self::undefined_sprite() -}}
+        {% when None %}{{- self::report_util::undefined_sprite() -}}
         {%- endmatch -%}
     ");
 }
@@ -290,7 +290,7 @@ body {
                     <span class="player-place">{{ loop.index }}.</span>
                     <span class="player-status">{{ player.status }}</span>
                     <span class="player-name">{{ player.name }}</span>
-                    <span class="player-damage">{{ self::format_number(*player.damage) }}</span>
+                    <span class="player-damage">{{ self::report_util::format_number(*player.damage) }}</span>
                     <span class="player-percent">{{ player.damage_percent }}%</span>
                     <div class="player-items">
                     {%- for item in player.items -%}
@@ -318,14 +318,14 @@ body {
         <aside class="sidebar-panel">
             <div class="info">
                 <p class="dungeon-name">{{ map_name }}</span>
-                <p class="dungeon-time">at {{ self::time() }}</span>
+                <p class="dungeon-time">at {{ time }}</span>
             </div>
             <div class="enemy-list">
                 {%- for enemy_tab in enemy_tabs %}
                 <label for="enemy-tab-{{ loop.index }}" class="enemy-tab">
                     <span class="enemy-icon enemy-id-{{ enemy_tab.object_id }}"></span>
                     <span class="enemy-name">{{ enemy_tab.name }}</span>
-                    <span class="enemy-hp">{{ self::format_number(*enemy_tab.total_damage) }}</span>
+                    <span class="enemy-hp">{{ self::report_util::format_number(*enemy_tab.total_damage) }}</span>
                 </label>
                 {% endfor -%}
             </div>

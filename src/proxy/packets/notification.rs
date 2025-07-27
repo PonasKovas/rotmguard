@@ -1,7 +1,7 @@
 use crate::{
 	proxy::{
 		Proxy,
-		logic::{antilag::should_block_object_notification, autonexus},
+		logic::{antilag::should_block_object_notification, autonexus, damage_monitor},
 	},
 	util::{View, read_str},
 };
@@ -28,7 +28,7 @@ pub async fn notification(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) ->
 			// Player Death
 			let json = read_str(View(b, c))?;
 			let _picture_type = View(b, c).try_get_u32()?;
-			// damage_monitor::death_notification(proxy, json);
+			damage_monitor::death_notification(proxy, json);
 		}
 		_ => {
 			let rem = View(b, c).remaining();

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::{Proxy, packets};
 use crate::{
 	Rotmguard,
@@ -8,7 +10,7 @@ use anyhow::Result;
 use autonexus::Autonexus;
 use bytes::{Buf, BytesMut};
 use common::Common;
-// use damage_monitor::DamageMonitor;
+use damage_monitor::DamageMonitor;
 use fakeslow::FakeSlow;
 use tracing::{info, warn};
 
@@ -18,7 +20,7 @@ pub mod antipush;
 pub mod autonexus;
 pub mod common;
 pub mod con;
-// pub mod damage_monitor;
+pub mod damage_monitor;
 pub mod fakeslow;
 
 pub struct State {
@@ -26,17 +28,17 @@ pub struct State {
 	pub antipush: AntiPush,
 	pub fakeslow: FakeSlow,
 	pub autonexus: Autonexus,
-	// pub damage_monitor: DamageMonitor,
+	pub damage_monitor: DamageMonitor,
 }
 
 impl State {
-	pub fn new(rotmguard: &Rotmguard) -> Result<Self> {
+	pub fn new(rotmguard: &Arc<Rotmguard>) -> Result<Self> {
 		Ok(Self {
 			common: Common::default(),
 			antipush: AntiPush::new(rotmguard)?,
 			fakeslow: Default::default(),
 			autonexus: Default::default(),
-			// damage_monitor: Default::default(),
+			damage_monitor: DamageMonitor::new(rotmguard),
 		})
 	}
 }

@@ -1,4 +1,7 @@
-use crate::{proxy::Proxy, util::View};
+use crate::{
+	proxy::{Proxy, logic::damage_monitor},
+	util::View,
+};
 use anyhow::Result;
 use bytes::{Buf, BytesMut};
 
@@ -10,7 +13,7 @@ pub async fn enemyhit(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Res
 	let _is_killing = View(b, c).try_get_u8()? != 0;
 	let _unknown = View(b, c).try_get_u32()?;
 
-	// damage_monitor::enemyhit(proxy, bullet_id, shooter_id, target_id);
+	damage_monitor::enemyhit(proxy, bullet_id, shooter_id, target_id).await;
 
 	Ok(false)
 }

@@ -6,7 +6,7 @@ use objects::Objects;
 pub mod bullets;
 pub mod objects;
 
-pub use bullets::{enemyshoot, playershoot, serverplayershoot};
+pub use bullets::{enemyshoot, playershoot, serverplayershoot, set_rng_seed};
 pub use objects::{add_object, object_int_stat, object_str_stat, remove_object};
 
 #[derive(Default)]

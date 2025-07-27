@@ -1,5 +1,8 @@
 use crate::{
-	proxy::{Proxy, logic::antilag},
+	proxy::{
+		Proxy,
+		logic::{antilag, damage_monitor},
+	},
 	util::View,
 };
 use anyhow::Result;
@@ -18,7 +21,7 @@ pub async fn damage(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resul
 	let _bullet_id = View(b, c).try_get_u16()?;
 	let owner_id = View(b, c).try_get_u32()?;
 
-	// damage_monitor::damage(proxy, target_obj_id, damage_amount, owner_id);
+	damage_monitor::do_damage(proxy, target_obj_id, damage_amount, owner_id);
 
 	let should_block = antilag::should_block_damage(proxy, target_obj_id, owner_id);
 

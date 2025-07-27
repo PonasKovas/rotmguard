@@ -1,5 +1,8 @@
 use crate::{
-	proxy::Proxy,
+	proxy::{
+		Proxy,
+		logic::{common, damage_monitor},
+	},
 	util::{View, read_str},
 };
 use anyhow::Result;
@@ -26,8 +29,8 @@ pub async fn mapinfo(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resu
 	// supress warning that not all bytes were parsed
 	*c = b.len();
 
-	// damage_monitor::set_map_name(proxy, name);
-	// damage_monitor::set_rng_seed(proxy, seed);
+	damage_monitor::set_map_name(proxy, name);
+	common::set_rng_seed(proxy, seed);
 
 	Ok(false)
 }

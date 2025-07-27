@@ -1,7 +1,7 @@
 use crate::{
 	proxy::{
 		Proxy,
-		logic::{antidebuffs, antipush, autonexus, common, fakeslow},
+		logic::{antidebuffs, antipush, autonexus, common, damage_monitor, fakeslow},
 		packets::common::parse_object_data,
 	},
 	util::{
@@ -93,7 +93,7 @@ pub async fn update(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resul
 	for _ in 0..to_remove_n {
 		let object_id = read_compressed_int(View(b, c))? as u32;
 
-		// damage_monitor::remove_object(proxy, object_id);
+		damage_monitor::remove_object(proxy, object_id);
 		common::remove_object(proxy, object_id);
 	}
 	let end_cursor = *c;
