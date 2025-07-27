@@ -12,6 +12,7 @@ use bytes::{Buf, BytesMut};
 use common::Common;
 use damage_monitor::DamageMonitor;
 use fakeslow::FakeSlow;
+use notify::Notify;
 use tracing::{info, warn};
 
 pub mod antidebuffs;
@@ -22,6 +23,7 @@ pub mod common;
 pub mod con;
 pub mod damage_monitor;
 pub mod fakeslow;
+pub mod notify;
 
 pub struct State {
 	pub common: Common,
@@ -29,6 +31,7 @@ pub struct State {
 	pub fakeslow: FakeSlow,
 	pub autonexus: Autonexus,
 	pub damage_monitor: DamageMonitor,
+	pub notify: Notify,
 }
 
 impl State {
@@ -39,6 +42,7 @@ impl State {
 			fakeslow: Default::default(),
 			autonexus: Default::default(),
 			damage_monitor: DamageMonitor::new(rotmguard),
+			notify: Default::default(),
 		})
 	}
 }

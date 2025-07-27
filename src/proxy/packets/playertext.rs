@@ -1,7 +1,7 @@
 use crate::{
 	proxy::{
 		Proxy,
-		logic::{antipush, autonexus, con, damage_monitor, fakeslow},
+		logic::{antipush, autonexus, con, damage_monitor, fakeslow, notify},
 	},
 	util::{BLUE, GREEN, RED, View, read_str, static_notification},
 };
@@ -86,6 +86,14 @@ pub async fn playertext(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> R
 			};
 
 			proxy.send_client(notification).await;
+
+			Ok(true)
+		}
+		"/notify" => {
+			notify::enable(proxy);
+			proxy
+				.send_client(static_notification!("notification enabled", GREEN))
+				.await;
 
 			Ok(true)
 		}
