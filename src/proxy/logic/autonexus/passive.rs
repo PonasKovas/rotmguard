@@ -1,10 +1,9 @@
-use tracing::error;
-
-use super::{devmode, get_conditions};
+use super::{check_health, devmode, get_conditions, reset_safe_sync_delay};
 use crate::{
 	proxy::Proxy,
 	util::{CONDITION_BITFLAG, create_effect, create_notification},
 };
+use tracing::error;
 
 pub async fn new_tick(proxy: &mut Proxy, _id: u32, time: u32) {
 	let time_seconds = time as f32 / 1000.0;
@@ -17,6 +16,7 @@ pub async fn new_tick(proxy: &mut Proxy, _id: u32, time: u32) {
 
 		// bleeding stops at 1
 		proxy.state.autonexus.hp = (proxy.state.autonexus.hp - bleed_amount).max(1.0);
+		reset_safe_sync_delay(proxy);
 	} else if (conditions & CONDITION_BITFLAG::SICK) == 0 {
 		// if not sick
 
@@ -73,12 +73,31 @@ pub async fn new_tick(proxy: &mut Proxy, _id: u32, time: u32) {
 		}
 	}
 
-	let hp_delta = stats.hp - proxy.state.autonexus.hp.round() as i64;
+	if let Some(breath) = stats.breath {
+		if breath == 0 {
+			proxy.state.autonexus.hp -= time_seconds * 100.0;
 
-	if devmode(proxy) && hp_delta <= -2 {
+			check_health(proxy).await;
+			reset_safe_sync_delay(proxy);
+		}
+	}
+
+	if let Some(blizzard) = stats.blizzard {
+		if blizzard >= 100 {
+			proxy.state.autonexus.hp -= time_seconds * 100.0;
+
+			check_health(proxy).await;
+			reset_safe_sync_delay(proxy);
+		}
+	}
+
+	let hp_delta = stats.hp - proxy.state.autonexus.hp.round() as i64;
+	let delta_per_sec = hp_delta as f32 / time_seconds;
+
+	if devmode(proxy) && hp_delta <= -2 && stats.hp != stats.max_hp {
 		proxy
 			.send_client(create_notification(
-				&format!("negdelta {hp_delta}"),
+				&format!("negdelta {hp_delta}\nd/s {delta_per_sec:.4}"),
 				0xff2222,
 			))
 			.await;

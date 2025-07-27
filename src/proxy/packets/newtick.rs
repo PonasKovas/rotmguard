@@ -44,7 +44,7 @@ pub async fn newtick(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resu
 		parse_object_data!(b, c;
 			object(object_id, _pos_x, _pos_y) => {};
 			int_stat(stat_type, stat) => {
-				common::object_int_stat(proxy, object_id, stat_type, stat);
+				common::object_int_stat(proxy, object_id, stat_type, stat).await;
 
 				// if status about self and is condition stat
 				if object_id == proxy.state.common.objects.self_id {

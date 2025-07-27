@@ -155,6 +155,12 @@ pub fn remove_object(proxy: &mut Proxy, obj_id: u32) {
 		// for enemies, just check if they have taken enough damage to be saved
 		if !proxy.state.damage_monitor.has_enemy_taken_damage(id) {
 			proxy.state.damage_monitor.enemies.remove(&id);
+		} else {
+			if let Some(name) = &obj.name {
+				let name = name.clone();
+				let enemy = get_enemy(proxy, id);
+				enemy.name = name;
+			}
 		}
 	}
 }

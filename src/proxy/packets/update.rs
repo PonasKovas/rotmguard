@@ -112,7 +112,7 @@ pub async fn update(proxy: &mut Proxy, b: &mut BytesMut, c: &mut usize) -> Resul
 				common::add_object(proxy, object_id, object_type);
 			};
 			int_stat(stat_type, stat) => {
-				common::object_int_stat(proxy, object_id, stat_type, stat);
+				common::object_int_stat(proxy, object_id, stat_type, stat).await;
 
 				if object_id == proxy.state.common.objects.self_id {
 					let mut new_stat = stat;

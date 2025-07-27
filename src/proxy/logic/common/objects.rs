@@ -33,6 +33,8 @@ pub struct Stats {
 	pub conditions: u64,
 	pub conditions2: u64,
 	pub exalt_bonus_dmg: i64,
+	pub breath: Option<i64>,
+	pub blizzard: Option<i64>,
 }
 
 #[derive(Default, Clone)]
@@ -76,7 +78,7 @@ pub fn remove_object(proxy: &mut Proxy, object_id: u32) {
 	// server sends objects to remove that werent even added all the time. ignore errors
 }
 
-pub fn object_int_stat(proxy: &mut Proxy, object_id: u32, stat_type: u8, stat: i64) {
+pub async fn object_int_stat(proxy: &mut Proxy, object_id: u32, stat_type: u8, stat: i64) {
 	let object = match proxy.state.common.objects.get_mut(object_id) {
 		Some(x) => x,
 		None => return, // bruh
@@ -138,6 +140,12 @@ pub fn object_int_stat(proxy: &mut Proxy, object_id: u32, stat_type: u8, stat: i
 			} else {
 				object.equipped_items[3].get_or_insert_default().id = stat as u32;
 			}
+		}
+		STAT_TYPE::BREATH => {
+			object.stats.breath = Some(stat);
+		}
+		STAT_TYPE::BLIZZARD => {
+			object.stats.blizzard = Some(stat);
 		}
 		_ => {}
 	}

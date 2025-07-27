@@ -92,15 +92,6 @@ pub async fn client_tick_ack(proxy: &mut Proxy, tick_id: u32, tick_time: u32) {
 	let hp_delta = stats.hp - proxy.state.autonexus.hp.round() as i64;
 	let safe_to_sync = tick_id > proxy.state.autonexus.tick_to_sync_after;
 	if safe_to_sync && hp_delta != 0 {
-		if devmode(proxy) {
-			proxy
-				.send_client(create_notification(
-					&format!("SAFESYNC {hp_delta}"),
-					0xff44ff,
-				))
-				.await;
-		}
-
 		proxy.state.autonexus.hp = stats.hp as f32;
 	}
 }
@@ -201,19 +192,27 @@ async fn take_damage_raw(proxy: &mut Proxy, dmg: i64) {
 	}
 
 	proxy.state.autonexus.hp -= dmg as f32;
+	reset_safe_sync_delay(proxy);
+
+	check_health(proxy).await;
+
+	if devmode(proxy) {
+		let notification = create_notification(&format!("-{dmg}"), 0x888888);
+		proxy.send_client(notification).await;
+	}
+}
+
+fn reset_safe_sync_delay(proxy: &mut Proxy) {
 	// safe to sync HP only after client acknowledges 10 ticks after current server tick
 	proxy.state.autonexus.tick_to_sync_after = proxy.state.common.server_tick_id + 10;
+}
 
+async fn check_health(proxy: &mut Proxy) {
 	let threshold = *proxy.rotmguard.config.settings.autonexus_hp.lock().unwrap();
 	if proxy.state.autonexus.hp < threshold as f32 {
 		// AUTONEXUS ENGAGE!!!
 		proxy.send_server(create_escape()).await;
 		info!("nexusing");
-	}
-
-	if devmode(proxy) {
-		let notification = create_notification(&format!("-{dmg}"), 0x888888);
-		proxy.send_client(notification).await;
 	}
 }
 

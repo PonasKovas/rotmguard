@@ -200,7 +200,6 @@ pub fn serverplayershoot(
 	let shooter_type = match proxy.state.common.objects.get(shooter_id) {
 		Some(x) => x.type_id as u32,
 		None => {
-			error!("serverplayershoot from unknown object");
 			return;
 		}
 	};

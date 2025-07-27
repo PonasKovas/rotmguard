@@ -138,6 +138,7 @@ pub mod STAT_TYPE {
 	pub const BACKPACK_14: u8 = 145;
 	pub const BACKPACK_15: u8 = 146;
 	pub const DUST_AMOUNT: u8 = 147;
+	pub const BLIZZARD: u8 = 150;
 }
 
 #[allow(dead_code, non_snake_case)]
