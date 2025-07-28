@@ -103,12 +103,12 @@ fn parse_object(
 		subattacks
 			.into_iter()
 			.enumerate()
-			.try_fold(BTreeMap::new(), |mut acc, (i, projectile_id)| {
-				projectiles.get(&projectile_id).map(|proj| {
-					acc.insert(i as u8, proj.clone());
-					acc
-				})
+			.map(|(i, projectile_id)| {
+				projectiles
+					.get(&projectile_id)
+					.map(|proj| (i as u8, proj.clone()))
 			})
+			.collect::<Option<BTreeMap<_, _>>>()
 			.context("subattack invalid ProjectileId")?
 	};
 
