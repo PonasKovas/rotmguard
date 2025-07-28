@@ -69,23 +69,48 @@ fn parse_object(
 	};
 
 	let mut projectiles = BTreeMap::new();
+	let mut subattacks = Vec::new();
 
 	let mut projectile_i = 0; // projectiles dont always have ids, so we keep a counter ourselves
 	for parameter in object.child_elements() {
-		if parameter.name == "Projectile" {
-			let (modded, id, projectile) = parse_projectile(config, parameter)
-				.with_context(|| format!("projectile {projectile_i}"))?;
+		match parameter.name.as_str() {
+			"Projectile" => {
+				let (modded, id, projectile) = parse_projectile(config, parameter)
+					.with_context(|| format!("projectile {projectile_i}"))?;
 
-			modified |= modded;
+				modified |= modded;
 
-			let id = id.unwrap_or(projectile_i);
-			projectile_i += 1;
+				let id = id.unwrap_or(projectile_i);
+				projectile_i += 1;
 
-			if projectiles.insert(id, projectile).is_some() {
-				bail!("duplicate projectile id {id}");
+				if projectiles.insert(id, projectile).is_some() {
+					bail!("duplicate projectile id {id}");
+				}
 			}
+			"Subattack" => {
+				let projectile_id = parse_subattack(parameter)
+					.with_context(|| format!("subattack {}", subattacks.len()))?;
+
+				subattacks.push(projectile_id);
+			}
+			_ => {}
 		}
 	}
+
+	let projectiles = if subattacks.is_empty() {
+		projectiles
+	} else {
+		subattacks
+			.into_iter()
+			.enumerate()
+			.try_fold(BTreeMap::new(), |mut acc, (i, projectile_id)| {
+				projectiles.get(&projectile_id).map(|proj| {
+					acc.insert(i as u8, proj.clone());
+					acc
+				})
+			})
+			.context("subattack invalid ProjectileId")?
+	};
 
 	let object_data = Object {
 		name,
@@ -211,4 +236,15 @@ fn parse_projectile(
 			inflicts,
 		},
 	))
+}
+
+fn parse_subattack(subattack: &mut Element) -> Result<u8> {
+	let projectile_id = subattack
+		.attributes
+		.get("projectileId")
+		.context("subattack has no projectileId")?
+		.parse::<u8>()
+		.context("subattack projectile id non-integer")?;
+
+	Ok(projectile_id)
 }
