@@ -30,8 +30,17 @@ pub fn should_block_object_notification(
 	_color: u32,
 	_message: &str,
 ) -> bool {
-	// block if antilag enabled and if the notification is not on me
+	// block if antilag enabled and if the notification is on another player which is not me
 
 	let self_id = proxy.state.common.objects.self_id;
-	*proxy.rotmguard.config.settings.antilag.lock().unwrap() && obj_id != self_id
+	let obj = match proxy.state.common.objects.get(obj_id) {
+		Some(x) => x,
+		None => return false, // if we are not aware of the object, safer to let it pass
+	};
+
+	if obj_id != self_id && obj.is_player {
+		*proxy.rotmguard.config.settings.antilag.lock().unwrap()
+	} else {
+		false
+	}
 }
