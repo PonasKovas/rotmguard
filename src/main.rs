@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use assets::Assets;
 use config::Config;
 use damage_monitor_http_server::DamageMonitorHttp;
-use flushskip_stats::FlushSkips;
+use stats::Stats;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::{env, fs};
@@ -14,19 +14,19 @@ mod assets;
 mod config;
 mod damage_monitor_http_server;
 mod fetch_server_list;
-mod flushskip_stats;
 mod iptables;
 mod logging;
 mod packet_logger;
 mod proxy;
 mod rc4;
+mod stats;
 mod util;
 
 struct Rotmguard {
 	config: Config,
 	assets: Assets,
 	rotmg_servers: HashMap<String, String>,
-	flush_skips: FlushSkips,
+	stats: Stats,
 	damage_monitor_http: DamageMonitorHttp,
 }
 
@@ -75,7 +75,7 @@ async fn async_main(config: Config, assets: Assets) -> Result<()> {
 		config,
 		assets,
 		rotmg_servers: fetch_server_list::fetch().await?,
-		flush_skips: Default::default(),
+		stats: Default::default(),
 		damage_monitor_http,
 	});
 

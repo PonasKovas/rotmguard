@@ -82,7 +82,8 @@ impl Writer {
 			unflushed_packet_ids.push(bytes[0]);
 
 			// packet len
-			self.write(&u32::to_be_bytes(bytes.len() as u32 + 4), false) // includes itself so +4
+			let packet_len = bytes.len() + 4;
+			self.write(&u32::to_be_bytes(packet_len as u32), false) // includes itself so +4
 				.await?;
 
 			// packet id
@@ -92,15 +93,19 @@ impl Writer {
 			self.write(&bytes[1..], true).await?;
 
 			let elapsed = last_flush.elapsed();
-			last_flush = Instant::now();
 			if !LOW_PRIORITY_PACKETS.contains(&bytes[0]) {
 				self.flush().await?;
+				last_flush = Instant::now();
 
 				unflushed_packet_ids.clear();
 
-				rotmguard.flush_skips.add_packet(direction, elapsed, true);
+				rotmguard
+					.stats
+					.add_packet(direction, packet_len, elapsed, true);
 			} else {
-				rotmguard.flush_skips.add_packet(direction, elapsed, false);
+				rotmguard
+					.stats
+					.add_packet(direction, packet_len, elapsed, false);
 			}
 		}
 		Ok(())
