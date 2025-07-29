@@ -15,7 +15,7 @@ pub fn generate_report(this: &DamageMonitor) -> Option<Report> {
 		.enemies
 		.iter()
 		.map(|(_enemy_id, enemy)| {
-			let total_damage = enemy.player_damage.values().sum();
+			let total_damage = enemy.player_damage.values().map(|(_status, dmg)| dmg).sum();
 
 			EnemyTab {
 				name: enemy.name.clone(),
@@ -25,14 +25,14 @@ pub fn generate_report(this: &DamageMonitor) -> Option<Report> {
 					let mut player_rows: Vec<PlayerRow> = enemy
 						.player_damage
 						.iter()
-						.filter(|(_p, dmg)| **dmg > 0)
-						.map(|(&player_id, &damage)| {
+						.filter(|(_p, (_status, dmg))| *dmg > 0)
+						.map(|(&player_id, &(status, damage))| {
 							let player = &this.players[&player_id];
 
 							PlayerRow {
 								name: player.name.clone(),
 								is_self: player.is_self,
-								status: match player.status {
+								status: match status {
 									super::PlayerStatus::Present => ' ',
 									super::PlayerStatus::Death => '🪦',
 									super::PlayerStatus::Nexus => 'N',

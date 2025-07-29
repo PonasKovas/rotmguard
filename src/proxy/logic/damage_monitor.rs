@@ -28,18 +28,17 @@ pub struct DamageMonitor {
 struct Enemy {
 	name: String,
 	object_type: u32,
-	player_damage: BTreeMap<u64, i64>,
+	player_damage: BTreeMap<u64, (PlayerStatus, i64)>,
 }
 
 #[derive(Default)]
 struct Player {
 	name: String,
 	is_self: bool,
-	status: PlayerStatus,
 	items: [Option<Item>; 4],
 }
 
-#[derive(Default, PartialEq)]
+#[derive(Default, PartialEq, Copy, Clone)]
 enum PlayerStatus {
 	#[default]
 	Present,
@@ -144,12 +143,12 @@ pub fn remove_object(proxy: &mut Proxy, obj_id: u32) {
 		} else {
 			// if a player is removed, we mark them as nexused by default
 			// if we receive a death notification it will be overwritten.
+			// also save the last known equipped items
 			let equipped_items = obj.equipped_items.clone();
 			let player = get_player(proxy, id);
-			if player.status == PlayerStatus::Present {
-				player.status = PlayerStatus::Nexus;
-			}
 			player.items = equipped_items;
+
+			mark_player(proxy, id, PlayerStatus::Nexus);
 		}
 	} else {
 		// for enemies, just check if they have taken enough damage to be saved
@@ -192,11 +191,14 @@ pub fn death_notification(proxy: &mut Proxy, json: &str) {
 			let player_name = notification.t.player.split(',').next().unwrap();
 
 			// mark the player as dead, if hes in our records
-			for (_, player) in &mut proxy.state.damage_monitor.players {
-				if player.name == player_name {
-					player.status = PlayerStatus::Death;
-					break;
-				}
+			if let Some((id, _)) = proxy
+				.state
+				.damage_monitor
+				.players
+				.iter()
+				.find(|(_id, player)| player.name == player_name)
+			{
+				mark_player(proxy, *id, PlayerStatus::Death)
 			}
 		}
 		Err(_) => {
@@ -225,10 +227,11 @@ pub fn do_damage(proxy: &mut Proxy, target_obj_id: u32, damage_amount: u16, owne
 	let target_id = target.unique_id;
 
 	get_player(proxy, shooter_id);
-	*get_enemy(proxy, target_id)
+	get_enemy(proxy, target_id)
 		.player_damage
 		.entry(shooter_id)
-		.or_default() += damage_amount as i64;
+		.or_default()
+		.1 += damage_amount as i64;
 }
 
 pub async fn enemyhit(proxy: &mut Proxy, bullet_id: u16, shooter_id: u32, target_id: u32) {
@@ -337,7 +340,7 @@ impl DamageMonitor {
 		match self.enemies.get(&enemy_id) {
 			Some(enemy) => {
 				let mut total_damage = 0;
-				for (_player_id, damage) in &enemy.player_damage {
+				for (_player_id, (_status, damage)) in &enemy.player_damage {
 					total_damage += damage;
 				}
 				total_damage
@@ -381,7 +384,6 @@ fn get_player(proxy: &mut Proxy, unique_id: u64) -> &mut Player {
 					None => get_obj_type_name(&proxy.rotmguard, obj.type_id as u32).to_owned(),
 				},
 				is_self: obj_id == proxy.state.common.objects.self_id,
-				status: PlayerStatus::Present,
 				items: obj.equipped_items.clone(),
 			}
 		})
@@ -413,6 +415,23 @@ fn get_enemy(proxy: &mut Proxy, unique_id: u64) -> &mut Enemy {
 				player_damage: Default::default(),
 			}
 		})
+}
+
+fn mark_player(proxy: &mut Proxy, unique_id: u64, status: PlayerStatus) {
+	// iterate over alive enemies and mark the player as dead in their data
+	for obj in proxy.state.common.objects.objects.values() {
+		if obj.is_player {
+			continue;
+		}
+		if let Some(enemy) = proxy.state.damage_monitor.enemies.get_mut(&obj.unique_id) {
+			if let Some(player) = enemy.player_damage.get_mut(&unique_id) {
+				// only mark if the status isnt already dead, since thats the final status and takes priority
+				if player.0 != PlayerStatus::Death {
+					player.0 = status;
+				}
+			}
+		}
+	}
 }
 
 // adds a finalised report to memory on drop
