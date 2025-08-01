@@ -4,7 +4,7 @@
 #
 # Proton pfx can be found in ~/.steam/root/steamapps/compatdata/<app id>/pfx/
 # To find the `app id` of your game, in Steam library right click on it -> properties -> Updates
-assets_res = "/home/mykolas/.steam/root/steamapps/compatdata/200210/pfx/drive_c/users/steamuser/Documents/RealmOfTheMadGod/Production/RotMG Exalt_Data/resources.assets"
+assets_res = "/home/mykolas/.steam/steam/steamapps/compatdata/200210/pfx/drive_c/users/steamuser/My Documents/RealmOfTheMadGod/Production/RotMG Exalt_Data/resources.assets"
 
 [settings]
 # HP *below* which to autonexus. Anything less than 1 might result in death

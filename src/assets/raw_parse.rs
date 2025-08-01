@@ -198,20 +198,18 @@ fn in_endian<ORDER: ByteOrder>(mut file: BufReader<File>, data_offset: u64) -> R
 				if !["mapObjects", "characters"].contains(&name.as_str()) {
 					continue;
 				}
-				align_stream(&mut file)?;
 
 				// a bunch of slop...
 				let _forced_fallback_format = file.read_u32::<ORDER>()?;
 				let _downscale_fallback = file.read_u8()?;
 				let _alpha_channel_optional = file.read_u8()?;
-				align_stream(&mut file)?;
 				let width = file.read_u32::<ORDER>()?;
 				let height = file.read_u32::<ORDER>()?;
 				let _complete_image_size = file.read_u32::<ORDER>()?;
 				let _mips_stripped = file.read_u32::<ORDER>()?;
 				let texture_format = file.read_u32::<ORDER>()?;
 				if texture_format != 4 {
-					bail!("expected RGBA32 Texture2D image format");
+					bail!("expected RGBA32 Texture2D image format, found format {texture_format}");
 				}
 				let _mip_count = file.read_u32::<ORDER>()?;
 				let _is_readable = file.read_u8()?;
