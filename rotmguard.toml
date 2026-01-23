@@ -1,11 +1,10 @@
 # A path to the game's resources.assets.
 # Look in your proton pfx, it can usually be found in somewhere like
-# C:/users/steamuser/Documents/RealmOfTheMadGod/Production/RotMG Exalt_Data/
-# or C:/users/steamuser/AppData/Local/RealmOfTheMadGod/Production/RotMG Exalt_Data/
+# C:/users/steamuser/AppData/Local/RealmOfTheMadGod/Production/RotMG Exalt_Data/
 #
 # Proton pfx can be found in ~/.steam/root/steamapps/compatdata/<app id>/pfx/
 # To find the `app id` of your game, in Steam library right click on it -> properties -> Updates
-assets_res = "/home/mykolas/.local/share/Steam/steamapps/compatdata/200210/pfx/drive_c/users/steamuser/AppData/Local/RealmOfTheMadGod/Production/RotMG Exalt_Data/resources.assets"
+assets_res = "/home/mykolas/.steam/steam/steamapps/compatdata/200210/pfx/drive_c/users/steamuser/AppData/Local/RealmOfTheMadGod/Production/RotMG Exalt_Data/resources.assets"
 
 [settings]
 # HP *below* which to autonexus. Anything less than 1 might result in death

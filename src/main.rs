@@ -27,9 +27,9 @@ mod util;
 #[command(version, about, long_about = None)]
 struct Args {
 	/// logs all packet bytes for inspection
-	#[arg(long, action)]
+	#[arg(long, default_value_t = false)]
 	packet_logger: bool,
-	/// internal
+	/// [internal]
 	#[arg(long, action)]
 	iptables: Option<u16>,
 }

@@ -7,10 +7,9 @@ import socketserver
 import webbrowser
 from urllib.parse import urlparse, parse_qs
 
-# Configuration
-FILE_PATH = "/home/mykolas/Projects/rotmguard/packet_data-2026-01-23 14:00:21.275877450 +02:00"  # CHANGE THIS to your log file path
+FILE_PATH = sys.argv[1] if len(sys.argv) > 1 else ""
 PORT = 8000
-CHUNK_SIZE = 50  # How many packets to load per page
+CHUNK_SIZE = 100  # How many packets to load per page
 
 class PacketIndexer:
     def __init__(self, filepath):
