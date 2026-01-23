@@ -84,29 +84,28 @@ pub async fn run(rotmguard: Arc<Rotmguard>, client: TcpStream, server: TcpStream
 	let s_read = Reader::new(s_read, RC4_KEY_S2C);
 	let c_read = Reader::new(c_read, RC4_KEY_C2S);
 
-	let mut packet_logger = packet_logger::PacketLogger::new().await?;
-
-	let r = proxy.run(c_read, s_read, &mut packet_logger).await;
-
-	packet_logger.finish().await?;
+	let r = proxy.run(c_read, s_read).await;
 
 	r
 }
 
 impl Proxy {
-	async fn run(
-		mut self,
-		mut c_read: Reader,
-		mut s_read: Reader,
-		packet_logger: &mut packet_logger::PacketLogger,
-	) -> Result<()> {
+	async fn run(mut self, mut c_read: Reader, mut s_read: Reader) -> Result<()> {
+		let mut packet_logger = if self.rotmguard.args.packet_logger {
+			Some(packet_logger::PacketLogger::new().await?)
+		} else {
+			None
+		};
+
 		loop {
 			select! {
 				res = c_read.read_more() => {
 					res?;
 
 					while let Some(packet) = c_read.try_get_packet()? {
-						packet_logger.add(Direction::C2S, &packet).await?;
+						if let Some(logger) = &mut packet_logger {
+							logger.add(Direction::C2S, &packet).await?;
+						}
 
 						logic::handle_c2s_packet(&mut self, packet).await?;
 					}
@@ -115,8 +114,9 @@ impl Proxy {
 					res?;
 
 					while let Some(packet) = s_read.try_get_packet()? {
-						packet_logger.add(Direction::S2C, &packet).await?;
-
+						if let Some(logger) = &mut packet_logger {
+							logger.add(Direction::S2C, &packet).await?;
+						}
 
 						logic::handle_s2c_packet(&mut self, packet).await?;
 					}

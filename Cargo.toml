@@ -13,7 +13,7 @@ futures = "0.3.31"
 json5 = "0.4.1"
 lru = "0.12.3"
 nix = { version = "0.29.0", features = ["socket", "net", "signal"] }
-reqwest = "0.12.21" # for fetching server ips
+reqwest = "0.13.1" # for fetching server ips
 serde = { version = "1.0.203", features = ["derive"] }
 tokio = { version = "1.37.0", features = ["full"] }
 toml = "0.8.13"
@@ -33,3 +33,4 @@ arrayvec = "0.7.6"
 num_enum = "0.7.4"
 notify-rust = "4.11.7"
 tempfile = "3.20.0"
+clap = { version = "4.5.54", features = ["derive"] }

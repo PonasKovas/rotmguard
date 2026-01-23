@@ -7,9 +7,6 @@ use std::{
 };
 use tracing::info;
 
-// when this binary is run with this flag it will just add the iptables rules
-pub const IPTABLES_ACTOR_FLAG: &str = "--iptables";
-
 const TIMEOUT: u64 = 5; // seconds
 
 #[derive(PartialEq)]
@@ -22,7 +19,7 @@ enum Signal {
 	M2AStop,
 }
 
-pub fn iptables_actor() -> Result<()> {
+pub fn iptables_actor(port: u16) -> Result<()> {
 	fn run(command: &str) -> Result<()> {
 		let mut c = command.split(' ');
 
@@ -34,7 +31,6 @@ pub fn iptables_actor() -> Result<()> {
 		Ok(())
 	}
 
-	let port: u16 = env::args().nth(2).context("udp port for status")?.parse()?;
 	let socket = UdpSocket::bind("127.0.0.1:0")?;
 	socket.set_read_timeout(None)?;
 	socket.connect(("127.0.0.1", port))?;
@@ -89,7 +85,7 @@ impl IpTablesRules {
 		Command::new("sudo")
 			.arg("-b") // if we dont use this, sudo fucks up the terminal mode
 			.arg(exe)
-			.arg(IPTABLES_ACTOR_FLAG)
+			.arg("--iptables")
 			.arg(format!("{port}"))
 			.spawn()?;
 

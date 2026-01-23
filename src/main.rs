@@ -1,11 +1,12 @@
 use anyhow::{Context, Result};
 use assets::Assets;
+use clap::Parser;
 use config::Config;
 use damage_monitor_http_server::DamageMonitorHttp;
 use stats::Stats;
 use std::collections::HashMap;
+use std::fs;
 use std::sync::Arc;
-use std::{env, fs};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::select;
 use tracing::{error, info};
@@ -22,7 +23,19 @@ mod rc4;
 mod stats;
 mod util;
 
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+	/// logs all packet bytes for inspection
+	#[arg(long, action)]
+	packet_logger: bool,
+	/// internal
+	#[arg(long, action)]
+	iptables: Option<u16>,
+}
+
 struct Rotmguard {
+	args: Args,
 	config: Config,
 	assets: Assets,
 	rotmg_servers: HashMap<String, String>,
@@ -38,10 +51,10 @@ enum Direction {
 }
 
 fn main() -> Result<()> {
-	if let Some(arg) = env::args().nth(1) {
-		if arg == iptables::IPTABLES_ACTOR_FLAG {
-			return iptables::iptables_actor();
-		}
+	let args = Args::parse();
+
+	if let Some(port) = args.iptables {
+		return iptables::iptables_actor(port);
 	}
 
 	// Initialize config
@@ -51,7 +64,7 @@ fn main() -> Result<()> {
 	// Initialize logger
 	logging::init_logger(&config)?;
 
-	if packet_logger::enabled() {
+	if args.packet_logger {
 		info!("Packet logging enabled");
 	}
 
@@ -65,13 +78,14 @@ fn main() -> Result<()> {
 		.enable_all()
 		.build()
 		.unwrap()
-		.block_on(async_main(config, assets))
+		.block_on(async_main(args, config, assets))
 }
 
-async fn async_main(config: Config, assets: Assets) -> Result<()> {
+async fn async_main(args: Args, config: Config, assets: Assets) -> Result<()> {
 	let damage_monitor_http = DamageMonitorHttp::new(&config).await?;
 
 	let rotmguard = Arc::new(Rotmguard {
+		args,
 		config,
 		assets,
 		rotmg_servers: fetch_server_list::fetch().await?,
